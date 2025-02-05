@@ -1,0 +1,6 @@
+**/__pycache__/
+lithos.egg-info
+test.py
+build/
+.continueignore
+.pytest_cache/

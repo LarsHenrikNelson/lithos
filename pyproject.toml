@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lithos"
+readme = "README.md"
+description = "Lithos: plotting package for categorical and nested data."
+authors = [{ name = "Lars Henrik Nelson", email = "larshnelson@protonmail.com" }]
+maintainers = [{ name = "Lars Henrik Nelson", email = "larshnelson@protonmail.com" }]
+dynamic = ["version"]
+keywords = ["analysis"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "colorcet",
+    "KDEpy",
+    "matplotlib",
+    "numba",
+    "numpy < 2.0",
+    "pandas",
+    "scipy",
+]
+requires-python = ">=3.10"
+license = {text = 'GNU General Public License v3 (GPLv3)'}
+
+[tool.setuptools.dynamic]
+version = {attr = "lithos.__version__"}
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+    "integration",
+]
+
+[project.optional-dependencies]
+testing = ["pytest"]
+docs = ["nbconvert"]
+
+[project.urls]
+Downloads = "https://github.com/larshnelson/lithos/"
+
+[tool.setuptools.packages.find]
+namespaces = false
+where = ["lithos"]
