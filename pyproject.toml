@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -50,6 +50,5 @@ docs = ["nbconvert"]
 [project.urls]
 Downloads = "https://github.com/larshnelson/lithos/"
 
-[tool.setuptools.packages.find]
-namespaces = false
-where = ["lithos"]
+[tool.setuptools]
+packages=["lithos"]
