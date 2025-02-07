@@ -8,18 +8,17 @@ import pandas as pd
 from matplotlib.colors import Normalize, to_rgba
 from numpy.random import default_rng
 
-STANDARD_COLORS = [
-    "#1f77b4",
-    "#ff7f0e",
-    "#2ca02c",
-    "#d62728",
-    "#9467bd",
-    "#8c564b",
-    "#e377c2",
-    "#7f7f7f",
-    "#bcbd22",
-    "#17becf",
-]
+
+def _calc_hist(data, bins, stat):
+    if stat == "probability":
+        data, _ = np.histogram(data, bins)
+        return data / data.sum()
+    elif stat == "count":
+        data, _ = np.histogram(data, bins)
+        return data
+    elif stat == "density":
+        data, _ = np.histogram(data, bins, density=True)
+        return data
 
 
 def create_dict(grouping: str | int | dict, unique_groups: list) -> dict:

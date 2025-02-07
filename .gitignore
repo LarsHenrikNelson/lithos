@@ -4,3 +4,4 @@ test.py
 build/
 .continueignore
 .pytest_cache/
+.vscode/
