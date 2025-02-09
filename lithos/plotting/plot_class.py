@@ -58,7 +58,7 @@ class BasePlot:
         self.inplace = inplace
         self.plots = []
         self.plot_list = []
-        self._plot_funcs = []
+        self._plot_methods = []
         self._plot_prefs = []
         self._grouping = {}
         self._plot_settings_run = False
@@ -251,7 +251,8 @@ class BasePlot:
 
     def clear_plots(self):
         self.plots = []
-        self.plot_list = []
+        self._plot_methods = []
+        self._plot_prefs = []
 
         if not self.inplace:
             return self
@@ -351,7 +352,7 @@ class BasePlot:
             "data": self._plot_data,
             "format": self.plot_format,
             "transforms": self._plot_transforms,
-            "plot_methods": self._plot_funcs,
+            "plot_methods": self._plot_methods,
             "plot_prefs": self._plot_prefs,
         }
         return output
@@ -469,7 +470,7 @@ class LinePlot(BasePlot):
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
     ):
-        self._plot_funcs.append("line")
+        self._plot_methods.append("line")
         self._plot_prefs.append(
             {
                 "linecolor": linecolor,
@@ -495,8 +496,7 @@ class LinePlot(BasePlot):
             "alpha": alpha,
             "unique_id": unique_id,
         }
-        self.plots.append(line_plot)
-        self.plot_list.append("line_plot")
+        self.plot_list.append(("line_plot", line_plot))
 
         if not self.inplace:
             return self
@@ -519,7 +519,7 @@ class LinePlot(BasePlot):
         sort=True,
         unique_id=None,
     ):
-        self._plot_funcs.append("aggline")
+        self._plot_methods.append("aggline")
         self._plot_prefs.append(
             {
                 "marker": marker,
@@ -577,8 +577,7 @@ class LinePlot(BasePlot):
             "unique_id": unique_id,
             "agg_func": agg_func,
         }
-        self.plots.append(line_plot)
-        self.plot_list.append("aggline")
+        self.plot_list.append(("aggline", line_plot))
 
         if not self.inplace:
             return self
@@ -600,7 +599,7 @@ class LinePlot(BasePlot):
         err_func=None,
         KDEType: Literal["tree", "fft"] = "fft",
     ):
-        self._plot_funcs.append("kde")
+        self._plot_methods.append("kde")
         self._plot_prefs.append(
             {
                 "kernel": kernel,
@@ -651,8 +650,7 @@ class LinePlot(BasePlot):
             "fillalpha": alpha / 2 if fillalpha is None else fillalpha,
         }
 
-        self.plots.append(kde_plot)
-        self.plot_list.append("kde")
+        self.plot_list.append(("kde", kde_plot))
 
         if not self.inplace:
             return self
@@ -671,7 +669,7 @@ class LinePlot(BasePlot):
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
     ):
-        self._plot_funcs.append("polyhist")
+        self._plot_methods.append("polyhist")
         self._plot_pref.append(
             {
                 "linestyle": linestyle,
@@ -713,8 +711,7 @@ class LinePlot(BasePlot):
             "unique_id": unique_id,
             "alpha": alpha,
         }
-        self.plots.append(poly_hist)
-        self.plot_list.append("poly_hist")
+        self.plot_list.append(("poly_hist", poly_hist))
 
         if not self.inplace:
             return self
@@ -735,7 +732,7 @@ class LinePlot(BasePlot):
         agg_func=None,
         unique_id=None,
     ):
-        self._plot_funcs.append("hist")
+        self._plot_methods.append("hist")
         self._plot_prefs.append(
             {
                 "hist_type": hist_type,
@@ -781,8 +778,7 @@ class LinePlot(BasePlot):
             "linealpha": linealpha,
             "projection": self.plot_format["figure"]["projection"],
         }
-        self.plots.append(hist)
-        self.plot_list.append("hist")
+        self.plot_list.append(("hist", hist))
 
         if self.plot_format["figure"]["projection"] == "polar":
             self.plot_format["grid"]["ygrid"] = True
@@ -813,7 +809,7 @@ class LinePlot(BasePlot):
         if ecdf_args is None and agg_func is not None:
             ecdf_args = {"size": 1000, "repititions": 1000, "seed": 42}
             ecdf_type = "bootstrap"
-        self._plot_funcs.append("ecdf")
+        self._plot_methods.append("ecdf")
         self._plot_prefs.append(
             {
                 "marker": marker,
@@ -877,8 +873,7 @@ class LinePlot(BasePlot):
             "fillalpha": fillalpha,
             "fill_between": fill_between,
         }
-        self.plots.append(ecdf)
-        self.plot_list.append("ecdf")
+        self.plot_list.append(("ecdf", ecdf))
 
         self.plot_format["axis"]["ylim"] = [0.0, 1.0]
 
@@ -893,7 +888,7 @@ class LinePlot(BasePlot):
         markersize: float | str = 1,
         alpha: float = 1.0,
     ):
-        self._plot_funcs.append("scatter")
+        self._plot_methods.append("scatter")
         self._plot_prefs.append(
             {
                 "marker": marker,
@@ -960,7 +955,7 @@ class LinePlot(BasePlot):
             self._plot_dict["levels"],
             self._plot_dict["unique_groups"],
         )
-        plot_data = {
+        scatter = {
             "markers": marker,
             "markercolors": colors,
             "edgecolors": edgecolors,
@@ -968,8 +963,7 @@ class LinePlot(BasePlot):
             "facetgroup": facetgroup,
         }
 
-        self.plot_list.append("scatter")
-        self.plots.append(plot_data)
+        self.plot_list.append(("scatter", scatter))
 
         if not self.inplace:
             return self
@@ -1048,7 +1042,7 @@ class CategoricalPlot(BasePlot):
         unique_id: str | None = None,
         legend: bool = False,
     ):
-        self._plot_funcs.append("jitter")
+        self._plot_methods.append("jitter")
         self._plot_prefs.append(
             {
                 "color": color,
@@ -1085,8 +1079,7 @@ class CategoricalPlot(BasePlot):
             "markersize": markersize,
             "unique_id": unique_id,
         }
-        self.plots.append(jitter_plot)
-        self.plot_list.append("jitter")
+        self.plot_list.append(("jitter", jitter_plot))
 
         if legend:
             if color is not None or edgecolor == "none":
@@ -1115,7 +1108,7 @@ class CategoricalPlot(BasePlot):
         agg_func: Agg | None = None,
         legend: bool = False,
     ):
-        self._plot_funcs.append("jitteru")
+        self._plot_methods.append("jitteru")
         self._plot_prefs.append(
             {
                 "unique_id": unique_id,
@@ -1157,8 +1150,7 @@ class CategoricalPlot(BasePlot):
             "duplicate_offset": duplicate_offset,
             "agg_func": agg_func,
         }
-        self.plots.append(jitteru_plot)
-        self.plot_list.append("jitteru")
+        self.plot_list.append(("jitteru", jitteru_plot))
 
         if legend:
             if color is not None or edgecolor == "none":
@@ -1185,7 +1177,7 @@ class CategoricalPlot(BasePlot):
         alpha: float = 1.0,
         legend: bool = False,
     ):
-        self._plot_funcs.append("summary")
+        self._plot_methods.append("summary")
         self._plot_prefs.append(
             {
                 "func": func,
@@ -1214,8 +1206,8 @@ class CategoricalPlot(BasePlot):
             "color_dict": color_dict,
             "alpha": alpha,
         }
-        self.plots.append(summary_plot)
-        self.plot_list.append("summary")
+
+        self.plot_list.append(("summary", summary_plot))
 
         if legend:
             d = _process_colors(
@@ -1241,7 +1233,7 @@ class CategoricalPlot(BasePlot):
         alpha: float = 1.0,
         legend: bool = False,
     ):
-        self._plot_funcs.append("summaryu")
+        self._plot_methods.append("summaryu")
         self._plot_prefs.append(
             {
                 "func": func,
@@ -1276,8 +1268,8 @@ class CategoricalPlot(BasePlot):
             "alpha": alpha,
             "agg_width": agg_width,
         }
-        self.plots.append(summary_plot)
-        self.plot_list.append("summaryu")
+
+        self.plot_list.append(("summaryu", summary_plot))
 
         if legend:
             d = _process_colors(
@@ -1301,7 +1293,7 @@ class CategoricalPlot(BasePlot):
         show_ci: bool = False,
         legend: bool = False,
     ):
-        self._plot_funcs.append("box")
+        self._plot_methods.append("box")
         self._plot_prefs.append(
             {
                 "facecolor": facecolor,
@@ -1349,8 +1341,8 @@ class CategoricalPlot(BasePlot):
             "alpha": alpha,
             "linealpha": linealpha,
         }
-        self.plots.append(box)
-        self.plot_list.append("box")
+
+        self.plot_list.append(("box", box))
 
         if legend:
             if facecolor is not None or edgecolor == "black":
@@ -1378,7 +1370,7 @@ class CategoricalPlot(BasePlot):
         showmedians: bool = False,
         legend: bool = False,
     ):
-        self._plot_funcs.append("violin")
+        self._plot_methods.append("violin")
         self._plot_prefs.append(
             {
                 "facecolor": facecolor,
@@ -1412,8 +1404,8 @@ class CategoricalPlot(BasePlot):
             "showmedians": showmedians,
             "linewidth": linewidth,
         }
-        self.plots.append(violin)
-        self.plot_list.append("violin")
+
+        self.plot_list.append(("violin", violin))
 
         if legend:
             if facecolor is not None or edgecolor == "black":
@@ -1444,7 +1436,7 @@ class CategoricalPlot(BasePlot):
         invert: bool = False,
         legend: bool = False,
     ):
-        self._plot_funcs.append("percent")
+        self._plot_methods.append("percent")
         self._plot_prefs.append(
             {
                 "cutoff": cutoff,
@@ -1491,8 +1483,9 @@ class CategoricalPlot(BasePlot):
             "invert": invert,
             "axis_type": axis_type,
         }
-        self.plots.append(percent_plot)
-        self.plot_list.append("percent")
+
+        self.plot_list.append(("percent", percent_plot))
+
         if axis_type == "density":
             self.plot_format["axis"]["ylim"] = [0.0, 1.0]
         else:
@@ -1523,7 +1516,7 @@ class CategoricalPlot(BasePlot):
         axis_type: CountPlotTypes = "count",
         legend: bool = False,
     ):
-        self._plot_funcs.append("count")
+        self._plot_methods.append("count")
         self._plot_prefs.append(
             {
                 "facecolor": facecolor,
@@ -1557,8 +1550,7 @@ class CategoricalPlot(BasePlot):
             "edge_alpha": edge_alpha,
             "axis_type": axis_type,
         }
-        self.plots.append(count_plot)
-        self.plot_list.append("count")
+        self.plot_list.append(("count", count_plot))
 
         if legend:
             if facecolor is not None or edgecolor == "black":
@@ -1612,5 +1604,4 @@ class GraphPlot:
             "layout": layout,
             "plot_max_degree": plot_max_degree,
         }
-
         self.plots.append(graph_plot)
