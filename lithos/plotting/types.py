@@ -1,10 +1,16 @@
 from dataclasses import dataclass
-from typing import Annotated, Literal, TypedDict
+from io import BytesIO, StringIO
+from pathlib import Path
+from typing import Annotated, Literal
 
 import numpy as np
 
 
-class RectanglePlotter(TypedDict):
+@dataclass
+class RectanglePlotData:
+    plot_type: str = "rectangle"
+    width: float
+    height: float
     tops: list[float]
     bottoms: list[float]
     bins: list[float]
@@ -18,7 +24,9 @@ class RectanglePlotter(TypedDict):
     axis: Literal["x", "y"]
 
 
-class LinePlotter(TypedDict):
+@dataclass
+class LinePlotData:
+    plot_type: str = "line"
     x_data: list
     y_data: list
     error_data: list
@@ -36,7 +44,9 @@ class LinePlotter(TypedDict):
     linealpha: float | None = None
 
 
-class ScatterPlotter(TypedDict):
+@dataclass
+class ScatterPlotData:
+    plot_type: str = "scatter"
     x_data: list[np.ndarray]
     y_data: list[np.ndarray]
     marker: list[str]
@@ -47,7 +57,9 @@ class ScatterPlotter(TypedDict):
     edge_alpha: float
 
 
-class SummaryPlotter(TypedDict):
+@dataclass
+class SummaryPlotData:
+    plot_type: str = "summary"
     x_data: list
     y_data: list
     error_data: list
@@ -59,7 +71,9 @@ class SummaryPlotter(TypedDict):
     capsize: float
 
 
-class BoxPlotter(TypedDict):
+@dataclass
+class BoxData:
+    plot_type: str = "box"
     x_data: list
     y_data: list
     facecolors: list[str]
@@ -73,7 +87,9 @@ class BoxPlotter(TypedDict):
     showmeans: bool
 
 
-class ViolinPlotter(TypedDict):
+@dataclass
+class ViolinPlotData:
+    plot_type: str = "violin"
     x_data: list
     y_data: list
     facecolors: list[str]
@@ -85,15 +101,6 @@ class ViolinPlotter(TypedDict):
     showmeans: bool
     showmedians: bool
     showextrema: bool
-
-
-class HistPlotter(TypedDict):
-    x_data: list
-    y_data: list
-    facecolors: list[str]
-    edgecolors: list[str]
-    alpha: float
-    facet_index: list[int]
 
 
 type Kernels = Literal[
@@ -142,3 +149,5 @@ type Error = ErrorFuncs | callable | None
 type Agg = AggFuncs | callable
 type Transform = TransformFuncs | None
 type BinType = Literal["density", "percent"]
+type CapStyle = Literal["butt", "round", "projecting"]
+type SavePath = str | Path | BytesIO | StringIO

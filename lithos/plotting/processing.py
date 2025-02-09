@@ -6,7 +6,7 @@ from typing import Literal
 import numpy as np
 from numpy.random import default_rng
 
-from ..stats import ecdf, kde
+from .. import stats
 from ..utils import DataHolder, get_transform
 from .plot_utils import _bin_data, _calc_hist, process_duplicates, process_jitter
 from .types import (
@@ -14,17 +14,18 @@ from .types import (
     Agg,
     AlphaRange,
     BinType,
-    BoxPlotter,
+    BoxData,
     CountPlotTypes,
     Error,
     Kernels,
     Levels,
-    LinePlotter,
-    RectanglePlotter,
-    ScatterPlotter,
-    SummaryPlotter,
+    LinePlotData,
+    RectanglePlotData,
+    ScatterPlotData,
+    SummaryPlotData,
     Transform,
-    ViolinPlotter,
+    ViolinPlotData,
+    CapStyle,
 )
 
 # Reorder the filled matplotlib markers to choose the most different
@@ -61,7 +62,7 @@ HATCHES = [
 ]
 
 
-def _jitter_plot(
+def _jitter(
     data: DataHolder,
     y: str,
     levels: list[str | int],
@@ -78,7 +79,7 @@ def _jitter_plot(
     unique_id: str | None = None,
     *args,
     **kwargs,
-) -> ScatterPlotter:
+) -> ScatterPlotData:
 
     transform = get_transform(transform)
 
@@ -124,7 +125,7 @@ def _jitter_plot(
                     mecs.append(edgecolor_dict[i])
                     mksizes.append(markersize)
 
-    output = ScatterPlotter(
+    output = ScatterPlotData(
         x_data=x_data,
         y_data=y_data,
         marker=mks,
@@ -137,7 +138,7 @@ def _jitter_plot(
     return output
 
 
-def _jitteru_plot(
+def _jitteru(
     data: DataHolder,
     y: str,
     levels: Levels,
@@ -155,7 +156,7 @@ def _jitteru_plot(
     transform: Transform = None,
     *args,
     **kwargs,
-) -> ScatterPlotter:
+) -> ScatterPlotData:
 
     transform = get_transform(transform)
     temp = width / 2
@@ -200,7 +201,7 @@ def _jitteru_plot(
                 mfcs.append(color_dict[i])
                 mecs.append(edgecolor_dict[i])
                 mksizes.append(markersize)
-    output = ScatterPlotter(
+    output = ScatterPlotData(
         x_data=x_data,
         y_data=y_data,
         marker=mks,
@@ -213,14 +214,14 @@ def _jitteru_plot(
     return output
 
 
-def _summary_plot(
+def _summary(
     data: DataHolder,
     y: str,
     levels: Levels,
     loc_dict: dict[str, float],
     func: Agg,
     capsize: float,
-    capstyle: Literal["butt", "round", "projecting"],
+    capstyle: CapStyle,
     barwidth: float,
     linewidth: float | int,
     color_dict: dict[str, str],
@@ -229,7 +230,7 @@ def _summary_plot(
     transform: Transform = None,
     *args,
     **kwargs,
-) -> SummaryPlotter:
+) -> SummaryPlotData:
 
     transform = get_transform(transform)
     y_data = []
@@ -251,7 +252,7 @@ def _summary_plot(
                 error_data.append(get_transform(err_func)(transform(data[indexes, y])))
             else:
                 error_data.append(None)
-        output = SummaryPlotter(
+        output = SummaryPlotData(
             x_data=x_data,
             y_data=y_data,
             error_data=error_data,
@@ -265,7 +266,7 @@ def _summary_plot(
     return output
 
 
-def _summaryu_plot(
+def _summaryu(
     data: DataHolder,
     y: str,
     levels: Levels,
@@ -273,7 +274,7 @@ def _summaryu_plot(
     loc_dict: dict[str, float],
     func: Agg,
     capsize: float | int,
-    capstyle: Literal["butt", "round", "projecting"],
+    capstyle: CapStyle,
     barwidth: float,
     linewidth: float | int,
     color_dict: dict[str, str],
@@ -284,7 +285,7 @@ def _summaryu_plot(
     transform: Transform = None,
     *args,
     **kwargs,
-) -> SummaryPlotter:
+) -> SummaryPlotData:
 
     transform = get_transform(transform)
     y_data = []
@@ -332,7 +333,7 @@ def _summaryu_plot(
                     error_data.append(get_transform(err_func)(np.array(temp_vals)))
                 else:
                     error_data.append(None)
-    output = SummaryPlotter(
+    output = SummaryPlotData(
         x_data=x_data,
         y_data=y_data,
         error_data=error_data,
@@ -346,7 +347,7 @@ def _summaryu_plot(
     return output
 
 
-def _boxplot(
+def _box(
     data: DataHolder,
     y: str,
     levels: Levels,
@@ -381,7 +382,7 @@ def _boxplot(
             x_data.append([loc_dict[key]])
             fcs.append(color_dict[key])
             ecs.append(edgecolor_dict[key])
-    output = BoxPlotter(
+    output = BoxData(
         x_data=x_data,
         y_data=y_data,
         facecolors=fcs,
@@ -397,7 +398,7 @@ def _boxplot(
     return output
 
 
-def _violin_plot(
+def _violin(
     data: DataHolder,
     y: str,
     levels: Levels,
@@ -432,7 +433,7 @@ def _violin_plot(
             y_data.append(transform(data[value, y]))
             fcs.append(facecolor_dict[key])
             ecs.append(edgecolor_dict[key])
-    output = ViolinPlotter(
+    output = ViolinPlotData(
         x_data=x_data,
         y_data=y_data,
         facecolors=fcs,
@@ -448,11 +449,11 @@ def _violin_plot(
     return output
 
 
-def paired_plot():
+def _paired_plot():
     pass
 
 
-def _bar_hist_plot(
+def _bar_histogram(
     data: DataHolder,
     y: str,
     x: str,
@@ -472,7 +473,7 @@ def _bar_hist_plot(
     xtransfrom=None,
     *args,
     **kwargs,
-) -> RectanglePlotter:
+) -> RectanglePlotData:
 
     y = y if x is None else x
     transform = ytransform if xtransfrom is None else xtransfrom
@@ -548,7 +549,7 @@ def _bar_hist_plot(
     bw = [bw for _ in range(count)]
     hatches = [[hatch] * nbins] * count
     linewidth = [np.full(nbins, 0) for _ in range(count)]
-    output = RectanglePlotter(
+    output = RectanglePlotData(
         tops=plot_data,
         bottoms=bottom,
         bins=bins,
@@ -564,7 +565,7 @@ def _bar_hist_plot(
     return output
 
 
-# def _scatter_plot(
+# def __scatter_plot(
 #     data: DataHolder,
 #     y: str,
 #     x: str,
@@ -593,7 +594,7 @@ def _bar_hist_plot(
 #     return ax
 
 
-def _agg_line(
+def _aggline(
     data: DataHolder,
     x: str,
     y: str,
@@ -618,7 +619,7 @@ def _agg_line(
     sort=True,
     *args,
     **kwargs,
-) -> LinePlotter:
+) -> LinePlotData:
 
     x_data = []
     y_data = []
@@ -689,7 +690,7 @@ def _agg_line(
         lss.append(linestyle[("",)])
         mfcs.append(markerfacecolor[("",)])
         mecs.append(markeredgecolor[("",)])
-    output = LinePlotter(
+    output = LinePlotData(
         x_data=x_data,
         y_data=y_data,
         error_data=error_data,
@@ -710,7 +711,7 @@ def _agg_line(
     return output
 
 
-def _kde_plot(
+def _kde(
     data: DataHolder,
     y: str,
     x: str,
@@ -735,7 +736,7 @@ def _kde_plot(
     KDEType="fft",
     *args,
     **kwargs,
-) -> LinePlotter:
+) -> LinePlotData:
     size = data.shape[0]
 
     x_data = []
@@ -755,7 +756,7 @@ def _kde_plot(
     if len(levels) == 0:
         y_values = np.asarray(data[column]).flatten()
         temp_size = size
-        x_kde, y_kde = kde(
+        x_kde, y_kde = stats.kde(
             get_transform(transform)(y_values), bw=bw, kernel=kernel, tol=tol
         )
         if common_norm:
@@ -781,7 +782,7 @@ def _kde_plot(
             if unique_id is None:
                 y_values = np.asarray(data[group_indexes, column]).flatten()
                 temp_size = y_values.size
-                x_kde, y_kde = kde(
+                x_kde, y_kde = stats.kde(
                     get_transform(transform)(y_values), bw=bw, kernel=kernel, tol=tol
                 )
                 if common_norm:
@@ -826,7 +827,7 @@ def _kde_plot(
                     y_values = np.asarray(data[s_indexes, column]).flatten()
                     temp_size = y_values.size
                     if agg_func is None:
-                        x_kde, y_kde = kde(
+                        x_kde, y_kde = stats.kde(
                             get_transform(transform)(y_values),
                             bw=bw,
                             kernel=kernel,
@@ -844,7 +845,7 @@ def _kde_plot(
                         mecs.append(None)
                         mks.append(None)
                     else:
-                        _, y_kde = kde(
+                        _, y_kde = stats.kde(
                             get_transform(transform)(y_values),
                             bw=bw,
                             kernel=kernel,
@@ -871,7 +872,7 @@ def _kde_plot(
                         if err_func is not None
                         else None
                     )
-    output = LinePlotter(
+    output = LinePlotData(
         x_data=x_data,
         y_data=y_data,
         error_data=error_data,
@@ -916,7 +917,7 @@ def _ecdf(
     ytransform: Transform = None,
     *args,
     **kwargs,
-) -> LinePlotter:
+) -> LinePlotData:
 
     column = y if x is None else x
     transform = ytransform if xtransform is None else xtransform
@@ -942,7 +943,7 @@ def _ecdf(
     for u, indexes in ugroups.items():
         if u == ("",):
             y_values = np.asarray(data[column]).flatten()
-            x_ecdf, y_ecdf = ecdf(
+            x_ecdf, y_ecdf = stats.ecdf(
                 get_transform(transform)(y_values), ecdf_type=ecdf_type, **ecdf_args
             )
             y_data.append(y_ecdf)
@@ -956,7 +957,7 @@ def _ecdf(
             error_data.append(None)
         elif unique_id is None:
             y_values = np.asarray(data[indexes, column]).flatten()
-            x_ecdf, y_ecdf = ecdf(
+            x_ecdf, y_ecdf = stats.ecdf(
                 get_transform(transform)(y_values), ecdf_type=ecdf_type, **ecdf_args
             )
             y_data.append(y_ecdf)
@@ -984,7 +985,7 @@ def _ecdf(
             for hi, s in enumerate(subgroups):
                 y_values = np.asarray(data[uid_groups[u + (s,)], column]).flatten()
                 if agg_func is None:
-                    x_ecdf, y_ecdf = ecdf(
+                    x_ecdf, y_ecdf = stats.ecdf(
                         get_transform(transform)(y_values),
                         ecdf_type=ecdf_type,
                         **ecdf_args,
@@ -999,7 +1000,7 @@ def _ecdf(
                     mecs.append(markeredgecolor[u])
                     error_data.append(None)
                 else:
-                    x_ecdf, _ = ecdf(
+                    x_ecdf, _ = stats.ecdf(
                         get_transform(transform)(y_values),
                         ecdf_type=ecdf_type,
                         **ecdf_args,
@@ -1019,7 +1020,7 @@ def _ecdf(
                     if err_func is not None
                     else None
                 )
-    output = LinePlotter(
+    output = LinePlotData(
         x_data=x_data,
         y_data=y_data,
         error_data=error_data,
@@ -1058,7 +1059,7 @@ def _poly_hist(
     alpha: AlphaRange = 1.0,
     xtransform: Transform = None,
     ytransform: Transform = None,
-) -> LinePlotter:
+) -> LinePlotData:
     x_data = []
     y_data = []
     error_data = []
@@ -1130,7 +1131,7 @@ def _poly_hist(
             lss.append(linestyle_dict[i])
             mfcs.append("none")
             mecs.append("none")
-    output = LinePlotter(
+    output = LinePlotData(
         x_data=x_data,
         y_data=y_data,
         error_data=error_data,
@@ -1150,7 +1151,7 @@ def _poly_hist(
     return output
 
 
-def _line_plot(
+def _line(
     data: DataHolder,
     y: str,
     x: str,
@@ -1167,7 +1168,7 @@ def _line_plot(
     ytransform: Transform = None,
     *args,
     **kwargs,
-) -> LinePlotter:
+) -> LinePlotData:
 
     x_data = []
     y_data = []
@@ -1231,7 +1232,7 @@ def _line_plot(
             mfcs.append("none")
             mecs.append("none")
             error_data.append(None)
-    output = LinePlotter(
+    output = LinePlotData(
         x_data=x_data,
         y_data=y_data,
         error_data=error_data,
@@ -1251,7 +1252,7 @@ def _line_plot(
     return output
 
 
-# def biplot(
+# def _biplot(
 #     data: DataHolder,
 #     columns,
 #     group,
@@ -1360,7 +1361,7 @@ def _line_plot(
 #     ax.spines["bottom"].set_visible(axis)
 
 
-def _percent_plot(
+def _percent(
     data: DataHolder,
     y: str,
     levels: Levels,
@@ -1380,7 +1381,7 @@ def _percent_plot(
     axis_type: BinType = "density",
     *args,
     **kwargs,
-) -> RectanglePlotter:
+) -> RectanglePlotData:
 
     if cutoff is not None:
         bins = np.zeros(len(cutoff) + 2)
@@ -1467,7 +1468,7 @@ def _percent_plot(
                 x_s = [loc_dict[gr] + dist[index]] * plot_bins
                 x_loc.extend(x_s)
                 hatches.extend(hs)
-    output = RectanglePlotter(
+    output = RectanglePlotData(
         tops=tops,
         bottoms=bottoms,
         bins=x_loc,
@@ -1482,7 +1483,7 @@ def _percent_plot(
     return output
 
 
-def _count_plot(
+def _count(
     data: DataHolder,
     y: str,
     levels: list[str],
@@ -1502,7 +1503,7 @@ def _count_plot(
     transform: Transform = None,
     *args,
     **kwargs,
-) -> RectanglePlotter:
+) -> RectanglePlotData:
 
     bw = []
     bottoms = []
@@ -1541,7 +1542,7 @@ def _count_plot(
                 lws.append(linewidth)
             else:
                 pass
-    output = RectanglePlotter(
+    output = RectanglePlotData(
         tops=tops,
         bottoms=bottoms,
         bins=x_loc,

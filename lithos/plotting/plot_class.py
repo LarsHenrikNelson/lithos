@@ -1,64 +1,52 @@
 from pathlib import Path
 from typing import Callable, Literal
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from ..utils import (
     DataHolder,
-    get_backtransform,
-    get_transform,
     metadata_utils,
 )
-from . import matplotlib_plotting as mp
+from . import processing
 from .plot_utils import (
-    _decimals,
     _process_colors,
     _process_positions,
     create_dict,
-    get_ticks,
     process_args,
     process_scatter_args,
-    radian_ticks,
 )
 from .types import (
     BW,
     Agg,
     AlphaRange,
     BinType,
+    CapStyle,
     ColorParameters,
     CountPlotTypes,
     Error,
     KDEType,
+    SavePath,
     Transform,
 )
 
-mpl.rcParams["pdf.fonttype"] = 42
-mpl.rcParams["svg.fonttype"] = "none"
-
-
-MP_PLOTS = {
-    "boxplot": mp._boxplot,
-    "hist": mp._hist_plot,
-    "jitter": mp._jitter_plot,
-    "jitteru": mp._jitteru_plot,
-    "line_plot": mp._line_plot,
-    "poly_hist": mp._poly_hist,
-    "summary": mp._summary_plot,
-    "summaryu": mp._summaryu_plot,
-    "violin": mp._violin_plot,
-    "kde": mp._kde_plot,
-    "percent": mp._percent_plot,
-    "ecdf": mp._ecdf,
-    "count": mp._count_plot,
-    "scatter": mp._scatter_plot,
-    "aggline": mp._agg_line,
+PLOTS = {
+    "box": processing._box,
+    "hist": processing._hist,
+    "jitter": processing._jitter,
+    "jitteru": processing._jitteru,
+    "line": processing._line,
+    "poly_hist": processing._poly_hist,
+    "summary": processing._summary,
+    "summaryu": processing._summaryu,
+    "violin": processing._violin,
+    "kde": processing._kde,
+    "percent": processing._percent,
+    "ecdf": processing._ecdf,
+    "count": processing._count,
+    # "scatter": processing._scatter,
+    "aggline": processing._aggline,
 }
-
-MPL_SAVE_TYPES = {"svg", "png", "jpeg"}
-PLOTLY_SAVE_TYPES = {"html"}
 
 
 class BasePlot:
@@ -75,8 +63,6 @@ class BasePlot:
         self._grouping = {}
         self._plot_settings_run = False
         self.data = DataHolder(data)
-
-        plt.rcParams["svg.fonttype"] = "none"
 
         self.plot_format = {}
         self._plot_dict = {}
@@ -98,207 +84,6 @@ class BasePlot:
             self.figure()
             self.grid_settings()
             self.transform()
-
-    def _set_grid(self, sub_ax):
-        if self.plot_format["grid"]["ygrid"]:
-            sub_ax.yaxis.grid(
-                linewidth=self.plot_format["grid"]["ylinewidth"],
-                linestyle=self.plot_format["grid"]["linestyle"],
-            )
-
-        if self.plot_format["grid"]["xgrid"]:
-            sub_ax.xaxis.grid(
-                linewidth=self.plot_format["grid"]["xlinewidth"],
-                linestyle=self.plot_format["grid"]["linestyle"],
-            )
-
-    def add_axline(
-        self,
-        linetype: Literal["hline", "vline"],
-        lines: list,
-        linestyle="solid",
-        linealpha=1,
-        linecolor="black",
-    ):
-        if linetype not in ["hline", "vline"]:
-            raise AttributeError("linetype must by hline or vline")
-        if isinstance(lines, (float, int)):
-            lines = [lines]
-        self._plot_dict[linetype] = {
-            "linetype": linetype,
-            "lines": lines,
-            "linestyle": linestyle,
-            "linealpha": linealpha,
-            "linecolor": linecolor,
-        }
-
-        if not self.inplace:
-            return self
-
-    def _plot_axlines(self, line_dict, ax):
-        for ll in line_dict["lines"]:
-            if line_dict["linetype"] == "vline":
-                ax.axvline(
-                    ll,
-                    linestyle=line_dict["linestyle"],
-                    color=line_dict["linecolor"],
-                    alpha=line_dict["linealpha"],
-                )
-            else:
-                ax.axhline(
-                    ll,
-                    linestyle=line_dict["linestyle"],
-                    color=line_dict["linecolor"],
-                    alpha=line_dict["linealpha"],
-                )
-
-    def _set_lims(self, ax, decimals, axis="x"):
-        if axis == "y":
-            if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
-                ticks = ax.get_yticks()
-                lim, _, ticks = get_ticks(
-                    lim=self.plot_format["axis"]["ylim"],
-                    axis_lim=self.plot_format["axis"]["yaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["ysteps"],
-                )
-                ax.set_ylim(bottom=lim[0], top=lim[1])
-                if (
-                    "back_transform_yticks" in self._plot_transforms
-                    and self._plot_transforms["back_transform_yticks"]
-                ):
-                    tick_labels = get_backtransform(
-                        self._plot_transforms["ytransform"]
-                    )(ticks)
-                else:
-                    tick_labels = ticks
-                if decimals is not None:
-                    if decimals == -1:
-                        tick_labels = tick_labels.astype(int)
-                    else:
-                        # This does not work with scientific format
-                        tick_labels = np.round(tick_labels, decimals=decimals)
-                        dformat = self.plot_format["axis"]["yformat"]
-                        tick_labels = [
-                            f"{value:.{decimals}{dformat}}" for value in tick_labels
-                        ]
-                ax.set_yticks(
-                    ticks,
-                    labels=tick_labels,
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
-                    rotation=self.plot_format["labels"]["ytick_rotation"],
-                )
-                truncate = (
-                    self.plot_format["axis_format"]["ysteps"][1] != 0
-                    or self.plot_format["axis_format"]["ysteps"][2]
-                    != self.plot_format["axis_format"]["ysteps"][0]
-                )
-                if truncate or self.plot_format["axis"]["yaxis_lim"] is not None:
-                    ax.spines["left"].set_bounds(ticks[0], ticks[-1])
-            else:
-                ax.set_yscale(self.plot_format["axis"]["yscale"])
-                ticks = ax.get_yticks()
-                lim, _, _ = get_ticks(
-                    lim=self.plot_format["axis"]["ylim"],
-                    axis_lim=self.plot_format["axis"]["yaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["ysteps"],
-                )
-                ax.set_ylim(bottom=lim[0], top=lim[1])
-        else:
-            if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
-                ticks = ax.get_xticks()
-                lim, _, ticks = get_ticks(
-                    lim=self.plot_format["axis"]["xlim"],
-                    axis_lim=self.plot_format["axis"]["xaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["xsteps"],
-                )
-                ax.set_xlim(left=lim[0], right=lim[1])
-                if (
-                    "back_transform_xticks" in self._plot_transforms
-                    and self._plot_transforms["back_transform_xticks"]
-                ):
-                    tick_labels = get_backtransform(
-                        self._plot_transforms["xtransform"]
-                    )(ticks)
-                else:
-                    tick_labels = ticks
-                if decimals is not None:
-                    if decimals == -1:
-                        tick_labels = tick_labels.astype(int)
-                    else:
-                        # This does not work with scientific format
-                        tick_labels = np.round(tick_labels, decimals=decimals)
-                        dformat = self.plot_format["axis"]["xformat"]
-                        tick_labels = [
-                            f"{value:.{decimals}{dformat}}" for value in tick_labels
-                        ]
-                ax.set_xticks(
-                    ticks,
-                    labels=tick_labels,
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
-                    rotation=self.plot_format["labels"]["xtick_rotation"],
-                )
-                truncate = (
-                    self.plot_format["axis_format"]["xsteps"][1] != 0
-                    or self.plot_format["axis_format"]["xsteps"][2]
-                    != self.plot_format["axis_format"]["xsteps"][0]
-                )
-                if truncate or self.plot_format["axis"]["xaxis_lim"] is not None:
-                    ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
-            else:
-                ax.set_xscale(self.plot_format["axis"]["xscale"])
-                ticks = ax.get_xticks()
-                lim, _, _ = get_ticks(
-                    lim=self.plot_format["axis"]["xlim"],
-                    axis_lim=self.plot_format["axis"]["xaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["xsteps"],
-                )
-                ax.set_xlim(left=lim[0], right=lim[1])
-
-    def _set_minorticks(self, ax, transform: str, ticks: Literal["y", "x"]):
-        if ticks == "y":
-            yticks = ax.get_yticks()
-        else:
-            yticks = ax.get_xticks()
-        yticks = get_backtransform(transform)(yticks)
-        mticks = np.zeros((len(yticks) - 1) * 5)
-        for index in range(yticks.size - 1):
-            vals = np.linspace(yticks[index], yticks[index + 1], num=5, endpoint=False)
-            start = index * 5
-            end = index * 5 + 5
-            mticks[start:end] = vals
-        if ticks == "y":
-            ax.set_yticks(
-                get_transform(transform)(mticks),
-                minor=True,
-            )
-            ax.tick_params(
-                axis="y",
-                which="minor",
-                width=self.plot_format["axis_format"]["minor_tickwidth"],
-                length=self.plot_format["axis_format"]["minor_ticklength"],
-                labelfontfamily=self.plot_format["labels"]["font"],
-            )
-
-        else:
-            ax.set_xticks(
-                get_transform(transform)(mticks),
-                minor=True,
-            )
-            ax.tick_params(
-                axis="x",
-                which="minor",
-                width=self.plot_format["axis_format"]["minor_tickwidth"],
-                length=self.plot_format["axis_format"]["minor_ticklength"],
-                labelfontfamily=self.plot_format["labels"]["font"],
-            )
 
     def labels(
         self,
@@ -392,6 +177,14 @@ class BasePlot:
             ysteps = (ysteps, 0, ysteps)
         if isinstance(xsteps, int):
             xsteps = (xsteps, 0, xsteps)
+        if isinstance(linewidth, int):
+            linewidth = {"left": linewidth, "bottom": linewidth, "top": 0, "right": 0}
+        elif isinstance(linewidth, dict):
+            temp_lw = {"left": 0, "bottom": 0, "top": 0, "right": 0}
+            for key, value in linewidth:
+                temp_lw[key] = value
+            linewidth = temp_lw
+
         axis_format = {
             "tickwidth": tickwidth,
             "ticklength": ticklength,
@@ -466,7 +259,7 @@ class BasePlot:
     def plot(
         self,
         savefig: bool = False,
-        path: str | Path = None,
+        path: SavePath = None,
         filename: str = "",
         filetype: str = "svg",
         backend: str = "matplotlib",
@@ -485,20 +278,6 @@ class BasePlot:
             path = path / f"{filename}.txt"
             self.save_metadata(path)
         return output
-
-    def plot_legend(self):
-        fig, ax = plt.subplots()
-
-        handles = mp._make_legend_patches(
-            color_dict=self._plot_dict["legend_dict"][0],
-            alpha=self._plot_dict["legend_dict"][1],
-            group=self._plot_dict["group_order"],
-            subgroup=self._plot_dict["subgroup_order"],
-        )
-        ax.plot()
-        ax.axis("off")
-        ax.legend(handles=handles, frameon=False)
-        return fig, ax
 
     def transform(
         self,
@@ -1195,225 +974,6 @@ class LinePlot(BasePlot):
         if not self.inplace:
             return self
 
-    def _matplotlib_backend(
-        self,
-        savefig: bool = False,
-        path: str = "",
-        filetype: str = "svg",
-        filename: str = "",
-        transparent=False,
-    ):
-        if (
-            self.plot_format["figure"]["nrows"] is None
-            and self.plot_format["figure"]["ncols"] is None
-        ):
-            nrows = len(self._plot_dict["group_order"])
-            ncols = 1
-        elif self.plot_format["figure"]["nrows"] is None:
-            nrows = 1
-            ncols = self.plot_format["figure"]["ncols"]
-        elif self.plot_format["figure"]["ncols"] is None:
-            nrows = self.plot_format["figure"]["nrows"]
-            ncols = 1
-        else:
-            nrows = self.plot_format["figure"]["nrows"]
-            ncols = self.plot_format["figure"]["ncols"]
-        if self.plot_format["figure"]["figsize"] is None:
-            self.plot_format["figure"]["figsize"] = (6.4 * ncols, 4.8 * nrows)
-        if self._plot_dict["facet"]:
-            fig, ax = plt.subplots(
-                subplot_kw=dict(
-                    box_aspect=self.plot_format["figure"]["aspect"],
-                    projection=self.plot_format["figure"]["projection"],
-                ),
-                figsize=self.plot_format["figure"]["figsize"],
-                gridspec_kw=self.plot_format["figure"]["gridspec_kw"],
-                ncols=ncols,
-                nrows=nrows,
-                layout="constrained",
-            )
-            ax = ax.flatten()
-        else:
-            fig, ax = plt.subplots(
-                subplot_kw=dict(
-                    box_aspect=self.plot_format["figure"]["aspect"],
-                    projection=self.plot_format["figure"]["projection"],
-                ),
-                figsize=self.plot_format["figure"]["figsize"],
-                layout="constrained",
-            )
-            ax = [ax]
-        for i, j in zip(self.plot_list, self.plots):
-            plot_func = MP_PLOTS[i]
-            plot_func(
-                data=self.data,
-                y=self._plot_data["y"],
-                x=self._plot_data["x"],
-                unique_groups=self._plot_dict["unique_groups"],
-                facet_dict=self._plot_dict["facet_dict"],
-                ax=ax,
-                ytransform=self._plot_transforms["ytransform"],
-                xtransform=self._plot_transforms["xtransform"],
-                levels=self._plot_dict["levels"],
-                **j,
-            )
-            if i == "kde" or i == "hist":
-                if self._plot_data["x"] is not None:
-                    if self.plot_format["axis"]["ylim"] is None:
-                        self.plot_format["axis"]["ylim"] = [0, None]
-                else:
-                    if self.plot_format["axis"]["xlim"] is None:
-                        self.plot_format["axis"]["xlim"] = [0, None]
-
-        if (
-            self.plot_format["axis"]["ydecimals"] is None
-            and "y" in self._plot_data
-            and self._plot_data["y"] is not None
-        ):
-            ydecimals = _decimals(self.data[self._plot_data["y"]])
-        else:
-            ydecimals = self.plot_format["axis"]["ydecimals"]
-        if (
-            self.plot_format["axis"]["xdecimals"] is None
-            and "x" in self._plot_data
-            and self._plot_data["x"] is not None
-        ):
-            xdecimals = _decimals(self.data[self._plot_data["x"]])
-        else:
-            xdecimals = self.plot_format["axis"]["xdecimals"]
-        # num_plots = len(self._plot_dict["group_order"])
-        for index, sub_ax in enumerate(ax[: len(self._plot_dict["group_order"])]):
-            if self.plot_format["figure"]["projection"] == "rectilinear":
-                sub_ax.autoscale()
-                sub_ax.spines["right"].set_visible(False)
-                sub_ax.spines["top"].set_visible(False)
-                sub_ax.spines["left"].set_linewidth(
-                    self.plot_format["axis_format"]["linewidth"]
-                )
-                sub_ax.spines["bottom"].set_linewidth(
-                    self.plot_format["axis_format"]["linewidth"]
-                )
-
-                self._set_lims(sub_ax, ydecimals, axis="y")
-                self._set_lims(sub_ax, xdecimals, axis="x")
-
-                if self.plot_format["axis_format"]["yminorticks"]:
-                    self._set_minorticks(
-                        sub_ax, self._plot_transforms["ytransform"], ticks="y"
-                    )
-
-                if self.plot_format["axis_format"]["xminorticks"]:
-                    self._set_minorticks(
-                        sub_ax, self._plot_transforms["xtransform"], ticks="x"
-                    )
-
-                sub_ax.margins(self.plot_format["figure"]["margins"])
-                sub_ax.set_xlabel(
-                    self._plot_data["xlabel"],
-                    fontsize=self.plot_format["labels"]["labelsize"],
-                    fontweight=self.plot_format["labels"]["label_fontweight"],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    rotation=self.plot_format["labels"]["xlabel_rotation"],
-                )
-            else:
-                if (
-                    self.plot_format["axis"]["xunits"] == "radian"
-                    or self.plot_format["axis"]["xunits"] == "wradian"
-                ):
-                    xticks = sub_ax.get_xticks()
-                    labels = (
-                        radian_ticks(xticks, rotate=False)
-                        if self.plot_format["axis"]["xunits"] == "radian"
-                        else radian_ticks(xticks, rotate=True)
-                    )
-                    sub_ax.set_xticks(
-                        xticks,
-                        labels,
-                        fontfamily=self.plot_format["labels"]["font"],
-                        fontweight=self.plot_format["labels"]["tick_fontweight"],
-                        fontsize=self.plot_format["labels"]["ticklabel_size"],
-                        rotation=self.plot_format["labels"]["xtick_rotation"],
-                    )
-                sub_ax.spines["polar"].set_visible(False)
-                sub_ax.set_xlabel(
-                    self._plot_data["xlabel"],
-                    fontsize=self.plot_format["labels"]["labelsize"],
-                    fontweight=self.plot_format["labels"]["label_fontweight"],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    rotation=self.plot_format["labels"]["xlabel_rotation"],
-                )
-                sub_ax.set_rmax(sub_ax.dataLim.ymax)
-                ticks = sub_ax.get_yticks()
-                sub_ax.set_yticks(
-                    ticks,
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
-                    rotation=self.plot_format["labels"]["ytick_rotation"],
-                )
-            if "hline" in self._plot_dict:
-                self._plot_axlines(self._plot_dict["hline"], sub_ax)
-
-            if "vline" in self._plot_dict:
-                self._plot_axlines(self._plot_dict["vline"], sub_ax)
-
-            sub_ax.tick_params(
-                axis="both",
-                which="major",
-                labelsize=self.plot_format["labels"]["ticklabel_size"],
-                width=self.plot_format["axis_format"]["tickwidth"],
-                length=self.plot_format["axis_format"]["ticklength"],
-                labelfontfamily=self.plot_format["labels"]["font"],
-            )
-
-            self._set_grid(sub_ax)
-
-            if "/" in str(self._plot_data["y"]):
-                self._plot_data["y"] = self._plot_data["y"].replace("/", "_")
-
-            sub_ax.set_ylabel(
-                self._plot_data["ylabel"],
-                fontsize=self.plot_format["labels"]["labelsize"],
-                fontfamily=self.plot_format["labels"]["font"],
-                fontweight=self.plot_format["labels"]["label_fontweight"],
-                rotation=self.plot_format["labels"]["ylabel_rotation"],
-            )
-            if self._plot_dict["facet_title"]:
-                sub_ax.set_title(
-                    self._plot_dict["group_order"][index],
-                    fontsize=self.plot_format["labels"]["labelsize"],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["title_fontweight"],
-                )
-            else:
-                sub_ax.set_title(
-                    self._plot_data["title"],
-                    fontsize=self.plot_format["labels"]["labelsize"],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["title_fontweight"],
-                )
-
-        if self._plot_data["title"] is not None:
-            fig.suptitle(
-                self._plot_data["title"],
-                fontsize=self.plot_format["labels"]["titlesize"],
-            )
-
-        if savefig:
-            path = Path(path)
-            if path.suffix[1:] not in MPL_SAVE_TYPES:
-                filename = self._plot_data["y"] if filename == "" else filename
-                path = path / f"{filename}.{filetype}"
-            else:
-                filetype = path.suffix[1:]
-            plt.savefig(
-                path,
-                format=filetype,
-                bbox_inches="tight",
-                transparent=transparent,
-            )
-        return fig, ax
-
 
 class CategoricalPlot(BasePlot):
     def __init__(self, data: pd.DataFrame | np.ndarray | dict, inplace: bool = False):
@@ -1617,7 +1177,7 @@ class CategoricalPlot(BasePlot):
         self,
         func: Agg = "mean",
         capsize: int = 0,
-        capstyle: str = "round",
+        capstyle: CapStyle = "round",
         barwidth: float = 1.0,
         err_func: Error = "sem",
         linewidth: int = 2,
@@ -1673,7 +1233,7 @@ class CategoricalPlot(BasePlot):
         agg_func: Agg = None,
         agg_width: float = 1.0,
         capsize: int = 0,
-        capstyle: str = "round",
+        capstyle: CapStyle = "round",
         barwidth: float = 1.0,
         err_func: Error = "sem",
         linewidth: int = 2,
@@ -1728,7 +1288,7 @@ class CategoricalPlot(BasePlot):
         if not self.inplace:
             return self
 
-    def boxplot(
+    def box(
         self,
         facecolor: ColorParameters = None,
         edgecolor: ColorParameters = None,
@@ -1741,7 +1301,7 @@ class CategoricalPlot(BasePlot):
         show_ci: bool = False,
         legend: bool = False,
     ):
-        self._plot_funcs.append("boxplot")
+        self._plot_funcs.append("box")
         self._plot_prefs.append(
             {
                 "facecolor": facecolor,
@@ -1778,7 +1338,7 @@ class CategoricalPlot(BasePlot):
         if edgecolor == "facecolor":
             edgecolor_dict = color_dict
 
-        boxplot = {
+        box = {
             "color_dict": color_dict,
             "edgecolor_dict": edgecolor_dict,
             "fliers": fliers,
@@ -1789,8 +1349,8 @@ class CategoricalPlot(BasePlot):
             "alpha": alpha,
             "linealpha": linealpha,
         }
-        self.plots.append(boxplot)
-        self.plot_list.append("boxplot")
+        self.plots.append(box)
+        self.plot_list.append("box")
 
         if legend:
             if facecolor is not None or edgecolor == "black":
@@ -2012,115 +1572,6 @@ class CategoricalPlot(BasePlot):
 
         if not self.inplace:
             return self
-
-    def _matplotlib_backend(
-        self,
-        savefig: bool = False,
-        path: str = "",
-        filename: str = "",
-        filetype: str = "svg",
-        transparent=False,
-    ):
-        fig, ax = plt.subplots(
-            subplot_kw=dict(box_aspect=self.plot_format["figure"]["aspect"]),
-            figsize=self.plot_format["figure"]["figsize"],
-            layout="constrained",
-        )
-
-        for i, j in zip(self.plot_list, self.plots):
-            plot_func = MP_PLOTS[i]
-            plot_func(
-                data=self.data,
-                y=self._plot_data["y"],
-                loc_dict=self._plot_dict["loc_dict"],
-                unique_groups=self._plot_dict["unique_groups"],
-                ax=ax,
-                transform=self._plot_transforms["ytransform"],
-                levels=self._plot_dict["levels"],
-                **j,
-            )
-
-        ax.set_xticks(
-            ticks=self._plot_dict["x_ticks"],
-            labels=self._plot_dict["group_order"],
-            rotation=self.plot_format["labels"]["xtick_rotation"],
-            fontfamily=self.plot_format["labels"]["font"],
-            fontweight=self.plot_format["labels"]["tick_fontweight"],
-            fontsize=self.plot_format["labels"]["ticklabel_size"],
-        )
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
-        ax.spines["left"].set_linewidth(self.plot_format["axis_format"]["linewidth"])
-        ax.spines["bottom"].set_linewidth(self.plot_format["axis_format"]["linewidth"])
-        if "/" in str(self._plot_data["y"]):
-            self._plot_data["y"] = self._plot_data["y"].replace("/", "_")
-
-        self._set_grid(ax)
-
-        self._set_lims(ax, self.plot_format["axis"]["ydecimals"], axis="y")
-        truncate = (
-            self.plot_format["axis_format"]["xsteps"][1] != 0
-            or self.plot_format["axis_format"]["xsteps"][2]
-            != self.plot_format["axis_format"]["xsteps"][0]
-        )
-        if truncate:
-            ticks = self._plot_dict["x_ticks"]
-            ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
-
-        if self.plot_format["axis_format"]["yminorticks"]:
-            self._set_minorticks(ax, self._plot_transforms["ytransform"], ticks="y")
-
-        ax.set_ylabel(
-            self._plot_data["ylabel"],
-            fontsize=self.plot_format["labels"]["labelsize"],
-            fontfamily=self.plot_format["labels"]["font"],
-            fontweight=self.plot_format["labels"]["label_fontweight"],
-            rotation=self.plot_format["labels"]["ylabel_rotation"],
-        )
-        ax.set_title(
-            self._plot_data["title"],
-            fontsize=self.plot_format["labels"]["titlesize"],
-            fontfamily=self.plot_format["labels"]["font"],
-            fontweight=self.plot_format["labels"]["title_fontweight"],
-        )
-        ax.tick_params(
-            axis="both",
-            which="major",
-            labelsize=self.plot_format["labels"]["ticklabel_size"],
-            width=self.plot_format["axis_format"]["tickwidth"],
-            length=self.plot_format["axis_format"]["ticklength"],
-            labelfontfamily=self.plot_format["labels"]["font"],
-        )
-        ax.margins(x=self.plot_format["figure"]["margins"])
-
-        if "legend_dict" in self._plot_dict:
-            handles = mp._make_legend_patches(
-                color_dict=self._plot_dict["legend_dict"][0],
-                alpha=self._plot_dict["legend_dict"][1],
-                group=self._plot_dict["group_order"],
-                subgroup=self._plot_dict["subgroup_order"],
-            )
-            ax.legend(
-                handles=handles,
-                bbox_to_anchor=self._plot_dict["legend_anchor"],
-                loc=self._plot_dict["legend_loc"],
-                frameon=False,
-            )
-
-        if savefig:
-            path = Path(path)
-            if path.suffix[1:] not in MPL_SAVE_TYPES:
-                filename = self._plot_data["y"] if filename == "" else filename
-                path = path / f"{filename}.{filetype}"
-            else:
-                filetype = path.suffix[1:]
-            plt.savefig(
-                path,
-                format=filetype,
-                bbox_inches="tight",
-                transparent=transparent,
-            )
-        return fig, ax
 
 
 class GraphPlot:
