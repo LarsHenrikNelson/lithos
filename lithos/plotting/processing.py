@@ -1,14 +1,31 @@
 # TODO: Need to remove all matplotlib functions from this file.
 
 from itertools import cycle
-from typing import Literal, TypedDict, Union
+from typing import Literal
 
 import numpy as np
 from numpy.random import default_rng
 
 from ..stats import ecdf, kde
 from ..utils import DataHolder, get_transform
-from .plot_utils import _bin_data, process_duplicates, process_jitter, _calc_hist
+from .plot_utils import _bin_data, _calc_hist, process_duplicates, process_jitter
+from .types import (
+    BW,
+    Agg,
+    AlphaRange,
+    BinType,
+    BoxPlotter,
+    CountPlotTypes,
+    Error,
+    Kernels,
+    Levels,
+    LinePlotter,
+    RectanglePlotter,
+    ScatterPlotter,
+    SummaryPlotter,
+    Transform,
+    ViolinPlotter,
+)
 
 # Reorder the filled matplotlib markers to choose the most different
 MARKERS = [
@@ -44,113 +61,21 @@ HATCHES = [
 ]
 
 
-class RectanglePlotter(TypedDict):
-    tops: list[float]
-    bottoms: list[float]
-    bins: list[float]
-    binwidths: list[float]
-    fillcolors: list[str]
-    edgecolors: list[str]
-    fill_alpha: float
-    edge_alpha: float
-    hatches: list[str]
-    linewidth: float
-    axis: Literal["x", "y"]
-
-
-class LinePlotter(TypedDict):
-    x_data: list
-    y_data: list
-    error_data: list
-    facet_index: list[int]
-    marker: list[str | None] | None = None
-    linecolor: list[str | None] | None = None
-    linewidth: list[float | None] | None = None
-    linestyle: list[str | None] | None = None
-    markerfacecolor: list[str | None] | None = None
-    markeredgecolor: list[str | None] | None = None
-    fill_between: bool = False
-    fb_direction: Literal["x" "y"] = "y"
-    markersize: float | None = None
-    fillalpha: float | None = None
-    linealpha: float | None = None
-
-
-class ScatterPlotter(TypedDict):
-    x_data: list[np.ndarray]
-    y_data: list[np.ndarray]
-    marker: list[str]
-    markerfacecolor: list[str]
-    markeredgecolor: list[str]
-    markersize: list[float]
-    alpha: float
-    edge_alpha: float
-
-
-class SummaryPlotter(TypedDict):
-    x_data: list
-    y_data: list
-    error_data: list
-    widths: list
-    colors: list
-    linewidth: float
-    alpha: float
-    capstyle: str
-    capsize: float
-
-
-class BoxPlotter(TypedDict):
-    x_data: list
-    y_data: list
-    facecolors: list[str]
-    edgecolors: list[str]
-    alpha: float
-    line_alpha: float
-    fliers: bool
-    linewidth: float
-    width: float
-    show_ci: bool
-    showmeans: bool
-
-
-class ViolinPlotter(TypedDict):
-    x_data: list
-    y_data: list
-    facecolors: list[str]
-    edgecolors: list[str]
-    alpha: float
-    edge_alpha: float
-    linewidth: float
-    width: list[float]
-    showmeans: bool
-    showmedians: bool
-    showextrema: bool
-
-
-class HistPlotter(TypedDict):
-    x_data: list
-    y_data: list
-    facecolors: list[str]
-    edgecolors: list[str]
-    alpha: float
-    facet_index: list[int]
-
-
 def _jitter_plot(
-    data,
-    y,
-    levels,
-    loc_dict,
-    width,
-    color_dict,
-    marker_dict,
-    edgecolor_dict,
-    alpha=1,
-    edge_alpha=1,
-    seed=42,
-    markersize=2,
-    transform=None,
-    unique_id=None,
+    data: DataHolder,
+    y: str,
+    levels: list[str | int],
+    loc_dict: dict[str, float],
+    width: float,
+    color_dict: dict[str, str],
+    marker_dict: dict[str, str],
+    edgecolor_dict: dict[str, str],
+    alpha: AlphaRange = 1.0,
+    edge_alpha: AlphaRange = 1.0,
+    seed: int = 42,
+    markersize: float | int = 2,
+    transform: Transform = None,
+    unique_id: str | None = None,
     *args,
     **kwargs,
 ) -> ScatterPlotter:
@@ -213,21 +138,21 @@ def _jitter_plot(
 
 
 def _jitteru_plot(
-    data,
-    y,
-    levels,
-    unique_id,
-    loc_dict,
-    width,
-    color_dict,
-    marker_dict,
-    edgecolor_dict,
-    alpha=1,
-    edge_alpha=1,
-    duplicate_offset=0.0,
-    markersize=2,
-    agg_func=None,
-    transform=None,
+    data: DataHolder,
+    y: str,
+    levels: Levels,
+    unique_id: str,
+    loc_dict: dict[str, float],
+    width: float,
+    color_dict: dict[str, str],
+    marker_dict: dict[str, str],
+    edgecolor_dict: dict[str, str],
+    alpha: AlphaRange = 1.0,
+    edge_alpha: AlphaRange = 1.0,
+    duplicate_offset: float = 0.0,
+    markersize: int = 2,
+    agg_func: Agg | None = None,
+    transform: Transform = None,
     *args,
     **kwargs,
 ) -> ScatterPlotter:
@@ -289,21 +214,22 @@ def _jitteru_plot(
 
 
 def _summary_plot(
-    data,
-    y,
-    levels,
-    unique_groups,
-    loc_dict,
-    func,
-    capsize,
-    capstyle,
-    barwidth,
-    err_func,
-    linewidth,
-    color_dict,
-    alpha,
-    transform=None,
-):
+    data: DataHolder,
+    y: str,
+    levels: Levels,
+    loc_dict: dict[str, float],
+    func: Agg,
+    capsize: float,
+    capstyle: Literal["butt", "round", "projecting"],
+    barwidth: float,
+    linewidth: float | int,
+    color_dict: dict[str, str],
+    alpha: AlphaRange,
+    err_func: Error | None = None,
+    transform: Transform = None,
+    *args,
+    **kwargs,
+) -> SummaryPlotter:
 
     transform = get_transform(transform)
     y_data = []
@@ -316,15 +242,13 @@ def _summary_plot(
         pass
     else:
         groups = data.groups(levels)
-        for i in unique_groups:
+        for i, indexes in groups.items():
             x_data.append(loc_dict[i])
             colors.append(color_dict[i])
             widths.append(barwidth)
-            y_data.append(get_transform(func)(transform(data[groups[i], y])))
+            y_data.append(get_transform(func)(transform(data[indexes, y])))
             if err_func is not None:
-                error_data.append(
-                    get_transform(err_func)(transform(data[groups[i], y]))
-                )
+                error_data.append(get_transform(err_func)(transform(data[indexes, y])))
             else:
                 error_data.append(None)
         output = SummaryPlotter(
@@ -342,24 +266,25 @@ def _summary_plot(
 
 
 def _summaryu_plot(
-    data,
-    y,
-    levels,
-    unique_groups,
-    unique_id,
-    loc_dict,
-    func,
-    capsize,
-    capstyle,
-    barwidth,
-    err_func,
-    linewidth,
-    color_dict,
-    alpha,
-    agg_func=None,
-    agg_width=1,
-    transform=None,
-):
+    data: DataHolder,
+    y: str,
+    levels: Levels,
+    unique_id: str,
+    loc_dict: dict[str, float],
+    func: Agg,
+    capsize: float | int,
+    capstyle: Literal["butt", "round", "projecting"],
+    barwidth: float,
+    linewidth: float | int,
+    color_dict: dict[str, str],
+    alpha: AlphaRange = 1.0,
+    agg_func: Agg | None = None,
+    err_func: Error = None,
+    agg_width: float = 1.0,
+    transform: Transform = None,
+    *args,
+    **kwargs,
+) -> SummaryPlotter:
 
     transform = get_transform(transform)
     y_data = []
@@ -374,8 +299,8 @@ def _summaryu_plot(
         groups = data.groups(levels)
         if unique_id is not None:
             uid_groups = data.groups(levels + [unique_id])
-        for i in unique_groups:
-            uids = np.unique(data[groups[i], unique_id])
+        for i, indexes in groups.items():
+            uids = np.unique(data[indexes, unique_id])
             if agg_func is None:
                 temp = barwidth / 2
                 if len(uids) > 1:
@@ -422,20 +347,20 @@ def _summaryu_plot(
 
 
 def _boxplot(
-    data,
-    y,
-    levels,
-    loc_dict,
-    color_dict,
-    edgecolor_dict,
-    fliers="",
+    data: DataHolder,
+    y: str,
+    levels: Levels,
+    loc_dict: dict[str, float],
+    color_dict: dict[str, str],
+    edgecolor_dict: dict[str, str],
+    fliers: str = "",
     width: float = 1.0,
-    linewidth=1,
+    linewidth: float | int = 1,
     showmeans: bool = False,
     show_ci: bool = False,
-    alpha: float = 1.0,
-    line_alpha=1.0,
-    transform=None,
+    alpha: AlphaRange = 1.0,
+    linealpha: AlphaRange = 1.0,
+    transform: Transform = None,
     *args,
     **kwargs,
 ):
@@ -462,7 +387,7 @@ def _boxplot(
         facecolors=fcs,
         edgecolors=ecs,
         alpha=alpha,
-        line_alpha=line_alpha,
+        linealpha=linealpha,
         fliers=fliers,
         linewidth=linewidth,
         width=width,
@@ -473,20 +398,20 @@ def _boxplot(
 
 
 def _violin_plot(
-    data,
-    y,
-    levels,
-    loc_dict,
+    data: DataHolder,
+    y: str,
+    levels: Levels,
+    loc_dict: dict[str, float],
     facecolor_dict,
-    edgecolor_dict,
-    alpha=1,
-    edge_alpha=1,
-    linewidth=1,
+    edgecolor_dict: dict[str, str],
+    alpha: AlphaRange = 1.0,
+    edge_alpha: AlphaRange = 1.0,
+    linewidth: float | int = 1,
     showextrema: bool = False,
     width: float = 1.0,
     showmeans: bool = False,
     showmedians: bool = False,
-    transform=None,
+    transform: Transform = None,
     *args,
     **kwargs,
 ):
@@ -528,23 +453,22 @@ def paired_plot():
 
 
 def _bar_hist_plot(
-    data,
-    y,
-    x,
-    levels,
-    color_dict,
-    facet_dict,
-    hatch=None,
+    data: DataHolder,
+    y: str,
+    x: str,
+    levels: Levels,
+    color_dict: dict[str, str],
+    facet_dict: dict[str, int],
+    hatch: str | dict[str, str] | None = None,
     hist_type: Literal["bar", "step", "stepfilled"] = "bar",
-    fillalpha=1.0,
-    linealpha=1.0,
-    bin_limits=None,
+    fillalpha: AlphaRange = 1.0,
+    linealpha: AlphaRange = 1.0,
+    bin_limits: list[float, float] | None = None,
     nbins=None,
     stat="probability",
-    agg_func=None,
-    projection="rectilinear",
-    unique_id=None,
-    ytransform=None,
+    agg_func: Agg | None = None,
+    unique_id: str | None = None,
+    ytransform: Transform = None,
     xtransfrom=None,
     *args,
     **kwargs,
@@ -640,57 +564,57 @@ def _bar_hist_plot(
     return output
 
 
-def _scatter_plot(
-    data,
-    y,
-    x,
-    unique_groups,
-    levels,
-    markers,
-    markercolors,
-    edgecolors,
-    markersizes,
-    facetgroup,
-    facet_dict=None,
-    xtransform=None,
-    ytransform=None,
-    ax=None,
-):
-    for key, value in facet_dict.items():
-        indexes = np.array([index for index, j in enumerate(facetgroup) if value == j])
-        ax[value].scatter(
-            get_transform(xtransform)(data[indexes, x]),
-            get_transform(ytransform)(data[indexes, y]),
-            marker=markers,
-            color=[markercolors[i] for i in indexes],
-            edgecolors=[edgecolors[i] for i in indexes],
-            s=[markersizes[i] for i in indexes],
-        )
-    return ax
+# def _scatter_plot(
+#     data: DataHolder,
+#     y: str,
+#     x: str,
+#     levels: Levels,
+#     markers,
+#     markercolors,
+#     edgecolors,
+#     markersizes,
+#     facetgroup,
+#     facet_dict=None,
+#     xtransform: Transform = None,
+#     ytransform: Transform = None,
+#     *args,
+#     **kwargs,
+# ):
+#     for key, value in facet_dict.items():
+#         indexes = np.array([index for index, j in enumerate(facetgroup) if value == j])
+#         ax[value].scatter(
+#             get_transform(xtransform)(data[indexes, x]),
+#             get_transform(ytransform)(data[indexes, y]),
+#             marker=markers,
+#             color=[markercolors[i] for i in indexes],
+#             edgecolors=[edgecolors[i] for i in indexes],
+#             s=[markersizes[i] for i in indexes],
+#         )
+#     return ax
 
 
 def _agg_line(
-    data,
-    x,
-    y,
-    levels,
-    marker,
-    markersize,
-    markerfacecolor,
-    markeredgecolor,
-    linestyle,
-    linewidth,
-    linecolor,
-    linealpha,
-    func,
-    err_func,
-    facet_dict,
-    fill_between=False,
-    fillalpha=1.0,
-    agg_func=None,
-    ytransform=None,
-    xtransform=None,
-    unique_id=None,
+    data: DataHolder,
+    x: str,
+    y: str,
+    levels: Levels,
+    marker: str | dict[str, str],
+    markersize: float | int,
+    markerfacecolor: str | dict[str, str],
+    markeredgecolor: str | dict[str, str],
+    linestyle: str | dict[str, str],
+    linewidth: float | int,
+    linecolor: str | dict[str, str],
+    linealpha: float | int,
+    facet_dict: dict[str, int],
+    func: Agg = None,
+    err_func: Error = None,
+    fill_between: bool = False,
+    fillalpha: AlphaRange = 1.0,
+    agg_func: Agg | None = None,
+    ytransform: Transform = None,
+    xtransform: Transform = None,
+    unique_id: str | None = None,
     sort=True,
     *args,
     **kwargs,
@@ -787,37 +711,28 @@ def _agg_line(
 
 
 def _kde_plot(
-    data,
-    y,
-    x,
-    levels,
-    linecolor,
-    facet_dict,
-    linestyle,
-    linewidth,
-    linealpha,
-    fillalpha,
-    fill_between,
-    kernel: Literal[
-        "gaussian",
-        "exponential",
-        "box",
-        "tri",
-        "epa",
-        "biweight",
-        "triweight",
-        "tricube",
-        "cosine",
-    ] = "gaussian",
-    bw: Literal["ISJ", "silverman", "scott"] = "ISJ",
-    tol: Union[float, int] = 1e-3,
+    data: DataHolder,
+    y: str,
+    x: str,
+    levels: Levels,
+    linecolor: str | dict[str, str],
+    facet_dict: dict[str, int],
+    linestyle: str | dict[str, str],
+    linewidth: float | int,
+    linealpha: float | int,
+    fillalpha: float | int,
+    fill_between: bool,
+    fill_under: bool,
+    kernel: Kernels = "gaussian",
+    bw: BW = "ISJ",
+    tol: float | int = 1e-3,
     common_norm: bool = True,
-    unique_id=None,
-    agg_func=None,
+    unique_id: str | None = None,
+    agg_func: Agg | None = None,
     err_func=None,
-    xtransform=None,
-    ytransform=None,
-    kde_type="fft",
+    xtransform: Transform = None,
+    ytransform: Transform = None,
+    KDEType="fft",
     *args,
     **kwargs,
 ) -> LinePlotter:
@@ -896,7 +811,7 @@ def _kde_plot(
                     max_data = max_data + np.abs((max_data * tol))
                     min_data = min_data if min_data != 0 else -1e-10
                     max_data = max_data if max_data != 0 else 1e-10
-                    if kde_type == "fft":
+                    if KDEType == "fft":
                         power2 = int(np.ceil(np.log2(len(temp_data))))
                         x_array = np.linspace(min_data, max_data, num=(1 << power2))
                     else:
@@ -935,7 +850,7 @@ def _kde_plot(
                             kernel=kernel,
                             tol=tol,
                             x=x_array,
-                            kde_type="fft",
+                            KDEType="fft",
                         )
                         y_hold[hi, :] = y_kde
                 if agg_func is not None:
@@ -977,28 +892,28 @@ def _kde_plot(
 
 
 def _ecdf(
-    data,
-    y,
-    x,
-    levels,
-    marker,
-    markersize,
-    markerfacecolor,
-    markeredgecolor,
-    linewidth,
-    linecolor,
-    facet_dict,
-    linestyle,
-    linealpha,
-    fill_between=False,
-    fillalpha=1.0,
-    unique_id=None,
-    agg_func=None,
+    data: DataHolder,
+    y: str,
+    x: str,
+    levels: Levels,
+    marker: str | dict[str, str],
+    markersize: float | int,
+    markerfacecolor: str | dict[str, str],
+    markeredgecolor: str | dict[str, str],
+    linewidth: float | int,
+    linecolor: str | dict[str, str],
+    facet_dict: dict[str, int],
+    linestyle: str | dict[str, str],
+    linealpha: float | int,
+    fill_between: bool = False,
+    fillalpha: AlphaRange = 1.0,
+    unique_id: str | None = None,
+    agg_func: Agg | None = None,
     err_func=None,
     ecdf_type: Literal["spline", "bootstrap"] = "spline",
     ecdf_args=None,
-    xtransform=None,
-    ytransform=None,
+    xtransform: Transform = None,
+    ytransform: Transform = None,
     *args,
     **kwargs,
 ) -> LinePlotter:
@@ -1125,24 +1040,24 @@ def _ecdf(
 
 
 def _poly_hist(
-    data,
-    y,
-    x,
-    levels,
-    color_dict,
-    facet_dict,
-    linestyle_dict,
-    linewidth,
-    unique_id=None,
-    density=True,
-    bin_limits=None,
-    nbins=50,
-    func="mean",
-    err_func="sem",
+    data: DataHolder,
+    y: str,
+    x: str,
+    levels: Levels,
+    color_dict: dict[str, str],
+    facet_dict: dict[str, int],
+    linestyle_dict: dict[str, str],
+    linewidth: float | int,
+    unique_id: str | None = None,
+    density: bool = True,
+    bin_limits: list[float, float] | None = None,
+    nbins: int = 50,
+    func: Agg = "mean",
+    err_func: Error = "sem",
     fit_func=None,
-    alpha=1,
-    xtransform=None,
-    ytransform=None,
+    alpha: AlphaRange = 1.0,
+    xtransform: Transform = None,
+    ytransform: Transform = None,
 ) -> LinePlotter:
     x_data = []
     y_data = []
@@ -1236,21 +1151,22 @@ def _poly_hist(
 
 
 def _line_plot(
-    data,
-    y,
-    x,
-    unique_groups,
-    levels,
-    color_dict,
-    facet_dict,
-    linestyle_dict,
-    linewidth=2,
-    unique_id=None,
-    func="mean",
-    err_func="sem",
-    alpha=1,
-    xtransform=None,
-    ytransform=None,
+    data: DataHolder,
+    y: str,
+    x: str,
+    levels: Levels,
+    color_dict: dict[str, str],
+    facet_dict: dict[str, int],
+    linestyle_dict: dict[str, str],
+    linewidth: float | int = 2,
+    unique_id: str | None = None,
+    func: Agg = "mean",
+    err_func: Error = "sem",
+    alpha: AlphaRange = 1.0,
+    xtransform: Transform = None,
+    ytransform: Transform = None,
+    *args,
+    **kwargs,
 ) -> LinePlotter:
 
     x_data = []
@@ -1272,8 +1188,7 @@ def _line_plot(
         func = get_transform(func)
         if err_func is not None:
             err_func = get_transform(err_func)
-        for i in unique_groups:
-            indexes = groups[i]
+        for i, indexes in groups.items():
             uids = np.unique(data[indexes])
             temp_list_y = None
             temp_list_x = None
@@ -1291,7 +1206,7 @@ def _line_plot(
             mean_y = func(temp_list_y, axis=0)
             x_data.append(get_transform(xtransform)(mean_x))
             y_data.append(get_transform(ytransform)(mean_y))
-            facet_index.append(i)
+            facet_index.append(facet_dict[i])
             mks.append(None)
             lcs.append(color_dict[i])
             lss.append(linestyle_dict[i])
@@ -1304,13 +1219,12 @@ def _line_plot(
             else:
                 error_data.append(None)
     else:
-        for i in unique_groups:
-            indexes = groups[i]
+        for i, indexes in groups.items():
             temp_y = np.asarray(data[indexes, y])
             temp_x = np.asarray(data[indexes, x])
             x_data.append(get_transform(xtransform)(temp_x))
             y_data.append(get_transform(ytransform)(temp_y))
-            facet_index.append(i)
+            facet_index.append(facet_dict[i])
             mks.append(None)
             lcs.append(color_dict[i])
             lss.append(linestyle_dict[i])
@@ -1338,7 +1252,7 @@ def _line_plot(
 
 
 # def biplot(
-#     data,
+#     data: DataHolder,
 #     columns,
 #     group,
 #     subgroup=None,
@@ -1398,7 +1312,7 @@ def _line_plot(
 #                 c=color_dict[ug],
 #             )
 #         ax.legend(
-#             marker,
+#             marker: str | dict[str, str],
 #         )
 #     if plot_loadings:
 #         width = -0.005 * np.min(
@@ -1448,24 +1362,25 @@ def _line_plot(
 
 def _percent_plot(
     data: DataHolder,
-    y,
-    levels,
-    unique_groups,
-    loc_dict,
-    color_dict,
-    edgecolor_dict,
-    cutoff: Union[None, float, int, list[Union[float, int]]],
+    y: str,
+    levels: Levels,
+    loc_dict: dict[str, float],
+    color_dict: dict[str, str],
+    edgecolor_dict: dict[str, str],
+    cutoff: None | float | int | list[float | int],
     include_bins: list[bool],
     barwidth: float = 1.0,
-    linewidth=1,
-    alpha: float = 1.0,
-    line_alpha=1.0,
-    hatch=None,
-    unique_id=None,
-    transform=None,
-    invert=False,
-    axis_type="density",
-):
+    linewidth: float | int = 1,
+    alpha: AlphaRange = 1.0,
+    linealpha: AlphaRange = 1.0,
+    hatch: str | None = None,
+    unique_id: str | None = None,
+    transform: Transform = None,
+    invert: bool = False,
+    axis_type: BinType = "density",
+    *args,
+    **kwargs,
+) -> RectanglePlotter:
 
     if cutoff is not None:
         bins = np.zeros(len(cutoff) + 2)
@@ -1500,13 +1415,11 @@ def _percent_plot(
     groups = data.groups(levels)
     if unique_id is not None:
         uid_groups = data.groups(levels + [unique_id])
-    for gr in unique_groups:
+    for gr, indexes in groups.items():
         if unique_id is None:
             bw.extend([barwidth] * plot_bins)
             lw.extend([linewidth] * plot_bins)
-            top, bottom = _bin_data(
-                data[groups[gr], y], bins, axis_type, invert, cutoff
-            )
+            top, bottom = _bin_data(data[indexes, y], bins, axis_type, invert, cutoff)
             tops.extend(top[include_bins])
             bottoms.extend(bottom[include_bins])
             fc = [
@@ -1562,7 +1475,7 @@ def _percent_plot(
         fillcolors=fillcolors,
         edgecolors=edgecolors,
         fill_alpha=alpha,
-        edge_alpha=line_alpha,
+        edge_alpha=linealpha,
         hatches=hatches,
         linewidth=lw,
     )
@@ -1573,22 +1486,23 @@ def _count_plot(
     data: DataHolder,
     y: str,
     levels: list[str],
-    unique_groups: dict,
     loc_dict: dict,
-    color_dict,
-    edgecolor_dict,
-    hatch,
-    barwidth,
-    linewidth,
-    alpha,
-    line_alpha,
-    axis_type,
-    unique_id=None,
-    invert=False,
-    agg_func=None,
-    err_func=None,
-    transform=None,
-):
+    color_dict: dict[str, str],
+    edgecolor_dict: dict[str, str],
+    hatch: str,
+    barwidth: float,
+    linewidth: float | int,
+    alpha: float | int,
+    edge_alpha: float | int,
+    axis_type: CountPlotTypes,
+    unique_id: str | None = None,
+    invert: bool = False,
+    agg_func: Agg | None = None,
+    err_func: Error = None,
+    transform: Transform = None,
+    *args,
+    **kwargs,
+) -> RectanglePlotter:
 
     bw = []
     bottoms = []
@@ -1602,8 +1516,8 @@ def _count_plot(
     multiplier = 100 if axis_type == "percent" else 1
 
     groups = data.groups(levels)
-    for gr in unique_groups:
-        unique_groups_sub, counts = np.unique(data[groups[gr], y], return_counts=True)
+    for gr, indexes in groups.items():
+        unique_groups_sub, counts = np.unique(data[indexes, y], return_counts=True)
         size = sum(counts)
         temp_width = barwidth / len(unique_groups_sub)
         if len(unique_groups_sub) > 1:
@@ -1635,7 +1549,7 @@ def _count_plot(
         fillcolors=fillcolors,
         edgecolors=edgecolors,
         fill_alpha=alpha,
-        edge_alpha=alpha,
+        edge_alpha=edge_alpha,
         hatches=hatches,
         linewidth=lws,
         axis="x",

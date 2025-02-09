@@ -1,6 +1,5 @@
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Callable, Literal
+from typing import Callable, Literal
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -8,9 +7,6 @@ import numpy as np
 import pandas as pd
 
 from ..utils import (
-    AGGREGATE,
-    ERROR,
-    TRANSFORM,
     DataHolder,
     get_backtransform,
     get_transform,
@@ -27,19 +23,21 @@ from .plot_utils import (
     process_scatter_args,
     radian_ticks,
 )
+from .types import (
+    BW,
+    Agg,
+    AlphaRange,
+    BinType,
+    ColorParameters,
+    CountPlotTypes,
+    Error,
+    KDEType,
+    Transform,
+)
 
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["svg.fonttype"] = "none"
 
-
-@dataclass
-class ValueRange:
-    lo: float
-    hi: float
-
-
-AlphaRange = Annotated[float, ValueRange(0.0, 1.0)]
-ColorParameter = str | dict[str, str] | None
 
 MP_PLOTS = {
     "boxplot": mp._boxplot,
@@ -64,9 +62,9 @@ PLOTLY_SAVE_TYPES = {"html"}
 
 
 class BasePlot:
-    aggregating_funcs = AGGREGATE
-    error_funcs = ERROR
-    transform_funcs = TRANSFORM
+    aggregating_funcs = Agg
+    error_funcs = Error
+    transform_funcs = Transform
 
     def __init__(self, data: pd.DataFrame, inplace: bool = False):
         self.inplace = inplace
@@ -504,9 +502,9 @@ class BasePlot:
 
     def transform(
         self,
-        ytransform: TRANSFORM | None = None,
+        ytransform: Transform | None = None,
         back_transform_yticks: bool = False,
-        xtransform: TRANSFORM | None = None,
+        xtransform: Transform | None = None,
         back_transform_xticks: bool = False,
     ):
         self._plot_transforms = {}
@@ -683,7 +681,7 @@ class LinePlot(BasePlot):
 
     def line(
         self,
-        linecolor: ColorParameter = "black",
+        linecolor: ColorParameters = "black",
         linestyle: str = "-",
         linewidth: int = 2,
         func: str = "mean",
@@ -727,17 +725,17 @@ class LinePlot(BasePlot):
     def aggline(
         self,
         marker: str = "none",
-        markerfacecolor: ColorParameter | tuple[str, str] = None,
-        markeredgecolor: ColorParameter | tuple[str, str] = None,
+        markerfacecolor: ColorParameters | tuple[str, str] = None,
+        markeredgecolor: ColorParameters | tuple[str, str] = None,
         markersize: float | str = 1,
-        linecolor: ColorParameter = None,
+        linecolor: ColorParameters = None,
         linewidth: float = 1.0,
         linestyle: str = "-",
         linealpha: float = 1.0,
         func="mean",
         err_func="sem",
         agg_func=None,
-        fill_between=False,
+        fill_between: bool = False,
         fillalpha: AlphaRange = 1.0,
         sort=True,
         unique_id=None,
@@ -808,21 +806,11 @@ class LinePlot(BasePlot):
 
     def kde(
         self,
-        kernel: Literal[
-            "gaussian",
-            "exponential",
-            "box",
-            "tri",
-            "epa",
-            "biweight",
-            "triweight",
-            "tricube",
-            "cosine",
-        ] = "gaussian",
-        bw: Literal["ISJ", "silverman", "scott"] = "silverman",
+        kernel: KDEType = "gaussian",
+        bw: BW = "silverman",
         tol: float | int = 1e-3,
         common_norm: bool = True,
-        linecolor: ColorParameter = None,
+        linecolor: ColorParameters = None,
         linestyle: str = "-",
         linewidth: int = 2,
         fill_between: bool = False,
@@ -831,7 +819,7 @@ class LinePlot(BasePlot):
         unique_id: str | None = None,
         agg_func=None,
         err_func=None,
-        kde_type: Literal["tree", "fft"] = "fft",
+        KDEType: Literal["tree", "fft"] = "fft",
     ):
         self._plot_funcs.append("kde")
         self._plot_prefs.append(
@@ -848,7 +836,7 @@ class LinePlot(BasePlot):
                 "fillalpha": fillalpha,
                 "unique_id": unique_id,
                 "agg_func": agg_func,
-                "kde_type": kde_type,
+                "KDEType": KDEType,
             }
         )
 
@@ -880,7 +868,7 @@ class LinePlot(BasePlot):
             "unique_id": unique_id,
             "agg_func": agg_func,
             "err_func": err_func,
-            "kde_type": kde_type,
+            "KDEType": KDEType,
             "fillalpha": alpha / 2 if fillalpha is None else fillalpha,
         }
 
@@ -892,7 +880,7 @@ class LinePlot(BasePlot):
 
     def polyhist(
         self,
-        color: ColorParameter = None,
+        color: ColorParameters = None,
         linestyle: str = "-",
         linewidth: int = 2,
         bin_limits=None,
@@ -955,8 +943,8 @@ class LinePlot(BasePlot):
     def hist(
         self,
         hist_type: Literal["bar", "step", "stepfilled"] = "bar",
-        color: ColorParameter = None,
-        linecolor: ColorParameter = None,
+        color: ColorParameters = None,
+        linecolor: ColorParameters = None,
         linewidth: int = 2,
         hatch=None,
         fillalpha: AlphaRange = 1.0,
@@ -1027,10 +1015,10 @@ class LinePlot(BasePlot):
     def ecdf(
         self,
         marker: str = "none",
-        markerfacecolor: ColorParameter | tuple[str, str] = None,
-        markeredgecolor: ColorParameter | tuple[str, str] = None,
+        markerfacecolor: ColorParameters | tuple[str, str] = None,
+        markeredgecolor: ColorParameters | tuple[str, str] = None,
         markersize: float | str = 1,
-        linecolor: ColorParameter = None,
+        linecolor: ColorParameters = None,
         linestyle: str = "-",
         linewidth: int = 2,
         linealpha: AlphaRange = 1.0,
@@ -1039,7 +1027,7 @@ class LinePlot(BasePlot):
         unique_id: str | None = None,
         agg_func=None,
         err_func=None,
-        colorall: ColorParameter = None,
+        colorall: ColorParameters = None,
         ecdf_type: Literal["spline", "bootstrap", "none"] = "none",
         ecdf_args=None,
     ):
@@ -1121,8 +1109,8 @@ class LinePlot(BasePlot):
     def scatter(
         self,
         marker: str = ".",
-        markercolor: ColorParameter | tuple[str, str] = "black",
-        edgecolor: ColorParameter = "black",
+        markercolor: ColorParameters | tuple[str, str] = "black",
+        edgecolor: ColorParameters = "black",
         markersize: float | str = 1,
         alpha: float = 1.0,
     ):
@@ -1489,9 +1477,9 @@ class CategoricalPlot(BasePlot):
 
     def jitter(
         self,
-        color: ColorParameter = None,
+        color: ColorParameters = None,
         marker: str | dict[str, str] = "o",
-        edgecolor: ColorParameter = "none",
+        edgecolor: ColorParameters = "none",
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
         width: float | int = 1.0,
@@ -1556,15 +1544,15 @@ class CategoricalPlot(BasePlot):
     def jitteru(
         self,
         unique_id: str | int | float,
-        color: ColorParameter = None,
+        color: ColorParameters = None,
         marker: str | dict[str, str] = "o",
-        edgecolor: ColorParameter = "none",
+        edgecolor: ColorParameters = "none",
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
         width: float | int = 1.0,
         duplicate_offset=0.0,
         markersize: float = 2.0,
-        agg_func: AGGREGATE | None = None,
+        agg_func: Agg | None = None,
         legend: bool = False,
     ):
         self._plot_funcs.append("jitteru")
@@ -1627,13 +1615,13 @@ class CategoricalPlot(BasePlot):
 
     def summary(
         self,
-        func: AGGREGATE = "mean",
+        func: Agg = "mean",
         capsize: int = 0,
         capstyle: str = "round",
         barwidth: float = 1.0,
-        err_func: ERROR = "sem",
+        err_func: Error = "sem",
         linewidth: int = 2,
-        color: ColorParameter = "black",
+        color: ColorParameters = "black",
         alpha: float = 1.0,
         legend: bool = False,
     ):
@@ -1681,15 +1669,15 @@ class CategoricalPlot(BasePlot):
     def summaryu(
         self,
         unique_id,
-        func: AGGREGATE = "mean",
-        agg_func: AGGREGATE = None,
+        func: Agg = "mean",
+        agg_func: Agg = None,
         agg_width: float = 1.0,
         capsize: int = 0,
         capstyle: str = "round",
         barwidth: float = 1.0,
-        err_func: ERROR = "sem",
+        err_func: Error = "sem",
         linewidth: int = 2,
-        color: ColorParameter = "black",
+        color: ColorParameters = "black",
         alpha: float = 1.0,
         legend: bool = False,
     ):
@@ -1742,13 +1730,13 @@ class CategoricalPlot(BasePlot):
 
     def boxplot(
         self,
-        facecolor: ColorParameter = None,
-        edgecolor: ColorParameter = None,
+        facecolor: ColorParameters = None,
+        edgecolor: ColorParameters = None,
         fliers="",
         width: float = 1.0,
         linewidth=1,
         alpha: AlphaRange = 1.0,
-        line_alpha: AlphaRange = 1.0,
+        linealpha: AlphaRange = 1.0,
         showmeans: bool = False,
         show_ci: bool = False,
         legend: bool = False,
@@ -1762,7 +1750,7 @@ class CategoricalPlot(BasePlot):
                 "width": width,
                 "alpha": alpha,
                 "linewidth": linewidth,
-                "line_alpha": line_alpha,
+                "linealpha": linealpha,
                 "showmeans": showmeans,
                 "show_ci": show_ci,
                 "legend": legend,
@@ -1799,7 +1787,7 @@ class CategoricalPlot(BasePlot):
             "show_ci": show_ci,
             "linewidth": linewidth,
             "alpha": alpha,
-            "line_alpha": line_alpha,
+            "linealpha": linealpha,
         }
         self.plots.append(boxplot)
         self.plot_list.append("boxplot")
@@ -1819,8 +1807,8 @@ class CategoricalPlot(BasePlot):
 
     def violin(
         self,
-        facecolor: ColorParameter = None,
-        edgecolor: ColorParameter = None,
+        facecolor: ColorParameters = None,
+        edgecolor: ColorParameters = None,
         linewidth=1,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
@@ -1885,13 +1873,13 @@ class CategoricalPlot(BasePlot):
         cutoff: None | float | int | list[float | int],
         unique_id=None,
         facecolor=None,
-        edgecolor: ColorParameter = "black",
+        edgecolor: ColorParameters = "black",
         hatch=None,
         barwidth: float = 1.0,
         linewidth=1,
         alpha: float = 1.0,
-        line_alpha=1.0,
-        axis_type: Literal["density", "percent"] = "density",
+        linealpha=1.0,
+        axis_type: BinType = "density",
         include_bins: list[bool] | None = None,
         invert: bool = False,
         legend: bool = False,
@@ -1906,7 +1894,7 @@ class CategoricalPlot(BasePlot):
                 "linewidth": linewidth,
                 "barwidth": barwidth,
                 "alpha": alpha,
-                "line_alpha": line_alpha,
+                "linealpha": linealpha,
                 "axis_type": axis_type,
                 "invert": invert,
                 "include_bins": include_bins,
@@ -1937,7 +1925,7 @@ class CategoricalPlot(BasePlot):
             "barwidth": barwidth * self._plot_dict["width"],
             "linewidth": linewidth,
             "alpha": alpha,
-            "line_alpha": line_alpha,
+            "linealpha": linealpha,
             "include_bins": include_bins,
             "unique_id": unique_id,
             "invert": invert,
@@ -1965,14 +1953,14 @@ class CategoricalPlot(BasePlot):
 
     def count(
         self,
-        facecolor: ColorParameter = None,
-        edgecolor: ColorParameter = "black",
+        facecolor: ColorParameters = None,
+        edgecolor: ColorParameters = "black",
         hatch=None,
         barwidth: float = 1.0,
         linewidth=1,
         alpha: float = 1.0,
-        line_alpha=1.0,
-        axis_type: Literal["density", "count", "percent"] = "density",
+        edge_alpha=1.0,
+        axis_type: CountPlotTypes = "count",
         legend: bool = False,
     ):
         self._plot_funcs.append("count")
@@ -1984,7 +1972,7 @@ class CategoricalPlot(BasePlot):
                 "barwidth": barwidth,
                 "linewidth": linewidth,
                 "alpha": alpha,
-                "line_alpha": line_alpha,
+                "edge_alpha": edge_alpha,
                 "axis_type": axis_type,
                 "legend": legend,
             }
@@ -2006,7 +1994,7 @@ class CategoricalPlot(BasePlot):
             "barwidth": barwidth * self._plot_dict["width"],
             "linewidth": linewidth,
             "alpha": alpha,
-            "line_alpha": line_alpha,
+            "edge_alpha": edge_alpha,
             "axis_type": axis_type,
         }
         self.plots.append(count_plot)
@@ -2145,7 +2133,7 @@ class GraphPlot:
     def graphplot(
         self,
         marker_alpha: float = 0.8,
-        line_alpha: float = 0.1,
+        linealpha: float = 0.1,
         markersize: int = 2,
         markerscale: int = 1,
         linewidth: int = 1,
@@ -2160,7 +2148,7 @@ class GraphPlot:
     ):
         graph_plot = {
             "marker_alpha": marker_alpha,
-            "line_alpha": line_alpha,
+            "linealpha": linealpha,
             "markersize": markersize,
             "markerscale": markerscale,
             "linewidth": linewidth,

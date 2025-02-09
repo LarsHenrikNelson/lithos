@@ -1,5 +1,3 @@
-from typing import Literal
-
 from scipy import stats
 import numpy as np
 
@@ -48,24 +46,7 @@ def mad(a, axis=None):
     return np.median(np.abs(a - np.median(a, axis=axis)))
 
 
-TRANSFORM = Literal["log10", "log2", "ln", "inverse", "ninverse", "sqrt"]
-AGGREGATE = Literal[
-    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean"
-]
-ERROR = Literal[
-    "sem",
-    "ci",
-    "periodic_std",
-    "periodic_sem",
-    "std",
-    "nanstd",
-    "var",
-    "nanvar",
-    "mad",
-    "gstd",
-]
-
-BACK_TRANSFORM_DICT = {
+BACK_Transform_DICT = {
     "log10": lambda x: 10.0**x,
     "log2": lambda x: 2.0**x,
     "ninverse": lambda x: -1.0 / x,
@@ -114,8 +95,8 @@ def get_transform(input):
 
 
 def get_backtransform(input):
-    if input in BACK_TRANSFORM_DICT:
-        return BACK_TRANSFORM_DICT[input]
+    if input in BACK_Transform_DICT:
+        return BACK_Transform_DICT[input]
     elif callable(input):
         return input
     else:

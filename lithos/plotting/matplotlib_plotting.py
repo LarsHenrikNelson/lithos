@@ -1114,7 +1114,7 @@ def _kde_plot(
     err_func=None,
     xtransform=None,
     ytransform=None,
-    kde_type="fft",
+    KDEType="fft",
     *args,
     **kwargs,
 ):
@@ -1196,7 +1196,7 @@ def _kde_plot(
                     max_data = max_data + np.abs((max_data * tol))
                     min_data = min_data if min_data != 0 else -1e-10
                     max_data = max_data if max_data != 0 else 1e-10
-                    if kde_type == "fft":
+                    if KDEType == "fft":
                         power2 = int(np.ceil(np.log2(len(temp_data))))
                         x_array = np.linspace(min_data, max_data, num=(1 << power2))
                     else:
@@ -1235,7 +1235,7 @@ def _kde_plot(
                             kernel=kernel,
                             tol=tol,
                             x=x_array,
-                            kde_type="fft",
+                            KDEType="fft",
                         )
                         y_hold[hi, :] = y_kde
                 if agg_func is not None:

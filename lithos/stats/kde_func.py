@@ -21,9 +21,9 @@ def kde(
     bw: Literal["ISJ", "silverman", "scott"] = "ISJ",
     x: Optional[np.array] = None,
     tol: float = 1e-3,
-    kde_type: Literal["fft", "tree"] = "fft",
+    KDEType: Literal["fft", "tree"] = "fft",
 ):
-    if kde_type == "fft":
+    if KDEType == "fft":
         data = np.asarray(data)
         kde_obj = KDEpy.FFTKDE(kernel=kernel, bw=bw).fit(data)
         if x is None:
