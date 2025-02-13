@@ -1,14 +1,18 @@
 from .plot_class import CategoricalPlot, LinePlot  # noqa F401
 from .types import (
-    RectanglePlotter,  # noqa F401
-    LinePlotter,  # noqa F401
-    ScatterPlotter,  # noqa F401
-    SummaryPlotter,  # noqa F401
-    BoxPlotter,  # noqa F401
-    ViolinPlotter,  # noqa F401
-    HistPlotter,  # noqa F401
-    FUNC,  # noqa F401
+    Agg,  # noqa F401
+    BinType,  # noqa F401
+    BoxPlotData,  # noqa F401
+    BW,  # noqa F401
+    CapStyle,  # noqa F401,
+    Error,  # noqa F401
     Kernels,  # noqa F401
     Levels,  # noqa F401
-    BW,  # noqa F401
+    LinePlotData,  # noqa F401
+    RectanglePlotData,  # noqa F401
+    SavePath,  # noqa F401,
+    ScatterPlotData,  # noqa F401
+    SummaryPlotData,  # noqa F401
+    Transform,  # noqa F401,
+    ViolinPlotData,  # noqa F401
 )

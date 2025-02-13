@@ -5,6 +5,16 @@ import numpy as np
 import numpy.typing as npt
 
 
+def _kde_length(data, kde_obj, tol: float = 0.1, kde_length: int = None):
+    width = np.sqrt(np.cov(data) * kde_obj.bw**2)
+    min_data = data.min() - width * tol
+    max_data = data.max() + width * tol
+    if kde_length is None:
+        kde_length = int(np.ceil(np.log2(len(data))))
+    x = np.linspace(min_data, max_data, num=(1 << kde_length))
+    return x
+
+
 def kde(
     data: npt.ArrayLike,
     kernel: Literal[
@@ -20,27 +30,16 @@ def kde(
     ] = "gaussian",
     bw: Literal["ISJ", "silverman", "scott"] = "ISJ",
     x: Optional[np.array] = None,
+    kde_length: int = None,
     tol: float = 1e-3,
     KDEType: Literal["fft", "tree"] = "fft",
 ):
+    data = np.asarray(data)
     if KDEType == "fft":
-        data = np.asarray(data)
         kde_obj = KDEpy.FFTKDE(kernel=kernel, bw=bw).fit(data)
-        if x is None:
-            width = np.sqrt(np.cov(data) * kde_obj.bw**2)
-            min_data = data.min() - width * tol
-            max_data = data.max() + width * tol
-            power2 = int(np.ceil(np.log2(len(data))))
-            x = np.linspace(min_data, max_data, num=(1 << power2))
-        y = kde_obj.evaluate(x)
     else:
-        data = np.asarray(data)
         kde_obj = KDEpy.TreeKDE(kernel=kernel, bw=bw).fit(data)
-        if x is None:
-            width = np.sqrt(np.cov(data) * kde_obj.bw**2)
-            min_data = data.min() - width * tol
-            max_data = data.max() + width * tol
-            power2 = int(np.ceil(np.log2(len(data))))
-            x = np.linspace(min_data, max_data, num=(1 << power2))
-        y = kde_obj.evaluate(x)
+    if x is None:
+        x = _kde_length(data, kde_obj, tol, kde_length)
+    y = kde_obj.evaluate(x)
     return x, y

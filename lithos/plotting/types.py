@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypeAlias
 
 import numpy as np
 
 
 @dataclass
 class RectanglePlotData:
-    plot_type: str = "rectangle"
     width: float
     height: float
     tops: list[float]
@@ -22,11 +21,11 @@ class RectanglePlotData:
     hatches: list[str]
     linewidth: float
     axis: Literal["x", "y"]
+    plot_type: str = "rectangle"
 
 
 @dataclass
 class LinePlotData:
-    plot_type: str = "line"
     x_data: list
     y_data: list
     error_data: list
@@ -42,11 +41,11 @@ class LinePlotData:
     markersize: float | None = None
     fillalpha: float | None = None
     linealpha: float | None = None
+    plot_type: str = "line"
 
 
 @dataclass
 class ScatterPlotData:
-    plot_type: str = "scatter"
     x_data: list[np.ndarray]
     y_data: list[np.ndarray]
     marker: list[str]
@@ -55,11 +54,11 @@ class ScatterPlotData:
     markersize: list[float]
     alpha: float
     edge_alpha: float
+    plot_type: str = "scatter"
 
 
 @dataclass
 class SummaryPlotData:
-    plot_type: str = "summary"
     x_data: list
     y_data: list
     error_data: list
@@ -69,11 +68,11 @@ class SummaryPlotData:
     alpha: float
     capstyle: str
     capsize: float
+    plot_type: str = "summary"
 
 
 @dataclass
-class BoxData:
-    plot_type: str = "box"
+class BoxPlotData:
     x_data: list
     y_data: list
     facecolors: list[str]
@@ -85,11 +84,11 @@ class BoxData:
     width: float
     show_ci: bool
     showmeans: bool
+    plot_type: str = "box"
 
 
 @dataclass
 class ViolinPlotData:
-    plot_type: str = "violin"
     x_data: list
     y_data: list
     facecolors: list[str]
@@ -101,9 +100,10 @@ class ViolinPlotData:
     showmeans: bool
     showmedians: bool
     showextrema: bool
+    plot_type: str = "violin"
 
 
-type Kernels = Literal[
+Kernels: TypeAlias = Literal[
     "gaussian",
     "exponential",
     "box",
@@ -115,9 +115,9 @@ type Kernels = Literal[
     "cosine",
 ]
 
-type BW = float | Literal["ISJ", "silverman", "scott"]
-type KDEType = Literal["fft", "tree"]
-type Levels = str | int | float
+BW: TypeAlias = float | Literal["ISJ", "silverman", "scott"]
+KDEType: TypeAlias = Literal["fft", "tree"]
+Levels: TypeAlias = str | int | float
 
 
 @dataclass
@@ -126,14 +126,16 @@ class ValueRange:
     hi: float
 
 
-type AlphaRange = Annotated[float, ValueRange(0.0, 1.0)]
-type ColorParameters = str | dict[str, str] | None
-type CountPlotTypes = Literal["percent", "count"]
-type TransformFuncs = Literal["log10", "log2", "ln", "inverse", "ninverse", "sqrt"]
-type AggFuncs = Literal[
+AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]
+ColorParameters: TypeAlias = str | dict[str, str] | None
+CountPlotTypes: TypeAlias = Literal["percent", "count"]
+TransformFuncs: TypeAlias = Literal[
+    "log10", "log2", "ln", "inverse", "ninverse", "sqrt"
+]
+AggFuncs: TypeAlias = Literal[
     "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean"
 ]
-type ErrorFuncs = Literal[
+ErrorFuncs: TypeAlias = Literal[
     "sem",
     "ci",
     "periodic_std",
@@ -145,9 +147,9 @@ type ErrorFuncs = Literal[
     "mad",
     "gstd",
 ]
-type Error = ErrorFuncs | callable | None
-type Agg = AggFuncs | callable
-type Transform = TransformFuncs | None
-type BinType = Literal["density", "percent"]
-type CapStyle = Literal["butt", "round", "projecting"]
-type SavePath = str | Path | BytesIO | StringIO
+Error: TypeAlias = ErrorFuncs | callable | None
+Agg: TypeAlias = AggFuncs | callable
+Transform: TypeAlias = TransformFuncs | None
+BinType: TypeAlias = Literal["density", "percent"]
+CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
+SavePath: TypeAlias = str | Path | BytesIO | StringIO

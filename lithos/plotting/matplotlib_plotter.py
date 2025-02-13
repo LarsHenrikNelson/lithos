@@ -601,6 +601,24 @@ class MPLPlotter:
             p_dict.pot("plot_type")
             plot_func(**p_dict, ax=self.ax)
 
+    def plot(
+        self,
+        savefig: bool = False,
+        path: SavePath = "",
+        filetype: str = "svg",
+        filename: str | Path = "",
+        transparent: bool = False,
+    ):
+
+        self._plot(self.plot_data)
+        self.format_plot()
+
+        if savefig:
+            self.savefig(
+                path=path, filename=filename, filetype=filetype, transparent=transparent
+            )
+        return self.fig, self.ax
+
     def savefig(
         self,
         path: SavePath,
@@ -656,6 +674,9 @@ class MPLLinePlotter(MPLPlotter):
                 layout="constrained",
             )
             ax = ax.flat
+            for i in ax[len(self._plot_dict["group_order"]) :]:
+                i.remove()
+            ax = ax[: len(self._plot_dict["group_order"])]
         else:
             fig, ax = plt.subplots(
                 subplot_kw=dict(
@@ -733,17 +754,7 @@ class MPLLinePlotter(MPLPlotter):
             rotation=self.plot_format["labels"]["ytick_rotation"],
         )
 
-    def plot(
-        self,
-        savefig: bool = False,
-        path: SavePath = "",
-        filetype: str = "svg",
-        filename: str | Path = "",
-        transparent: bool = False,
-    ):
-
-        self._plot(self.plot_data)
-
+    def format_plot(self):
         for p in self.plot_data:
             if p.plot_type == "kde" or p.plot_type == "hist":
                 if self._plot_data["x"] is not None:
@@ -823,12 +834,6 @@ class MPLLinePlotter(MPLPlotter):
                 fontsize=self.plot_format["labels"]["titlesize"],
             )
 
-        if savefig:
-            self.savefig(
-                path=path, filename=filename, filetype=filetype, transparent=transparent
-            )
-        return self.fig, self.ax
-
 
 class MPLCategoricalPlotter(MPLPlotter):
     def create_figure(self):
@@ -839,16 +844,7 @@ class MPLCategoricalPlotter(MPLPlotter):
         )
         return fig, ax
 
-    def plot(
-        self,
-        savefig: bool = False,
-        path: str = "",
-        filename: str = "",
-        filetype: str = "svg",
-        transparent=False,
-    ):
-        self._plot(self.plot_data)
-
+    def format_plot(self):
         self.ax.set_xticks(
             ticks=self._plot_dict["x_ticks"],
             labels=self._plot_dict["group_order"],
@@ -921,12 +917,6 @@ class MPLCategoricalPlotter(MPLPlotter):
                 loc=self._plot_dict["legend_loc"],
                 frameon=False,
             )
-
-        if savefig:
-            self.savefig(
-                path=path, filename=filename, filetype=filetype, transparent=transparent
-            )
-        return self.fig, self.ax
 
 
 # def _plot_network(

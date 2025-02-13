@@ -46,7 +46,7 @@ def mad(a, axis=None):
     return np.median(np.abs(a - np.median(a, axis=axis)))
 
 
-BACK_Transform_DICT = {
+BACK_TRANSFORM_DICT = {
     "log10": lambda x: 10.0**x,
     "log2": lambda x: 2.0**x,
     "ninverse": lambda x: -1.0 / x,
@@ -95,8 +95,8 @@ def get_transform(input):
 
 
 def get_backtransform(input):
-    if input in BACK_Transform_DICT:
-        return BACK_Transform_DICT[input]
+    if input in BACK_TRANSFORM_DICT:
+        return BACK_TRANSFORM_DICT[input]
     elif callable(input):
         return input
     else:

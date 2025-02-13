@@ -105,6 +105,10 @@ class DataHolder:
         return yy
 
     def groups(self, levels):
+        if len(levels) == 0:
+            new_groups = {}
+            new_groups[("",)] = np.arange(self.shape[0])
+            return new_groups
         temp_groups = pd.DataFrame(self._data).groupby(levels).indices
         new_groups = {}
         for key, value in temp_groups.items():

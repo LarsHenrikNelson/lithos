@@ -14,7 +14,7 @@ from .types import (
     Agg,
     AlphaRange,
     BinType,
-    BoxData,
+    BoxPlotData,
     CountPlotTypes,
     Error,
     Kernels,
@@ -382,7 +382,7 @@ def _box(
             x_data.append([loc_dict[key]])
             fcs.append(color_dict[key])
             ecs.append(edgecolor_dict[key])
-    output = BoxData(
+    output = BoxPlotData(
         x_data=x_data,
         y_data=y_data,
         facecolors=fcs,
@@ -453,7 +453,7 @@ def _paired_plot():
     pass
 
 
-def _bar_histogram(
+def _hist(
     data: DataHolder,
     y: str,
     x: str,
@@ -462,6 +462,49 @@ def _bar_histogram(
     facet_dict: dict[str, int],
     hatch: str | dict[str, str] | None = None,
     hist_type: Literal["bar", "step", "stepfilled"] = "bar",
+    fillalpha: AlphaRange = 1.0,
+    linealpha: AlphaRange = 1.0,
+    bin_limits: list[float, float] | None = None,
+    nbins=None,
+    stat="probability",
+    agg_func: Agg | None = None,
+    unique_id: str | None = None,
+    ytransform: Transform = None,
+    xtransfrom=None,
+    *args,
+    **kwargs,
+):
+    if hist_type == "bar":
+        _bar_histogram(
+            data=data,
+            y=y,
+            x=x,
+            levels=levels,
+            color_dict=color_dict,
+            facet_dict=facet_dict,
+            hatch=hatch,
+            fillalpha=fillalpha,
+            linealpha=linealpha,
+            bin_limits=bin_limits,
+            nbins=nbins,
+            stat=stat,
+            agg_func=agg_func,
+            unique_id=unique_id,
+            ytransform=ytransform,
+            xtransfrom=xtransfrom,
+            *args,
+            **kwargs,
+        )
+
+
+def _bar_histogram(
+    data: DataHolder,
+    y: str,
+    x: str,
+    levels: Levels,
+    color_dict: dict[str, str],
+    facet_dict: dict[str, int],
+    hatch: str | dict[str, str] | None = None,
     fillalpha: AlphaRange = 1.0,
     linealpha: AlphaRange = 1.0,
     bin_limits: list[float, float] | None = None,
