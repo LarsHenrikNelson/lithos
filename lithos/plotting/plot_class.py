@@ -54,14 +54,13 @@ class BasePlot:
     error_funcs = Error
     transform_funcs = Transform
 
-    def __init__(self, data: pd.DataFrame, inplace: bool = False):
+    def __init__(self, data: dict | pd.DataFrame | np.ndarray, inplace: bool = False):
         self.inplace = inplace
         self.plots = []
         self.plot_list = []
         self._plot_methods = []
         self._plot_prefs = []
         self._grouping = {}
-        self._plot_settings_run = False
         self.data = DataHolder(data)
 
         self.plot_format = {}
