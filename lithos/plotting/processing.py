@@ -769,6 +769,7 @@ def _kde(
     fill_under: bool,
     kernel: Kernels = "gaussian",
     bw: BW = "ISJ",
+    kde_length: int | None = None,
     tol: float | int = 1e-3,
     common_norm: bool = True,
     unique_id: str | None = None,
@@ -800,7 +801,11 @@ def _kde(
         y_values = np.asarray(data[column]).flatten()
         temp_size = size
         x_kde, y_kde = stats.kde(
-            get_transform(transform)(y_values), bw=bw, kernel=kernel, tol=tol
+            get_transform(transform)(y_values),
+            bw=bw,
+            kernel=kernel,
+            tol=tol,
+            kde_length=kde_length,
         )
         if common_norm:
             multiplier = float(temp_size / size)
@@ -826,7 +831,11 @@ def _kde(
                 y_values = np.asarray(data[group_indexes, column]).flatten()
                 temp_size = y_values.size
                 x_kde, y_kde = stats.kde(
-                    get_transform(transform)(y_values), bw=bw, kernel=kernel, tol=tol
+                    get_transform(transform)(y_values),
+                    bw=bw,
+                    kernel=kernel,
+                    tol=tol,
+                    kde_length=kde_length,
                 )
                 if common_norm:
                     multiplier = float(temp_size / size)
@@ -856,15 +865,14 @@ def _kde(
                     min_data = min_data if min_data != 0 else -1e-10
                     max_data = max_data if max_data != 0 else 1e-10
                     if KDEType == "fft":
-                        power2 = int(np.ceil(np.log2(len(temp_data))))
-                        x_array = np.linspace(min_data, max_data, num=(1 << power2))
+                        if kde_length is None:
+                            kde_length = int(np.ceil(np.log2(len(temp_data))))
                     else:
-                        max_len = np.max(count)
-                        x_array = np.linspace(
-                            min_data, max_data, num=int(max_len * 1.5)
-                        )
+                        if kde_length is None:
+                            max_len = np.max(count)
+                            kde_length = int(max_len * 1.5)
+                    x_array = np.linspace(min_data, max_data, num=kde_length)
                     y_hold = np.zeros((len(subgroups), x_array.size))
-
                 for hi, s in enumerate(subgroups):
                     s_indexes = uid_groups[u + (s,)]
                     y_values = np.asarray(data[s_indexes, column]).flatten()

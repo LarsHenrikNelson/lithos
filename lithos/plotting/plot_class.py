@@ -593,6 +593,7 @@ class LinePlot(BasePlot):
         fill_between: bool = False,
         alpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 1.0,
+        kde_length: int | None = None,
         unique_id: str | None = None,
         agg_func=None,
         err_func=None,
@@ -611,6 +612,7 @@ class LinePlot(BasePlot):
                 "fill_between": fill_between,
                 "alpha": alpha,
                 "fillalpha": fillalpha,
+                "kde_length": kde_length,
                 "unique_id": unique_id,
                 "agg_func": agg_func,
                 "KDEType": KDEType,
@@ -645,6 +647,7 @@ class LinePlot(BasePlot):
             "unique_id": unique_id,
             "agg_func": agg_func,
             "err_func": err_func,
+            "kde_length": kde_length,
             "KDEType": KDEType,
             "fillalpha": alpha / 2 if fillalpha is None else fillalpha,
         }
