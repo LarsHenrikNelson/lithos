@@ -2,10 +2,8 @@ from fractions import Fraction
 from itertools import cycle
 
 import colorcet as cc
-import matplotlib as mpl
 import numpy as np
 import pandas as pd
-from matplotlib.colors import Normalize, to_rgba
 from numpy.random import default_rng
 
 
@@ -312,28 +310,35 @@ def process_args(arg, group, subgroup):
     return output_dict
 
 
-def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None, alpha=None):
+def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
     if isinstance(arg_cycle, (np.ndarray, list)):
         if arg in data:
             if arg_cycle is not None:
-                output = _discrete_cycler(arg, data, arg_cycle, alpha)
+                output = _discrete_cycler(arg, data, arg_cycle)
             else:
                 output = data[arg]
         elif len(arg) < len(unique_groups):
             output = arg
-    elif arg_cycle in mpl.colormaps:
+    if isinstance(arg_cycle, str):
+        if ":" in arg_cycle:
+            arg_cycle, indexes = arg_cycle.split(":")
+            one, two = indexes.split("-")
+            start = max(0, int(one))
+            stop = min(255, int(two))
+        else:
+            start = 0
+            stop = 255
+    elif arg_cycle in cc.palette:
         if arg not in data:
             raise AttributeError("arg[0] of arg must be in data passed to LinePlot")
-        output = _continuous_cycler(arg, data, arg_cycle, alpha)
+        output = _continuous_cycler(arg, data, arg_cycle, start, stop)
     else:
         output = create_dict(arg, unique_groups)
-        if alpha:
-            output = {key: to_rgba(value, alpha) for key, value in output.items()}
         output = [output[j] for j in zip(*[data[i] for i in levels])]
     return output
 
 
-def _discrete_cycler(arg, data, arg_cycle, alpha=None):
+def _discrete_cycler(arg, data, arg_cycle):
     grps = np.unique(data[arg])
     ntimes = data.shape[0] // len(arg_cycle)
     markers = arg_cycle
@@ -341,32 +346,26 @@ def _discrete_cycler(arg, data, arg_cycle, alpha=None):
         markers = markers * (ntimes + 1)
         markers = markers[: data.shape[0]]
     mapping = {key: value for key, value in zip(grps, markers)}
-    if alpha is not None:
-        mapping = {key: to_rgba(value, alpha) for key, value in mapping.items()}
-    output = data[arg].map(mapping).to_list()
+    output = [mapping(key) for key in data[arg]]
     return output
 
 
-def _continuous_cycler(arg, data, arg_cycle, alpha):
-    cmap = mpl.colormaps[arg_cycle]
+def _continuous_cycler(arg, data, arg_cycle, start=0, stop=255):
+    cmap = cc.palette[arg_cycle]
     if pd.api.types.is_string_dtype(data[arg]) or pd.api.types.is_object_dtype(
         data[arg]
     ):
-        uvals = pd.unique(data[arg])
-        vmin = 0
+        uvals = set(data[arg])
         vmax = len(uvals)
-        color_normal = Normalize(vmin=vmin, vmax=vmax)
-        mapping = {
-            key: cmap(color_normal(value), alpha=alpha)
-            for value, key in enumerate(uvals)
-        }
-        colors = data[arg].map(mapping).to_list()
+        cvals = np.linspace(0, 255, num=vmax)
+        mapping = {key: cmap[c] for c, key in zip(cvals, uvals)}
+        colors = [mapping[key] for key in data[arg]]
     else:
-        vmin = data[arg].min()
-        vmax = data[arg].max()
+        vmin = data.min(arg)
+        vmax = data.max(arg)
         vals = data[arg]
-        color_normal = Normalize(vmin=vmin, vmax=vmax)
-        colors = [cmap(color_normal(e), alpha=alpha) for e in vals]
+        color_normal = int((np.array(vals) - vmin) * vmax * 255)
+        colors = [cmap[e] for e in color_normal]
     return colors
 
 

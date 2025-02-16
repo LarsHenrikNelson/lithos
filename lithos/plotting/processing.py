@@ -1212,8 +1212,6 @@ def _line(
     linestyle_dict: dict[str, str],
     linewidth: float | int = 2,
     unique_id: str | None = None,
-    func: Agg = "mean",
-    err_func: Error = "sem",
     alpha: AlphaRange = 1.0,
     xtransform: Transform = None,
     ytransform: Transform = None,
@@ -1231,44 +1229,23 @@ def _line(
     mfcs = []
     mecs = []
 
-    if err_func is not None:
-        fill_between = True
-
     groups = data.groups(levels)
     if unique_id is not None:
         uid_groups = data.groups(levels + [unique_id])
-        func = get_transform(func)
-        if err_func is not None:
-            err_func = get_transform(err_func)
         for i, indexes in groups.items():
             uids = np.unique(data[indexes])
-            temp_list_y = None
-            temp_list_x = None
-            for index, j in enumerate(uids):
+            for j in uids:
                 temp = uid_groups[i + (j,)]
                 temp_y = np.asarray(data[temp, y])
                 temp_x = np.asarray(data[temp, x])
-                if temp_list_y is None:
-                    temp_list_y = np.zeros((len(uids), temp_x.size))
-                if temp_list_x is None:
-                    temp_list_x = np.zeros((len(uids), temp_x.size))
-                temp_list_y[index] = temp_y
-                temp_list_x[index] = temp_x
-            mean_x = np.nanmean(temp_list_x, axis=0)
-            mean_y = func(temp_list_y, axis=0)
-            x_data.append(get_transform(xtransform)(mean_x))
-            y_data.append(get_transform(ytransform)(mean_y))
-            facet_index.append(facet_dict[i])
-            mks.append(None)
-            lcs.append(color_dict[i])
-            lss.append(linestyle_dict[i])
-            mfcs.append("none")
-            mecs.append("none")
-
-            if err_func is not None:
-                err = err_func(temp_list_y, axis=0)
-                error_data.append(err)
-            else:
+                x_data.append(get_transform(xtransform)(temp_x))
+                y_data.append(get_transform(ytransform)(temp_y))
+                facet_index.append(facet_dict[i])
+                mks.append(None)
+                lcs.append(color_dict[i])
+                lss.append(linestyle_dict[i])
+                mfcs.append("none")
+                mecs.append("none")
                 error_data.append(None)
     else:
         for i, indexes in groups.items():
@@ -1295,7 +1272,7 @@ def _line(
         markerfacecolor=mfcs,
         markeredgecolor=mecs,
         markersize=None,
-        fill_between=fill_between,
+        fill_between=False,
         linealpha=alpha,
         fillalpha=alpha,
         fb_direction="y",

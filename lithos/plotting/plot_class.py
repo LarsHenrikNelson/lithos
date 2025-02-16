@@ -463,9 +463,6 @@ class LinePlot(BasePlot):
         linecolor: ColorParameters = "black",
         linestyle: str = "-",
         linewidth: int = 2,
-        func: str = "mean",
-        err_func: str = "sem",
-        fit_func: Callable | np.ndarray | None = None,
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
     ):
@@ -475,9 +472,6 @@ class LinePlot(BasePlot):
                 "linecolor": linecolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
-                "func": func,
-                "err_func": err_func,
-                "fit_func": fit_func,
                 "alpha": alpha,
                 "unique_id": unique_id,
             }
@@ -489,9 +483,6 @@ class LinePlot(BasePlot):
             "color_dict": linecolor_dict,
             "linestyle_dict": linestyle_dict,
             "linewidth": linewidth,
-            "func": func,
-            "err_func": err_func,
-            "fit_func": fit_func,
             "alpha": alpha,
             "unique_id": unique_id,
         }
@@ -888,7 +879,8 @@ class LinePlot(BasePlot):
         markercolor: ColorParameters | tuple[str, str] = "black",
         edgecolor: ColorParameters = "black",
         markersize: float | str = 1,
-        alpha: float = 1.0,
+        alpha: AlphaRange = 1.0,
+        line_alpha: AlphaRange = 1.0,
     ):
         self._plot_methods.append("scatter")
         self._plot_prefs.append(
@@ -898,14 +890,10 @@ class LinePlot(BasePlot):
                 "edgecolor": edgecolor,
                 "markersize": markersize,
                 "alpha": alpha,
+                "line_alpha": line_alpha,
             }
         )
-        # if isinstance(marker, tuple):
-        #     marker0 = marker[0]
-        #     marker1 = marker[1]
-        # else:
-        #     marker0 = marker
-        #     marker1 = None
+
         if isinstance(markercolor, tuple):
             markercolor0 = markercolor[0]
             markercolor1 = markercolor[1]
@@ -920,15 +908,6 @@ class LinePlot(BasePlot):
             edgecolor0 = edgecolor
             edgecolor1 = None
 
-        # markers = process_scatter_args(
-        #     marker0,
-        #     self.data,
-        #     self._plot_dict["group_order"],
-        #     self._plot_dict["subgroup_order"],
-        #     self._plot_dict["unique_groups"],
-        #     marker1,
-        # )
-        # markers = markers.to_list()
         colors = process_scatter_args(
             markercolor0,
             self.data,
@@ -963,12 +942,38 @@ class LinePlot(BasePlot):
             "edgecolors": edgecolors,
             "markersizes": markersize,
             "facetgroup": facetgroup,
+            "alpha": alpha,
+            "linealpha": line_alpha
         }
 
         self.plot_list.append(("scatter", scatter))
 
         if not self.inplace:
             return self
+
+    def fit(
+        self,
+        fit_func: Callable,
+        linecolor: ColorParameters = "black",
+        linestyle: str = "-",
+        linewidth: int = 2,
+        alpha: AlphaRange = 1.0,
+        unique_id: str | None = None,
+        agg_func: Agg = None,
+        err_func: Error = None,
+    ):
+        self._plot_methods.append("fit")
+        self._plot_prefs.append(
+            {
+                "linecolor": linecolor,
+                "linestyle": linestyle,
+                "linewidth": linewidth,
+                "alpha": alpha,
+                "unique_id": unique_id,
+                "agg_func": agg_func,
+                "err_func": err_func,
+            }
+        )
 
 
 class CategoricalPlot(BasePlot):
