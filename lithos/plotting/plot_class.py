@@ -264,17 +264,19 @@ class BasePlot:
                 )
                 ax.set_xlim(left=lim[0], right=lim[1])
 
-    def _set_minorticks(self, ax, transform: str, ticks: Literal["y", "x"]):
+    def _set_minorticks(self, ax, nticks, transform: str, ticks: Literal["y", "x"]):
         if ticks == "y":
             yticks = ax.get_yticks()
         else:
             yticks = ax.get_xticks()
         yticks = get_backtransform(transform)(yticks)
-        mticks = np.zeros((len(yticks) - 1) * 5)
+        mticks = np.zeros((len(yticks) - 1) * nticks)
         for index in range(yticks.size - 1):
-            vals = np.linspace(yticks[index], yticks[index + 1], num=5, endpoint=False)
-            start = index * 5
-            end = index * 5 + 5
+            vals = np.linspace(
+                yticks[index], yticks[index + 1], num=nticks, endpoint=False
+            )
+            start = index * nticks
+            end = index * nticks + nticks
             mticks[start:end] = vals
         if ticks == "y":
             ax.set_yticks(
@@ -385,8 +387,8 @@ class BasePlot:
         ticklength: float = 5.0,
         minor_tickwidth: float = 1.5,
         minor_ticklength: float = 2.5,
-        yminorticks: bool = False,
-        xminorticks: bool = False,
+        yminorticks: int = 0,
+        xminorticks: int = 0,
         ysteps: int | tuple[int, int, int] = 5,
         xsteps: int | tuple[int, int, int] = 5,
     ):
@@ -1309,14 +1311,20 @@ class LinePlot(BasePlot):
                 self._set_lims(sub_ax, ydecimals, axis="y")
                 self._set_lims(sub_ax, xdecimals, axis="x")
 
-                if self.plot_format["axis_format"]["yminorticks"]:
+                if self.plot_format["axis_format"]["yminorticks"] != 0:
                     self._set_minorticks(
-                        sub_ax, self._plot_transforms["ytransform"], ticks="y"
+                        sub_ax,
+                        self.plot_format["axis_format"]["yminorticks"],
+                        self._plot_transforms["ytransform"],
+                        ticks="y",
                     )
 
-                if self.plot_format["axis_format"]["xminorticks"]:
+                if self.plot_format["axis_format"]["xminorticks"] != 0:
                     self._set_minorticks(
-                        sub_ax, self._plot_transforms["xtransform"], ticks="x"
+                        sub_ax,
+                        self.plot_format["axis_format"]["xminorticks"],
+                        self._plot_transforms["xtransform"],
+                        ticks="x",
                     )
 
                 sub_ax.margins(self.plot_format["figure"]["margins"])
@@ -2079,8 +2087,13 @@ class CategoricalPlot(BasePlot):
             ticks = self._plot_dict["x_ticks"]
             ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
 
-        if self.plot_format["axis_format"]["yminorticks"]:
-            self._set_minorticks(ax, self._plot_transforms["ytransform"], ticks="y")
+        if self.plot_format["axis_format"]["yminorticks"] != 0:
+            self._set_minorticks(
+                ax,
+                self.plot_format["axis_format"]["yminorticks"],
+                self._plot_transforms["ytransform"],
+                ticks="y",
+            )
 
         ax.set_ylabel(
             self._plot_data["ylabel"],
@@ -2104,6 +2117,12 @@ class CategoricalPlot(BasePlot):
             labelfontfamily=self.plot_format["labels"]["font"],
         )
         ax.margins(x=self.plot_format["figure"]["margins"])
+
+        if "hline" in self._plot_dict:
+            self._plot_axlines(self._plot_dict["hline"], ax)
+
+        if "vline" in self._plot_dict:
+            self._plot_axlines(self._plot_dict["vline"], ax)
 
         if "legend_dict" in self._plot_dict:
             handles = mp._make_legend_patches(
