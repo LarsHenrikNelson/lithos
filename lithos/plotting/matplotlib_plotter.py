@@ -204,17 +204,21 @@ class MPLPlotter:
                 )
                 ax.set_xlim(left=lim[0], right=lim[1])
 
-    def _set_minorticks(self, ax, transform: str, ticks: Literal["y", "x"]):
+    def _set_minorticks(
+        self, ax, nticks: int, transform: str, ticks: Literal["y", "x"]
+    ):
         if ticks == "y":
             yticks = ax.get_yticks()
         else:
             yticks = ax.get_xticks()
         yticks = get_backtransform(transform)(yticks)
-        mticks = np.zeros((len(yticks) - 1) * 5)
+        mticks = np.zeros((len(yticks) - 1) * nticks)
         for index in range(yticks.size - 1):
-            vals = np.linspace(yticks[index], yticks[index + 1], num=5, endpoint=False)
-            start = index * 5
-            end = index * 5 + 5
+            vals = np.linspace(
+                yticks[index], yticks[index + 1], num=nticks, endpoint=False
+            )
+            start = index * nticks
+            end = index * nticks + nticks
             mticks[start:end] = vals
         if ticks == "y":
             ax.set_yticks(
@@ -702,11 +706,21 @@ class MPLLinePlotter(MPLPlotter):
         self._set_lims(ax, ydecimals, axis="y")
         self._set_lims(ax, xdecimals, axis="x")
 
-        if self.plot_format["axis_format"]["yminorticks"]:
-            self._set_minorticks(ax, self._plot_transforms["ytransform"], ticks="y")
+        if self.plot_format["axis_format"]["yminorticks"] != 0:
+            self._set_minorticks(
+                ax,
+                self.plot_format["axis_format"]["yminorticks"],
+                self._plot_transforms["ytransform"],
+                ticks="y",
+            )
 
-        if self.plot_format["axis_format"]["xminorticks"]:
-            self._set_minorticks(ax, self._plot_transforms["xtransform"], ticks="x")
+        if self.plot_format["axis_format"]["xminorticks"] != 0:
+            self._set_minorticks(
+                ax,
+                self.plot_format["axis_format"]["xminorticks"],
+                self._plot_transforms["xtransform"],
+                ticks="x",
+            )
 
         ax.margins(self.plot_format["figure"]["margins"])
         ax.set_xlabel(
@@ -876,9 +890,12 @@ class MPLCategoricalPlotter(MPLPlotter):
             ticks = self._plot_dict["x_ticks"]
             self.ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
 
-        if self.plot_format["axis_format"]["yminorticks"]:
+        if self.plot_format["axis_format"]["yminorticks"] != 0:
             self._set_minorticks(
-                self.ax, self._plot_transforms["ytransform"], ticks="y"
+                self.ax,
+                self.plot_format["axis_format"]["yminorticks"],
+                self._plot_transforms["ytransform"],
+                ticks="y",
             )
 
         self.ax.set_ylabel(

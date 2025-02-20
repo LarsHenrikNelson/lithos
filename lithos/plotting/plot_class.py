@@ -84,6 +84,29 @@ class BasePlot:
             self.grid_settings()
             self.transform()
 
+    def add_axline(
+        self,
+        linetype: Literal["hline", "vline"],
+        lines: list,
+        linestyle="solid",
+        linealpha=1,
+        linecolor="black",
+    ):
+        if linetype not in ["hline", "vline"]:
+            raise AttributeError("linetype must by hline or vline")
+        if isinstance(lines, (float, int)):
+            lines = [lines]
+        self._plot_dict[linetype] = {
+            "linetype": linetype,
+            "lines": lines,
+            "linestyle": linestyle,
+            "linealpha": linealpha,
+            "linecolor": linecolor,
+        }
+
+        if not self.inplace:
+            return self
+
     def labels(
         self,
         labelsize: float = 20,
@@ -943,7 +966,7 @@ class LinePlot(BasePlot):
             "markersizes": markersize,
             "facetgroup": facetgroup,
             "alpha": alpha,
-            "linealpha": line_alpha
+            "linealpha": line_alpha,
         }
 
         self.plot_list.append(("scatter", scatter))
