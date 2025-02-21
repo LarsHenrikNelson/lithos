@@ -92,38 +92,35 @@ def _jitter(
     mecs = []
     mksizes = []
 
-    if len(levels) == 0:
-        pass
-    else:
-        groups = data.groups(levels)
+    groups = data.groups(levels)
 
-        if unique_id is not None:
-            unique_groups = data.groups(levels + [unique_id])
+    if unique_id is not None:
+        unique_groups = data.groups(levels + [unique_id])
 
-        jitter_values = np.zeros(data.shape[0])
+    jitter_values = np.zeros(data.shape[0])
 
-        for i, indexes in groups.items():
-            temp_jitter = process_jitter(data[indexes, y], loc_dict[i], width, rng=rng)
-            jitter_values[indexes] = temp_jitter
+    for i, indexes in groups.items():
+        temp_jitter = process_jitter(data[indexes, y], loc_dict[i], width, rng=rng)
+        jitter_values[indexes] = temp_jitter
 
-        for i, indexes in groups.items():
-            if unique_id is None:
-                x_data.append(jitter_values[indexes])
-                y_data.append(transform(data[indexes, y]))
-                mks.append(marker_dict[i])
+    for i, indexes in groups.items():
+        if unique_id is None:
+            x_data.append(jitter_values[indexes])
+            y_data.append(transform(data[indexes, y]))
+            mks.append(marker_dict[i])
+            mfcs.append(color_dict[i])
+            mecs.append(edgecolor_dict[i])
+            mksizes.append(markersize)
+        else:
+            unique_ids_sub = np.unique(data[indexes, unique_id])
+            for ui_group, mrk in zip(unique_ids_sub, cycle(MARKERS)):
+                sub_indexes = unique_groups[i + (ui_group,)]
+                x_data.append(jitter_values[sub_indexes])
+                y_data.append(transform(data[sub_indexes, y]))
+                mks.append(mrk)
                 mfcs.append(color_dict[i])
                 mecs.append(edgecolor_dict[i])
                 mksizes.append(markersize)
-            else:
-                unique_ids_sub = np.unique(data[indexes, unique_id])
-                for ui_group, mrk in zip(unique_ids_sub, cycle(MARKERS)):
-                    sub_indexes = unique_groups[i + (ui_group,)]
-                    x_data.append(jitter_values[sub_indexes])
-                    y_data.append(transform(data[sub_indexes, y]))
-                    mks.append(mrk)
-                    mfcs.append(color_dict[i])
-                    mecs.append(edgecolor_dict[i])
-                    mksizes.append(markersize)
 
     output = ScatterPlotData(
         x_data=x_data,
@@ -168,39 +165,38 @@ def _jitteru(
     mecs = []
     mksizes = []
 
-    if len(levels) == 0:
-        pass
-    else:
-        groups = data.groups(levels)
-        if unique_id is not None:
-            uid_groups = data.groups(levels + [unique_id])
-        for i in groups.keys():
-            unique_ids_sub = np.unique(data[groups[i], unique_id])
-            if len(unique_ids_sub) > 1:
-                dist = np.linspace(-temp, temp, num=len(unique_ids_sub) + 1)
-                dist = np.round((dist[1:] + dist[:-1]) / 2, 10)
+    groups = data.groups(levels)
+    if unique_id is not None:
+        uid_groups = data.groups(levels + [unique_id])
+    for i in groups.keys():
+        unique_ids_sub = np.unique(data[groups[i], unique_id])
+        if len(unique_ids_sub) > 1:
+            dist = np.linspace(-temp, temp, num=len(unique_ids_sub) + 1)
+            dist = np.round((dist[1:] + dist[:-1]) / 2, 10)
+        else:
+            dist = [0]
+        for index, ui_group in enumerate(unique_ids_sub):
+            if i == ("",):
+                temp_group = (ui_group,)
             else:
-                dist = [0]
-            for index, ui_group in enumerate(unique_ids_sub):
-                sub_indexes = uid_groups[i + (ui_group,)]
-                x = np.full(len(sub_indexes), loc_dict[i]) + dist[index]
-                if duplicate_offset > 0.0:
-                    output = (
-                        process_duplicates(data[sub_indexes, y])
-                        * duplicate_offset
-                        * temp
-                    )
-                    x += output
-                if agg_func is None:
-                    x = get_transform(agg_func)(x)
-                else:
-                    x = x[0]
-                x_data.append(x)
-                y_data.append(get_transform(agg_func)(transform(data[sub_indexes, y])))
-                mks.append(marker_dict[i])
-                mfcs.append(color_dict[i])
-                mecs.append(edgecolor_dict[i])
-                mksizes.append(markersize)
+                temp_group = i + (ui_group,)
+            sub_indexes = uid_groups[temp_group]
+            x = np.full(len(sub_indexes), loc_dict[i]) + dist[index]
+            if duplicate_offset > 0.0:
+                output = (
+                    process_duplicates(data[sub_indexes, y]) * duplicate_offset * temp
+                )
+                x += output
+            if agg_func is None:
+                x = get_transform(agg_func)(x)
+            else:
+                x = x[0]
+            x_data.append(x)
+            y_data.append(get_transform(agg_func)(transform(data[sub_indexes, y])))
+            mks.append(marker_dict[i])
+            mfcs.append(color_dict[i])
+            mecs.append(edgecolor_dict[i])
+            mksizes.append(markersize)
     output = ScatterPlotData(
         x_data=x_data,
         y_data=y_data,
@@ -239,30 +235,27 @@ def _summary(
     x_data = []
     widths = []
 
-    if len(levels) == 0:
-        pass
-    else:
-        groups = data.groups(levels)
-        for i, indexes in groups.items():
-            x_data.append(loc_dict[i])
-            colors.append(color_dict[i])
-            widths.append(barwidth)
-            y_data.append(get_transform(func)(transform(data[indexes, y])))
-            if err_func is not None:
-                error_data.append(get_transform(err_func)(transform(data[indexes, y])))
-            else:
-                error_data.append(None)
-        output = SummaryPlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=error_data,
-            widths=widths,
-            colors=colors,
-            linewidth=linewidth,
-            alpha=alpha,
-            capstyle=capstyle,
-            capsize=capsize,
-        )
+    groups = data.groups(levels)
+    for i, indexes in groups.items():
+        x_data.append(loc_dict[i])
+        colors.append(color_dict[i])
+        widths.append(barwidth)
+        y_data.append(get_transform(func)(transform(data[indexes, y])))
+        if err_func is not None:
+            error_data.append(get_transform(err_func)(transform(data[indexes, y])))
+        else:
+            error_data.append(None)
+    output = SummaryPlotData(
+        x_data=x_data,
+        y_data=y_data,
+        error_data=error_data,
+        widths=widths,
+        colors=colors,
+        linewidth=linewidth,
+        alpha=alpha,
+        capstyle=capstyle,
+        capsize=capsize,
+    )
     return output
 
 
@@ -294,45 +287,46 @@ def _summaryu(
     x_data = []
     widths = []
 
-    if len(levels) == 0:
-        pass
-    else:
-        groups = data.groups(levels)
-        if unique_id is not None:
-            uid_groups = data.groups(levels + [unique_id])
-        for i, indexes in groups.items():
-            uids = np.unique(data[indexes, unique_id])
-            if agg_func is None:
-                temp = barwidth / 2
-                if len(uids) > 1:
-                    dist = np.linspace(-temp, temp, num=len(uids) + 1)
-                    centers = np.round((dist[1:] + dist[:-1]) / 2, 10)
-                else:
-                    centers = [0]
-                w = agg_width / len(uids)
-                for index, j in enumerate(uids):
-                    widths.append(w)
-                    vals = transform(data[uid_groups[i + (j,)], y])
-                    x_data.append(loc_dict[i] + centers[index])
-                    colors.append(color_dict[i])
-                    y_data.append(get_transform(func)(vals))
-                    if err_func is not None:
-                        error_data.append(get_transform(err_func)(vals))
-                    else:
-                        error_data.append(None)
+    groups = data.groups(levels)
+    if unique_id is not None:
+        uid_groups = data.groups(levels + [unique_id])
+    for i, indexes in groups.items():
+        uids = np.unique(data[indexes, unique_id])
+        if agg_func is None:
+            temp = barwidth / 2
+            if len(uids) > 1:
+                dist = np.linspace(-temp, temp, num=len(uids) + 1)
+                centers = np.round((dist[1:] + dist[:-1]) / 2, 10)
             else:
-                temp_vals = []
-                for index, j in enumerate(uids):
-                    vals = transform(data[uid_groups[i + (j,)], y])
-                    temp_vals.append(get_transform(func)(vals))
-                x_data.append(loc_dict[i])
+                centers = [0]
+            w = agg_width / len(uids)
+            for index, j in enumerate(uids):
+                if i == ("",):
+                    temp_group = (j,)
+                else:
+                    temp_group = i + (j,)
+                widths.append(w)
+                vals = transform(data[uid_groups[temp_group], y])
+                x_data.append(loc_dict[i] + centers[index])
                 colors.append(color_dict[i])
-                widths.append(barwidth)
-                y_data.append(get_transform(func)(np.array(temp_vals)))
+                y_data.append(get_transform(func)(vals))
                 if err_func is not None:
-                    error_data.append(get_transform(err_func)(np.array(temp_vals)))
+                    error_data.append(get_transform(err_func)(vals))
                 else:
                     error_data.append(None)
+        else:
+            temp_vals = []
+            for index, j in enumerate(uids):
+                vals = transform(data[uid_groups[i + (j,)], y])
+                temp_vals.append(get_transform(func)(vals))
+            x_data.append(loc_dict[i])
+            colors.append(color_dict[i])
+            widths.append(barwidth)
+            y_data.append(get_transform(func)(np.array(temp_vals)))
+            if err_func is not None:
+                error_data.append(get_transform(err_func)(np.array(temp_vals)))
+            else:
+                error_data.append(None)
     output = SummaryPlotData(
         x_data=x_data,
         y_data=y_data,
@@ -373,15 +367,12 @@ def _box(
     fcs = []
     ecs = []
 
-    if len(levels) == 0:
-        pass
-    else:
-        groups = data.groups(levels)
-        for key, value in groups.items():
-            y_data.append(data[value, y])
-            x_data.append([loc_dict[key]])
-            fcs.append(color_dict[key])
-            ecs.append(edgecolor_dict[key])
+    groups = data.groups(levels)
+    for key, value in groups.items():
+        y_data.append(data[value, y])
+        x_data.append([loc_dict[key]])
+        fcs.append(color_dict[key])
+        ecs.append(edgecolor_dict[key])
     output = BoxPlotData(
         x_data=x_data,
         y_data=y_data,
@@ -424,15 +415,12 @@ def _violin(
     fcs = []
     ecs = []
 
-    if len(levels) == 0:
-        pass
-    else:
-        groups = data.groups(levels)
-        for key, value in groups.items():
-            x_data.append([loc_dict[key]])
-            y_data.append(transform(data[value, y]))
-            fcs.append(facecolor_dict[key])
-            ecs.append(edgecolor_dict[key])
+    groups = data.groups(levels)
+    for key, value in groups.items():
+        x_data.append([loc_dict[key]])
+        y_data.append(transform(data[value, y]))
+        fcs.append(facecolor_dict[key])
+        ecs.append(edgecolor_dict[key])
     output = ViolinPlotData(
         x_data=x_data,
         y_data=y_data,

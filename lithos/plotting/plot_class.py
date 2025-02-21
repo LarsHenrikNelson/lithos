@@ -56,12 +56,13 @@ class BasePlot:
 
     def __init__(self, data: dict | pd.DataFrame | np.ndarray, inplace: bool = False):
         self.inplace = inplace
-        self.plots = []
+        self.plot_list = []
         self.plot_list = []
         self._plot_methods = []
         self._plot_prefs = []
         self._grouping = {}
         self.data = DataHolder(data)
+        self.processed_data = []
 
         self.plot_format = {}
         self._plot_dict = {}
@@ -272,7 +273,7 @@ class BasePlot:
             return self
 
     def clear_plots(self):
-        self.plots = []
+        self.plot_list = []
         self._plot_methods = []
         self._plot_prefs = []
 
@@ -288,19 +289,13 @@ class BasePlot:
         backend: str = "matplotlib",
         save_metadata: bool = False,
     ):
-
-        if backend == "matplotlib":
-            output = self._matplotlib_backend(
-                savefig=savefig, path=path, filetype=filetype, filename=filename
-            )
-        else:
-            raise AttributeError("Backend not implemented")
+        self._process_data()
         if save_metadata:
             path = Path(path)
             filename = self._plot_data["y"] if filename == "" else filename
             path = path / f"{filename}.txt"
             self.save_metadata(path)
-        return output
+        return None
 
     def transform(
         self,
@@ -998,6 +993,18 @@ class LinePlot(BasePlot):
             }
         )
 
+    def _process_data(self):
+        for p, pdict in self.plot_list:
+            temp = PLOTS[p](
+                data=self.data,
+                y=self._plot_data["y"],
+                x=self._plot_data["x"],
+                facet_dict=self._plot_dict["facet_dict"],
+                levels=self._plot_dict["levels"],
+                **pdict,
+            )
+            self.processed_data.append(temp)
+
 
 class CategoricalPlot(BasePlot):
     def __init__(self, data: pd.DataFrame | np.ndarray | dict, inplace: bool = False):
@@ -1594,6 +1601,17 @@ class CategoricalPlot(BasePlot):
 
         if not self.inplace:
             return self
+
+    def _process_data(self):
+        for p, pdict in self.plot_list:
+            temp = PLOTS[p](
+                data=self.data,
+                y=self._plot_data["y"],
+                loc_dict=self._plot_dict["loc_dict"],
+                levels=self._plot_dict["levels"],
+                **pdict,
+            )
+            self.processed_data.append(temp)
 
 
 class GraphPlot:
