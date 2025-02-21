@@ -295,7 +295,7 @@ class MPLPlotter:
         ax: mpl.axes.Axes,
         axis: Literal["x", "y"] = "x",
     ):
-        for t, b, b, bw, fc, ec, ht, ln, sub_ax in zip(
+        for t, b, b, bw, fc, ec, ht, sub_ax in zip(
             tops,
             bottoms,
             bins,
@@ -303,7 +303,6 @@ class MPLPlotter:
             fillcolors,
             edgecolors,
             hatches,
-            linewidth,
             ax,
         ):
             if axis == "x":

@@ -522,32 +522,16 @@ def _bar_histogram(
     transform = ytransform if xtransfrom is None else xtransfrom
     axis = "y" if x is None else "x"
 
-    if bin_limits is None:
-        bins = np.linspace(
-            get_transform(transform)(data[y].min()),
-            get_transform(transform)(data[y].max()),
-            num=nbins + 1,
-        )
-        # x = np.linspace(data[y].min(), data[y].max(), num=nbins)
-        x = (bins[1:] + bins[:-1]) / 2
-    else:
-        # x = np.linspace(bin_limits[0], bin_limits[1], num=nbins)
-        bins = np.linspace(
-            get_transform(transform)(bin_limits[0]),
-            get_transform(transform)(bin_limits[1]),
-            num=nbins + 1,
-        )
-        x = (bins[1:] + bins[:-1]) / 2
     bottom = np.zeros(nbins)
-    bw = np.full(
-        nbins,
-        bins[1] - bins[0],
-    )
+    bw = []
     plot_data = []
+    plot_bins = []
     count = 0
     colors = []
     facet = []
     edgec = []
+    hatches = []
+    linewidth = []
 
     if len(levels) == 0:
         pass
@@ -557,6 +541,13 @@ def _bar_histogram(
             unique_id_indexes = data.groups(levels + [unique_id])
         for i, group_indexes in groups.items():
             if unique_id is not None:
+                bins = np.histogram_bin_edges(
+                    get_transform(transform)(data[unique_id_indexes[i], y]),
+                    bins=nbins,
+                    bin_limits=bin_limits,
+                )
+                x = (bins[1:] + bins[:-1]) / 2
+                temp_bw = np.full(nbins, bins[1] - bins[0])
                 uids = np.unique(data[group_indexes, unique_id])
                 if agg_func is not None:
                     temp_list = np.zeros((len(uids), nbins))
@@ -572,30 +563,42 @@ def _bar_histogram(
                         colors.append([color_dict[i]] * nbins)
                         edgec.append([color_dict[i]] * nbins)
                         facet.append(facet_dict[i])
+                        bw.append(temp_bw)
+                        plot_bins.append(bins[:-1])
+                        hatches.append([[hatch] * bins.size - 1] * count)
                         count += 1
                 if agg_func is not None:
                     plot_data.append(get_transform(agg_func)(temp_list, axis=0))
                     colors.append([color_dict[i]] * nbins)
                     edgec.append([color_dict[i]] * nbins)
                     facet.append(facet_dict[i])
+                    bw.append(temp_bw)
+                    plot_bins.append(bins[:-1])
+                    hatches.append([[hatch] * bins.size - 1] * count)
                     count += 1
             else:
                 temp_data = np.sort(data[groups[i], y])
+                bins = np.histogram_bin_edges(
+                    get_transform(transform)(data[unique_id_indexes[i], y]),
+                    bins=nbins,
+                    bin_limits=bin_limits,
+                )
+                bw.append(np.full(nbins, bins[1] - bins[0]))
+                x = (bins[1:] + bins[:-1]) / 2
                 poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
                 plot_data.append(poly)
                 colors.append([color_dict[i]] * nbins)
                 edgec.append([color_dict[i]] * nbins)
                 facet.append(facet_dict[i])
+                plot_bins.append(bins[:-1])
+                hatches.append([[hatch] * bins.size - 1] * count)
                 count += 1
+
     bottom = [bottom for _ in range(count)]
-    bins = [bins[:-1] for _ in range(count)]
-    bw = [bw for _ in range(count)]
-    hatches = [[hatch] * nbins] * count
-    linewidth = [np.full(nbins, 0) for _ in range(count)]
     output = RectanglePlotData(
         tops=plot_data,
         bottoms=bottom,
-        bins=bins,
+        bins=plot_bins,
         binwidths=bw,
         fillcolors=colors,
         edgecolors=edgec,
@@ -1434,7 +1437,6 @@ def _percent(
 
     tops = []
     bottoms = []
-    lw = []
     edgecolors = []
     fillcolors = []
     x_loc = []
@@ -1447,7 +1449,6 @@ def _percent(
     for gr, indexes in groups.items():
         if unique_id is None:
             bw.extend([barwidth] * plot_bins)
-            lw.extend([linewidth] * plot_bins)
             top, bottom = _bin_data(data[indexes, y], bins, axis_type, invert, cutoff)
             tops.extend(top[include_bins])
             bottoms.extend(bottom[include_bins])
@@ -1466,7 +1467,6 @@ def _percent(
             unique_ids_sub = np.unique(data[groups[gr], unique_id])
             temp_width = barwidth / len(unique_ids_sub)
             bw.extend([temp_width] * plot_bins * len(unique_ids_sub))
-            lw.extend([linewidth] * plot_bins * len(unique_ids_sub))
             if len(unique_ids_sub) > 1:
                 dist = np.linspace(
                     -barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1
@@ -1506,7 +1506,7 @@ def _percent(
         fill_alpha=alpha,
         edge_alpha=linealpha,
         hatches=hatches,
-        linewidth=lw,
+        linewidth=linewidth,
     )
     return output
 
@@ -1540,7 +1540,6 @@ def _count(
     edgecolors = []
     x_loc = []
     hatches = []
-    lws = []
 
     multiplier = 100 if axis_type == "percent" else 1
 
@@ -1567,7 +1566,6 @@ def _count(
                 edgecolors.append(edgecolor_dict[str(ui_group)])
                 x_loc.append(loc_dict[gr] + dist[index])
                 hatches.append(HATCHES[index] if hatch else None)
-                lws.append(linewidth)
             else:
                 pass
     output = RectanglePlotData(
@@ -1580,7 +1578,7 @@ def _count(
         fill_alpha=alpha,
         edge_alpha=edge_alpha,
         hatches=hatches,
-        linewidth=lws,
+        linewidth=linewidth,
         axis="x",
     )
     return output
