@@ -10,36 +10,50 @@ from matplotlib.colors import to_rgba
 import matplotlib as mpl
 
 from ..utils import (
-    _decimals,
-    radian_ticks,
     get_backtransform,
     get_transform,
 )
+from .plot_utils import _decimals, radian_ticks
 from .plot_utils import get_ticks
 from .types import SavePath
 
 
-class MPLPlotter:
+class Plotter:
     filetypes = ["svg", "png", "jpeg"]
 
     def __init__(
         self,
         plot_data: list,
-        plot_format: dict[str],
+        plot_dict: dict[str],
+        metadata: dict[dict[str]],
+        savefig: bool = False,
+        path: SavePath = "",
+        filetype: str = "svg",
+        filename: str | Path = "",
         ax: mpl.axes.Axes | list[mpl.axes.Axes] = None,
         fig: mpl.figure.Figure = None,
     ):
         self.plot_data = plot_data
-        self.plot_format = plot_format
+        self.plot_format = metadata["format"]
+        self.plot_dict = plot_dict
+        self.plot_transforms = metadata["transforms"]
+        self.plot_labels = metadata["data"]
+        self._savefig = savefig
+        self.path = path
+        self.filetype = filetype
+        self.filename = filename
 
         mpl.rcParams["pdf.fonttype"] = 42
         mpl.rcParams["svg.fonttype"] = "none"
 
-        if isinstance(ax, list):
-            self.ax = ax
+        if ax is None:
+            self.fig, self.ax = self.create_figure()
         else:
-            self.ax = [ax]
-        self.fig = fig
+            if isinstance(ax, list):
+                self.ax = ax
+            else:
+                self.ax = [ax]
+            self.fig = fig
 
     def _set_grid(self, sub_ax):
         if self.plot_format["grid"]["ygrid"]:
@@ -53,29 +67,6 @@ class MPLPlotter:
                 linewidth=self.plot_format["grid"]["xlinewidth"],
                 linestyle=self.plot_format["grid"]["linestyle"],
             )
-
-    def add_axline(
-        self,
-        linetype: Literal["hline", "vline"],
-        lines: list,
-        linestyle="solid",
-        linealpha=1,
-        linecolor="black",
-    ):
-        if linetype not in ["hline", "vline"]:
-            raise AttributeError("linetype must by hline or vline")
-        if isinstance(lines, (float, int)):
-            lines = [lines]
-        self._plot_dict[linetype] = {
-            "linetype": linetype,
-            "lines": lines,
-            "linestyle": linestyle,
-            "linealpha": linealpha,
-            "linecolor": linecolor,
-        }
-
-        if not self.inplace:
-            return self
 
     def _plot_axlines(self, line_dict, ax):
         for ll in line_dict["lines"]:
@@ -106,12 +97,12 @@ class MPLPlotter:
                 )
                 ax.set_ylim(bottom=lim[0], top=lim[1])
                 if (
-                    "back_transform_yticks" in self._plot_transforms
-                    and self._plot_transforms["back_transform_yticks"]
+                    "back_transform_yticks" in self.plot_transforms
+                    and self.plot_transforms["back_transform_yticks"]
                 ):
-                    tick_labels = get_backtransform(
-                        self._plot_transforms["ytransform"]
-                    )(ticks)
+                    tick_labels = get_backtransform(self.plot_transforms["ytransform"])(
+                        ticks
+                    )
                 else:
                     tick_labels = ticks
                 if decimals is not None:
@@ -160,12 +151,12 @@ class MPLPlotter:
                 )
                 ax.set_xlim(left=lim[0], right=lim[1])
                 if (
-                    "back_transform_xticks" in self._plot_transforms
-                    and self._plot_transforms["back_transform_xticks"]
+                    "back_transform_xticks" in self.plot_transforms
+                    and self.plot_transforms["back_transform_xticks"]
                 ):
-                    tick_labels = get_backtransform(
-                        self._plot_transforms["xtransform"]
-                    )(ticks)
+                    tick_labels = get_backtransform(self.plot_transforms["xtransform"])(
+                        ticks
+                    )
                 else:
                     tick_labels = ticks
                 if decimals is not None:
@@ -585,10 +576,10 @@ class MPLPlotter:
         fig, ax = plt.subplots()
 
         handles = self._make_legend_patches(
-            color_dict=self._plot_dict["legend_dict"][0],
-            alpha=self._plot_dict["legend_dict"][1],
-            group=self._plot_dict["group_order"],
-            subgroup=self._plot_dict["subgroup_order"],
+            color_dict=self.plot_dict["legend_dict"][0],
+            alpha=self.plot_dict["legend_dict"][1],
+            group=self.plot_dict["group_order"],
+            subgroup=self.plot_dict["subgroup_order"],
         )
         ax.plot()
         ax.axis("off")
@@ -596,30 +587,19 @@ class MPLPlotter:
         return fig, ax
 
     def _plot(self):
-        if self.ax is None:
-            self.fig, self.ax = self.create_figure()
         for p in self.plot_data:
             plot_func = self.get_plot_func(p.plot_type)
             p_dict = asdict(p)
-            p_dict.pot("plot_type")
+            p_dict.pop("plot_type")
             plot_func(**p_dict, ax=self.ax)
 
-    def plot(
-        self,
-        savefig: bool = False,
-        path: SavePath = "",
-        filetype: str = "svg",
-        filename: str | Path = "",
-        transparent: bool = False,
-    ):
+    def plot(self):
 
-        self._plot(self.plot_data)
+        self._plot()
         self.format_plot()
 
-        if savefig:
-            self.savefig(
-                path=path, filename=filename, filetype=filetype, transparent=transparent
-            )
+        if self._savefig:
+            self.savefig(path=self.path, filename=self.filename, filetype=self.filetype)
         return self.fig, self.ax
 
     def savefig(
@@ -633,7 +613,7 @@ class MPLPlotter:
         if isinstance(path, str):
             path = Path(path)
             if path.suffix[1:] not in self.filetypes:
-                filename = self._plot_data["y"] if filename == "" else filename
+                filename = self.plot_data["y"] if filename == "" else filename
                 path = path / f"{filename}.{filetype}"
             else:
                 filetype = path.suffix[1:]
@@ -645,13 +625,13 @@ class MPLPlotter:
         )
 
 
-class MPLLinePlotter(MPLPlotter):
+class LinePlotter(Plotter):
     def create_figure(self):
         if (
             self.plot_format["figure"]["nrows"] is None
             and self.plot_format["figure"]["ncols"] is None
         ):
-            nrows = len(self._plot_dict["group_order"])
+            nrows = len(self.plot_dict["group_order"])
             ncols = 1
         elif self.plot_format["figure"]["nrows"] is None:
             nrows = 1
@@ -664,7 +644,7 @@ class MPLLinePlotter(MPLPlotter):
             ncols = self.plot_format["figure"]["ncols"]
         if self.plot_format["figure"]["figsize"] is None:
             self.plot_format["figure"]["figsize"] = (6.4 * ncols, 4.8 * nrows)
-        if self._plot_dict["facet"]:
+        if self.plot_dict["facet"]:
             fig, ax = plt.subplots(
                 subplot_kw=dict(
                     box_aspect=self.plot_format["figure"]["aspect"],
@@ -677,9 +657,9 @@ class MPLLinePlotter(MPLPlotter):
                 layout="constrained",
             )
             ax = ax.flat
-            for i in ax[len(self._plot_dict["group_order"]) :]:
+            for i in ax[len(self.plot_dict["group_order"]) :]:
                 i.remove()
-            ax = ax[: len(self._plot_dict["group_order"])]
+            ax = ax[: len(self.plot_dict["group_order"])]
         else:
             fig, ax = plt.subplots(
                 subplot_kw=dict(
@@ -709,7 +689,7 @@ class MPLLinePlotter(MPLPlotter):
             self._set_minorticks(
                 ax,
                 self.plot_format["axis_format"]["yminorticks"],
-                self._plot_transforms["ytransform"],
+                self.plot_transforms["ytransform"],
                 ticks="y",
             )
 
@@ -717,13 +697,13 @@ class MPLLinePlotter(MPLPlotter):
             self._set_minorticks(
                 ax,
                 self.plot_format["axis_format"]["xminorticks"],
-                self._plot_transforms["xtransform"],
+                self.plot_transforms["xtransform"],
                 ticks="x",
             )
 
         ax.margins(self.plot_format["figure"]["margins"])
         ax.set_xlabel(
-            self._plot_data["xlabel"],
+            self.plot_labels["xlabel"],
             fontsize=self.plot_format["labels"]["labelsize"],
             fontweight=self.plot_format["labels"]["label_fontweight"],
             fontfamily=self.plot_format["labels"]["font"],
@@ -751,7 +731,7 @@ class MPLLinePlotter(MPLPlotter):
             )
         ax.spines["polar"].set_visible(False)
         ax.set_xlabel(
-            self._plot_data["xlabel"],
+            self.plot_labels["xlabel"],
             fontsize=self.plot_format["labels"]["labelsize"],
             fontweight=self.plot_format["labels"]["label_fontweight"],
             fontfamily=self.plot_format["labels"]["font"],
@@ -770,7 +750,7 @@ class MPLLinePlotter(MPLPlotter):
     def format_plot(self):
         for p in self.plot_data:
             if p.plot_type == "kde" or p.plot_type == "hist":
-                if self._plot_data["x"] is not None:
+                if self.plot_data["x"] is not None:
                     if self.plot_format["axis"]["ylim"] is None:
                         self.plot_format["axis"]["ylim"] = [0, None]
                 else:
@@ -779,31 +759,31 @@ class MPLLinePlotter(MPLPlotter):
 
         if (
             self.plot_format["axis"]["ydecimals"] is None
-            and "y" in self._plot_data
-            and self._plot_data["y"] is not None
+            and "y" in self.plot_data
+            and self.plot_data["y"] is not None
         ):
-            ydecimals = _decimals(self.data[self._plot_data["y"]])
+            ydecimals = _decimals(self.data[self.plot_data["y"]])
         else:
             ydecimals = self.plot_format["axis"]["ydecimals"]
         if (
             self.plot_format["axis"]["xdecimals"] is None
-            and "x" in self._plot_data
-            and self._plot_data["x"] is not None
+            and "x" in self.plot_data
+            and self.plot_data["x"] is not None
         ):
-            xdecimals = _decimals(self.data[self._plot_data["x"]])
+            xdecimals = _decimals(self.data[self.plot_data["x"]])
         else:
             xdecimals = self.plot_format["axis"]["xdecimals"]
-        # num_plots = len(self._plot_dict["group_order"])
-        for index, sub_ax in enumerate(self.ax[: len(self._plot_dict["group_order"])]):
+        # num_plots = len(self.plot_dict["group_order"])
+        for index, sub_ax in enumerate(self.ax[: len(self.plot_dict["group_order"])]):
             if self.plot_format["figure"]["projection"] == "rectilinear":
                 self.format_rectilinear(sub_ax, ydecimals, xdecimals)
             else:
                 self.format_polar(sub_ax)
-            if "hline" in self._plot_dict:
-                self._plot_axlines(self._plot_dict["hline"], sub_ax)
+            if "hline" in self.plot_dict:
+                self._plot_axlines(self.plot_dict["hline"], sub_ax)
 
-            if "vline" in self._plot_dict:
-                self._plot_axlines(self._plot_dict["vline"], sub_ax)
+            if "vline" in self.plot_dict:
+                self._plot_axlines(self.plot_dict["vline"], sub_ax)
 
             sub_ax.tick_params(
                 axis="both",
@@ -816,39 +796,36 @@ class MPLLinePlotter(MPLPlotter):
 
             self._set_grid(sub_ax)
 
-            if "/" in str(self._plot_data["y"]):
-                self._plot_data["y"] = self._plot_data["y"].replace("/", "_")
-
             sub_ax.set_ylabel(
-                self._plot_data["ylabel"],
+                self.plot_labels["ylabel"],
                 fontsize=self.plot_format["labels"]["labelsize"],
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["label_fontweight"],
                 rotation=self.plot_format["labels"]["ylabel_rotation"],
             )
-            if self._plot_dict["facet_title"]:
+            if self.plot_dict["facet_title"]:
                 sub_ax.set_title(
-                    self._plot_dict["group_order"][index],
+                    self.plot_dict["group_order"][index],
                     fontsize=self.plot_format["labels"]["labelsize"],
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["title_fontweight"],
                 )
             else:
                 sub_ax.set_title(
-                    self._plot_data["title"],
+                    self.plot_labels["title"],
                     fontsize=self.plot_format["labels"]["labelsize"],
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["title_fontweight"],
                 )
 
-        if self._plot_data["title"] is not None:
+        if self.plot_labels["title"] is not None:
             self.fig.suptitle(
-                self._plot_data["title"],
+                self.plot_labels["title"],
                 fontsize=self.plot_format["labels"]["titlesize"],
             )
 
 
-class MPLCategoricalPlotter(MPLPlotter):
+class CategoricalPlotter(Plotter):
     def create_figure(self):
         fig, ax = plt.subplots(
             subplot_kw=dict(box_aspect=self.plot_format["figure"]["aspect"]),
@@ -859,8 +836,8 @@ class MPLCategoricalPlotter(MPLPlotter):
 
     def format_plot(self):
         self.ax.set_xticks(
-            ticks=self._plot_dict["x_ticks"],
-            labels=self._plot_dict["group_order"],
+            ticks=self.plot_dict["x_ticks"],
+            labels=self.plot_dict["group_order"],
             rotation=self.plot_format["labels"]["xtick_rotation"],
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["tick_fontweight"],
@@ -874,8 +851,6 @@ class MPLCategoricalPlotter(MPLPlotter):
         self.ax.spines["bottom"].set_linewidth(
             self.plot_format["axis_format"]["linewidth"]
         )
-        if "/" in str(self._plot_data["y"]):
-            self._plot_data["y"] = self._plot_data["y"].replace("/", "_")
 
         self._set_grid(self.ax)
 
@@ -886,26 +861,26 @@ class MPLCategoricalPlotter(MPLPlotter):
             != self.plot_format["axis_format"]["xsteps"][0]
         )
         if truncate:
-            ticks = self._plot_dict["x_ticks"]
+            ticks = self.plot_dict["x_ticks"]
             self.ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
 
         if self.plot_format["axis_format"]["yminorticks"] != 0:
             self._set_minorticks(
                 self.ax,
                 self.plot_format["axis_format"]["yminorticks"],
-                self._plot_transforms["ytransform"],
+                self.plot_transforms["ytransform"],
                 ticks="y",
             )
 
         self.ax.set_ylabel(
-            self._plot_data["ylabel"],
+            self.plot_labels["ylabel"],
             fontsize=self.plot_format["labels"]["labelsize"],
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["label_fontweight"],
             rotation=self.plot_format["labels"]["ylabel_rotation"],
         )
         self.ax.set_title(
-            self._plot_data["title"],
+            self.plot_labels["title"],
             fontsize=self.plot_format["labels"]["titlesize"],
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["title_fontweight"],
@@ -920,17 +895,17 @@ class MPLCategoricalPlotter(MPLPlotter):
         )
         self.ax.margins(x=self.plot_format["figure"]["margins"])
 
-        if "legend_dict" in self._plot_dict:
+        if "legend_dict" in self.plot_dict:
             handles = self._make_legend_patches(
-                color_dict=self._plot_dict["legend_dict"][0],
-                alpha=self._plot_dict["legend_dict"][1],
-                group=self._plot_dict["group_order"],
-                subgroup=self._plot_dict["subgroup_order"],
+                color_dict=self.plot_dict["legend_dict"][0],
+                alpha=self.plot_dict["legend_dict"][1],
+                group=self.plot_dict["group_order"],
+                subgroup=self.plot_dict["subgroup_order"],
             )
             self.ax.legend(
                 handles=handles,
-                bbox_to_anchor=self._plot_dict["legend_anchor"],
-                loc=self._plot_dict["legend_loc"],
+                bbox_to_anchor=self.plot_dict["legend_anchor"],
+                loc=self.plot_dict["legend_loc"],
                 frameon=False,
             )
 

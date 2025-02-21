@@ -16,6 +16,7 @@ from .plot_utils import (
     process_args,
     process_scatter_args,
 )
+from . import matplotlib_plotter as mpl
 from .types import (
     BW,
     Agg,
@@ -63,6 +64,7 @@ class BasePlot:
         self._grouping = {}
         self.data = DataHolder(data)
         self.processed_data = []
+        self.plotter = None
 
         self.plot_format = {}
         self._plot_dict = {}
@@ -288,8 +290,10 @@ class BasePlot:
         filetype: str = "svg",
         backend: str = "matplotlib",
         save_metadata: bool = False,
+        **kwargs,
     ):
         self._process_data()
+        self._plot_processed_data(savefig, path, filename, filetype, **kwargs)
         if save_metadata:
             path = Path(path)
             filename = self._plot_data["y"] if filename == "" else filename
@@ -1005,6 +1009,26 @@ class LinePlot(BasePlot):
             )
             self.processed_data.append(temp)
 
+    def _plot_processed_data(
+        self,
+        savefig: bool = False,
+        path: SavePath = None,
+        filename: str = "",
+        filetype: str = "svg",
+        **kwargs,
+    ):
+        self.plotter = mpl.LinePlotter(
+            self.processed_data,
+            self._plot_dict,
+            self.metadata(),
+            savefig,
+            path,
+            filename,
+            filetype,
+            **kwargs,
+        )
+        self.plotter.plot()
+
 
 class CategoricalPlot(BasePlot):
     def __init__(self, data: pd.DataFrame | np.ndarray | dict, inplace: bool = False):
@@ -1612,6 +1636,26 @@ class CategoricalPlot(BasePlot):
                 **pdict,
             )
             self.processed_data.append(temp)
+
+    def _plot_processed_data(
+        self,
+        savefig: bool = False,
+        path: SavePath = None,
+        filename: str = "",
+        filetype: str = "svg",
+        **kwargs,
+    ):
+        self.plotter = mpl.CategoricalPlotter(
+            self.processed_data,
+            self._plot_dict,
+            self.metadata(),
+            savefig,
+            path,
+            filename,
+            filetype,
+            **kwargs,
+        )
+        self.plotter.plot()
 
 
 class GraphPlot:
