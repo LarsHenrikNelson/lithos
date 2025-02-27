@@ -396,7 +396,7 @@ class Plotter:
         facecolors: list[str],
         edgecolors: list[str],
         alpha: float,
-        line_alpha: float,
+        linealpha: float,
         fliers: bool,
         linewidth: float,
         width: float,
@@ -409,22 +409,22 @@ class Plotter:
                 "boxprops": {
                     "facecolor": to_rgba(fcs, alpha=alpha) if fcs != "none" else fcs,
                     "edgecolor": (
-                        to_rgba(ecs, alpha=line_alpha) if ecs != "none" else ecs
+                        to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
                     ),
                 },
                 "medianprops": {
-                    "color": to_rgba(ecs, alpha=line_alpha) if ecs != "none" else ecs
+                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
                 },
                 "whiskerprops": {
-                    "color": to_rgba(ecs, alpha=line_alpha) if ecs != "none" else ecs
+                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
                 },
                 "capprops": {
-                    "color": to_rgba(ecs, alpha=line_alpha) if ecs != "none" else ecs
+                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
                 },
             }
             if showmeans:
                 props["meanprops"] = {
-                    "color": to_rgba(ecs, alpha=line_alpha) if ecs != "none" else ecs
+                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
                 }
             bplot = ax.boxplot(
                 y,
@@ -678,9 +678,7 @@ class LinePlotter(Plotter):
             if lw == 0:
                 ax.spines[spine].set_visible(False)
             else:
-                ax.spines[spine].set_linewidth(
-                    self.plot_format["axis_format"]["linewidth"]["x"]
-                )
+                ax.spines[spine].set_linewidth(lw)
 
         self._set_lims(ax, ydecimals, axis="y")
         self._set_lims(ax, xdecimals, axis="x")
@@ -835,23 +833,23 @@ class CategoricalPlotter(Plotter):
         return fig, ax
 
     def format_plot(self):
+        if self.plot_dict["group_order"] == [("",)]:
+            group_order = [""]
+        else:
+            group_order = self.plot_dict["group_order"]
         self.ax.set_xticks(
             ticks=self.plot_dict["x_ticks"],
-            labels=self.plot_dict["group_order"],
+            labels=group_order,
             rotation=self.plot_format["labels"]["xtick_rotation"],
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["tick_fontweight"],
             fontsize=self.plot_format["labels"]["ticklabel_size"],
         )
-        self.ax.spines["right"].set_visible(False)
-        self.ax.spines["top"].set_visible(False)
-        self.ax.spines["left"].set_linewidth(
-            self.plot_format["axis_format"]["linewidth"]
-        )
-        self.ax.spines["bottom"].set_linewidth(
-            self.plot_format["axis_format"]["linewidth"]
-        )
-
+        for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
+            if lw == 0:
+                self.ax.spines[spine].set_visible(False)
+            else:
+                self.ax.spines[spine].set_linewidth(lw)
         self._set_grid(self.ax)
 
         self._set_lims(self.ax, self.plot_format["axis"]["ydecimals"], axis="y")
@@ -913,7 +911,7 @@ class CategoricalPlotter(Plotter):
 # def _plot_network(
 #     graph,
 #     marker_alpha: float = 0.8,
-#     line_alpha: float = 0.1,
+#     linealpha: float = 0.1,
 #     markersize: int = 2,
 #     marker_scale: int = 1,
 #     linewidth: int = 1,
@@ -974,7 +972,7 @@ class CategoricalPlotter(Plotter):
 #         linewidths=linewidth,
 #         antialiaseds=(1,),
 #         linestyle="solid",
-#         alpha=line_alpha,
+#         alpha=linealpha,
 #     )
 #     edge_collection.set_cmap(cmap)
 #     edge_collection.set_clim(edge_vmin, edge_vmax)

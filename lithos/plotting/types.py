@@ -78,7 +78,7 @@ class BoxPlotData:
     facecolors: list[str]
     edgecolors: list[str]
     alpha: float
-    line_alpha: float
+    linealpha: float
     fliers: bool
     linewidth: float
     width: float

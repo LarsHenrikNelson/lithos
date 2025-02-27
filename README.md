@@ -318,7 +318,7 @@ plot = (
         subgroup="grouping_2",
         group_spacing=0.9,
     )
-    .boxplot(
+    .box(
         facecolor="none",
         width=0.8,
         alpha=0.8,
@@ -427,12 +427,6 @@ plot = (
     .plot()
 )
 ```
-
-    /home/lars-nelson/code-projects/Lithos/lithos/plotting/matplotlib_plotting.py:990: FutureWarning: The provided callable <function mean at 0x7e23313baf20> is currently using DataFrameGroupBy.mean. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "mean" instead.
-      data.groupby(y, new_levels, sort=sort).agg(get_transform(func)).reset_index()
-    /home/lars-nelson/code-projects/Lithos/lithos/plotting/matplotlib_plotting.py:1011: FutureWarning: The provided callable <function mean at 0x7e23313baf20> is currently using DataFrameGroupBy.mean. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "mean" instead.
-      .agg(get_transform(func))
-
 
 
     

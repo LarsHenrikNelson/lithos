@@ -202,7 +202,7 @@ class BasePlot:
             ysteps = (ysteps, 0, ysteps)
         if isinstance(xsteps, int):
             xsteps = (xsteps, 0, xsteps)
-        if isinstance(linewidth, int):
+        if isinstance(linewidth, (int, float)):
             linewidth = {"left": linewidth, "bottom": linewidth, "top": 0, "right": 0}
         elif isinstance(linewidth, dict):
             temp_lw = {"left": 0, "bottom": 0, "top": 0, "right": 0}
@@ -623,6 +623,7 @@ class LinePlot(BasePlot):
                 "linestyle": linestyle,
                 "linewidth": linewidth,
                 "fill_between": fill_between,
+                "fill_under": False,
                 "alpha": alpha,
                 "fillalpha": fillalpha,
                 "kde_length": kde_length,
@@ -653,6 +654,7 @@ class LinePlot(BasePlot):
             "linewidth": linewidth,
             "linealpha": alpha,
             "fill_between": fill_between,
+            "fill_under": False,
             "kernel": kernel,
             "bw": bw,
             "tol": tol,
@@ -902,7 +904,7 @@ class LinePlot(BasePlot):
         edgecolor: ColorParameters = "black",
         markersize: float | str = 1,
         alpha: AlphaRange = 1.0,
-        line_alpha: AlphaRange = 1.0,
+        linealpha: AlphaRange = 1.0,
     ):
         self._plot_methods.append("scatter")
         self._plot_prefs.append(
@@ -912,7 +914,7 @@ class LinePlot(BasePlot):
                 "edgecolor": edgecolor,
                 "markersize": markersize,
                 "alpha": alpha,
-                "line_alpha": line_alpha,
+                "linealpha": linealpha,
             }
         )
 
@@ -965,7 +967,7 @@ class LinePlot(BasePlot):
             "markersizes": markersize,
             "facetgroup": facetgroup,
             "alpha": alpha,
-            "linealpha": line_alpha,
+            "linealpha": linealpha,
         }
 
         self.plot_list.append(("scatter", scatter))
@@ -1071,7 +1073,6 @@ class CategoricalPlot(BasePlot):
             group_order = [("",)]
             subgroup_order = [("",)]
             loc_dict = {("",): 0.0}
-            loc_dict[("",)] = 0.0
             width = 1.0
 
         x_ticks = [index for index, _ in enumerate(group_order)]
@@ -1627,6 +1628,7 @@ class CategoricalPlot(BasePlot):
             return self
 
     def _process_data(self):
+
         for p, pdict in self.plot_list:
             temp = PLOTS[p](
                 data=self.data,
