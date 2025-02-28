@@ -75,13 +75,13 @@ def _jitter(
     edge_alpha: AlphaRange = 1.0,
     seed: int = 42,
     markersize: float | int = 2,
-    transform: Transform = None,
+    ytransform: Transform = None,
     unique_id: str | None = None,
     *args,
     **kwargs,
 ) -> ScatterPlotData:
 
-    transform = get_transform(transform)
+    transform = get_transform(ytransform)
 
     rng = default_rng(seed)
 
@@ -150,12 +150,12 @@ def _jitteru(
     duplicate_offset: float = 0.0,
     markersize: int = 2,
     agg_func: Agg | None = None,
-    transform: Transform = None,
+    ytransform: Transform = None,
     *args,
     **kwargs,
 ) -> ScatterPlotData:
 
-    transform = get_transform(transform)
+    transform = get_transform(ytransform)
     temp = width / 2
 
     x_data = []
@@ -223,12 +223,12 @@ def _summary(
     color_dict: dict[str, str],
     alpha: AlphaRange,
     err_func: Error | None = None,
-    transform: Transform = None,
+    ytransform: Transform = None,
     *args,
     **kwargs,
 ) -> SummaryPlotData:
 
-    transform = get_transform(transform)
+    transform = get_transform(ytransform)
     y_data = []
     error_data = []
     colors = []
@@ -275,12 +275,12 @@ def _summaryu(
     agg_func: Agg | None = None,
     err_func: Error = None,
     agg_width: float = 1.0,
-    transform: Transform = None,
+    ytransform: Transform = None,
     *args,
     **kwargs,
 ) -> SummaryPlotData:
 
-    transform = get_transform(transform)
+    transform = get_transform(ytransform)
     y_data = []
     error_data = []
     colors = []
@@ -355,12 +355,12 @@ def _box(
     show_ci: bool = False,
     alpha: AlphaRange = 1.0,
     linealpha: AlphaRange = 1.0,
-    transform: Transform = None,
+    ytransform: Transform = None,
     *args,
     **kwargs,
 ):
 
-    transform = get_transform(transform)
+    transform = get_transform(ytransform)
 
     y_data = []
     x_data = []
@@ -369,7 +369,7 @@ def _box(
 
     groups = data.groups(levels)
     for key, value in groups.items():
-        y_data.append(data[value, y])
+        y_data.append(transform(data[value, y]))
         x_data.append([loc_dict[key]])
         fcs.append(color_dict[key])
         ecs.append(edgecolor_dict[key])
@@ -403,12 +403,12 @@ def _violin(
     width: float = 1.0,
     showmeans: bool = False,
     showmedians: bool = False,
-    transform: Transform = None,
+    ytransform: Transform = None,
     *args,
     **kwargs,
 ):
 
-    transform = get_transform(transform)
+    transform = get_transform(ytransform)
 
     x_data = []
     y_data = []

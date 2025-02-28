@@ -1008,6 +1008,7 @@ class LinePlot(BasePlot):
                 facet_dict=self._plot_dict["facet_dict"],
                 levels=self._plot_dict["levels"],
                 **pdict,
+                **self._plot_transforms,
             )
             self.processed_data.append(temp)
 
@@ -1020,13 +1021,13 @@ class LinePlot(BasePlot):
         **kwargs,
     ):
         self.plotter = mpl.LinePlotter(
-            self.processed_data,
-            self._plot_dict,
-            self.metadata(),
-            savefig,
-            path,
-            filename,
-            filetype,
+            plot_data=self.processed_data,
+            plot_dict=self._plot_dict,
+            metadata=self.metadata(),
+            savefig=savefig,
+            path=path,
+            filename=filename,
+            filetype=filetype,
             **kwargs,
         )
         self.plotter.plot()
@@ -1636,6 +1637,7 @@ class CategoricalPlot(BasePlot):
                 loc_dict=self._plot_dict["loc_dict"],
                 levels=self._plot_dict["levels"],
                 **pdict,
+                **self._plot_transforms,
             )
             self.processed_data.append(temp)
 
@@ -1648,13 +1650,13 @@ class CategoricalPlot(BasePlot):
         **kwargs,
     ):
         self.plotter = mpl.CategoricalPlotter(
-            self.processed_data,
-            self._plot_dict,
-            self.metadata(),
-            savefig,
-            path,
-            filename,
-            filetype,
+            plot_data=self.processed_data,
+            plot_dict=self._plot_dict,
+            metadata=self.metadata(),
+            savefig=savefig,
+            path=path,
+            filename=filename,
+            filetype=filetype,
             **kwargs,
         )
         self.plotter.plot()

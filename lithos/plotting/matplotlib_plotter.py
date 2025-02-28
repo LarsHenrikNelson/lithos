@@ -19,7 +19,22 @@ from .types import SavePath
 
 
 class Plotter:
-    filetypes = ["svg", "png", "jpeg"]
+    filetypes = [
+        "eps",
+        "jpeg",
+        "jpg",
+        "pdf",
+        "pgf",
+        "png",
+        "ps",
+        "raw",
+        "rgba",
+        "svg",
+        "svgz",
+        "tif",
+        "tiff",
+        "webp",
+    ]
 
     def __init__(
         self,
@@ -599,7 +614,12 @@ class Plotter:
         self.format_plot()
 
         if self._savefig:
-            self.savefig(path=self.path, filename=self.filename, filetype=self.filetype)
+            self.savefig(
+                path=self.path,
+                fig=self.fig,
+                filename=self.filename,
+                filetype=self.filetype,
+            )
         return self.fig, self.ax
 
     def savefig(
