@@ -833,13 +833,9 @@ class CategoricalPlotter(Plotter):
         return fig, ax
 
     def format_plot(self):
-        if self.plot_dict["group_order"] == [("",)]:
-            group_order = [""]
-        else:
-            group_order = self.plot_dict["group_order"]
         self.ax.set_xticks(
             ticks=self.plot_dict["x_ticks"],
-            labels=group_order,
+            labels=self.plot_dict["group_order"],
             rotation=self.plot_format["labels"]["xtick_rotation"],
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["tick_fontweight"],

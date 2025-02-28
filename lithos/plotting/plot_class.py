@@ -1070,8 +1070,8 @@ class CategoricalPlot(BasePlot):
                 group_spacing=group_spacing,
             )
         else:
-            group_order = [("",)]
-            subgroup_order = [("",)]
+            group_order = [""]
+            subgroup_order = [""]
             loc_dict = {("",): 0.0}
             width = 1.0
 
