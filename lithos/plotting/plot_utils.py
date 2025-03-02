@@ -203,17 +203,26 @@ def get_ticks(
     ticks,
     steps,
 ):
-    lim = lim.copy()
     if lim[0] is None:
-        lim[0] = ticks[0]
+        bottom = ticks[0]
+    else:
+        bottom = lim[0]
     if lim[1] is None:
-        lim[1] = ticks[-1]
+        top = ticks[-1]
+    else:
+        top = lim[1]
+    lim = (bottom, top)
     if axis_lim is None:
-        axis_lim = [lim[0], lim[1]]
+        axis_lim = (bottom, top)
     if axis_lim[0] is None:
-        axis_lim[0] = lim[0]
+        axis_bottom = lim[0]
+    else:
+        axis_bottom = axis_lim[0]
     if axis_lim[1] is None:
-        axis_lim[1] = lim[1]
+        axis_top = lim[1]
+    else:
+        axis_top = axis_lim[1]
+    axis_lim = (axis_bottom, axis_top)
     ticks = np.linspace(
         axis_lim[0],
         axis_lim[1],

@@ -100,17 +100,43 @@ class Plotter:
                     alpha=line_dict["linealpha"],
                 )
 
-    def _set_lims(self, ax, decimals, axis="x"):
+    def _set_lims(
+        self,
+        ax: plt.Axes.axes,
+        lim: tuple[float | int, float | int],
+        ticks,
+        axis: Literal["x", "y"] = "x",
+    ):
         if axis == "y":
             if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
-                ticks = ax.get_yticks()
-                lim, _, ticks = get_ticks(
-                    lim=self.plot_format["axis"]["ylim"],
-                    axis_lim=self.plot_format["axis"]["yaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["ysteps"],
-                )
                 ax.set_ylim(bottom=lim[0], top=lim[1])
+                truncate = (
+                    self.plot_format["axis_format"]["ysteps"][1] != 0
+                    or self.plot_format["axis_format"]["ysteps"][2]
+                    != self.plot_format["axis_format"]["ysteps"][0]
+                )
+                if truncate or self.plot_format["axis"]["yaxis_lim"] is not None:
+                    ax.spines["left"].set_bounds(ticks[0], ticks[-1])
+            else:
+                ax.set_yscale(self.plot_format["axis"]["yscale"])
+                ax.set_ylim(bottom=lim[0], top=lim[1])
+        else:
+            if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
+                ax.set_xlim(left=lim[0], right=lim[1])
+                truncate = (
+                    self.plot_format["axis_format"]["xsteps"][1] != 0
+                    or self.plot_format["axis_format"]["xsteps"][2]
+                    != self.plot_format["axis_format"]["xsteps"][0]
+                )
+                if truncate or self.plot_format["axis"]["xaxis_lim"] is not None:
+                    ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+            else:
+                ax.set_xscale(self.plot_format["axis"]["xscale"])
+                ax.set_xlim(left=lim[0], right=lim[1])
+
+    def _format_ticklabels(self, ax: plt.Axes.axes, ticks, decimals: int, axis="x"):
+        if axis == "y":
+            if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
                 if (
                     "back_transform_yticks" in self.plot_transforms
                     and self.plot_transforms["back_transform_yticks"]
@@ -138,33 +164,17 @@ class Plotter:
                     fontsize=self.plot_format["labels"]["ticklabel_size"],
                     rotation=self.plot_format["labels"]["ytick_rotation"],
                 )
-                truncate = (
-                    self.plot_format["axis_format"]["ysteps"][1] != 0
-                    or self.plot_format["axis_format"]["ysteps"][2]
-                    != self.plot_format["axis_format"]["ysteps"][0]
-                )
-                if truncate or self.plot_format["axis"]["yaxis_lim"] is not None:
-                    ax.spines["left"].set_bounds(ticks[0], ticks[-1])
             else:
-                ax.set_yscale(self.plot_format["axis"]["yscale"])
-                ticks = ax.get_yticks()
-                lim, _, _ = get_ticks(
-                    lim=self.plot_format["axis"]["ylim"],
-                    axis_lim=self.plot_format["axis"]["yaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["ysteps"],
+                ax.set_xscale(self.plot_format["axis"]["yscale"])
+                ax.set_yticks(
+                    ticks,
+                    fontfamily=self.plot_format["labels"]["font"],
+                    fontweight=self.plot_format["labels"]["tick_fontweight"],
+                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    rotation=self.plot_format["labels"]["ytick_rotation"],
                 )
-                ax.set_ylim(bottom=lim[0], top=lim[1])
         else:
             if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
-                ticks = ax.get_xticks()
-                lim, _, ticks = get_ticks(
-                    lim=self.plot_format["axis"]["xlim"],
-                    axis_lim=self.plot_format["axis"]["xaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["xsteps"],
-                )
-                ax.set_xlim(left=lim[0], right=lim[1])
                 if (
                     "back_transform_xticks" in self.plot_transforms
                     and self.plot_transforms["back_transform_xticks"]
@@ -192,28 +202,47 @@ class Plotter:
                     fontsize=self.plot_format["labels"]["ticklabel_size"],
                     rotation=self.plot_format["labels"]["xtick_rotation"],
                 )
-                truncate = (
-                    self.plot_format["axis_format"]["xsteps"][1] != 0
-                    or self.plot_format["axis_format"]["xsteps"][2]
-                    != self.plot_format["axis_format"]["xsteps"][0]
-                )
-                if truncate or self.plot_format["axis"]["xaxis_lim"] is not None:
-                    ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
             else:
                 ax.set_xscale(self.plot_format["axis"]["xscale"])
-                ticks = ax.get_xticks()
-                lim, _, _ = get_ticks(
+                ax.set_xticks(
+                    ticks,
+                    fontfamily=self.plot_format["labels"]["font"],
+                    fontweight=self.plot_format["labels"]["tick_fontweight"],
+                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    rotation=self.plot_format["labels"]["ytick_rotation"],
+                )
+
+    def set_axis(
+        self,
+        ax: plt.Axes.axes,
+        decimals: int,
+        axis: Literal["x", "y"] = "x",
+        style: Literal["default", "lithos"] = "lithos",
+    ):
+        if axis == "y":
+            ticks = ax.get_yticks()
+            if style == "lithos":
+                lim, _, ticks = get_ticks(
+                    lim=self.plot_format["axis"]["ylim"],
+                    axis_lim=self.plot_format["axis"]["yaxis_lim"],
+                    ticks=ticks,
+                    steps=self.plot_format["axis_format"]["ysteps"],
+                )
+        else:
+            ticks = ax.get_xticks()
+            if style == "lithos":
+                lim, _, ticks = get_ticks(
                     lim=self.plot_format["axis"]["xlim"],
                     axis_lim=self.plot_format["axis"]["xaxis_lim"],
                     ticks=ticks,
                     steps=self.plot_format["axis_format"]["xsteps"],
                 )
-                ax.set_xlim(left=lim[0], right=lim[1])
+        if style == "lithos":
+            self._set_lims(ax=ax, lim=lim, ticks=ticks, axis=axis)
+        self._format_ticklabels(ax=ax, ticks=ticks, decimals=decimals, axis=axis)
 
-    def _set_minorticks(
-        self, ax, nticks: int, transform: str, ticks: Literal["y", "x"]
-    ):
-        if ticks == "y":
+    def _set_minorticks(self, ax, nticks: int, transform: str, axis: Literal["y", "x"]):
+        if axis == "y":
             yticks = ax.get_yticks()
         else:
             yticks = ax.get_xticks()
@@ -221,36 +250,28 @@ class Plotter:
         mticks = np.zeros((len(yticks) - 1) * nticks)
         for index in range(yticks.size - 1):
             vals = np.linspace(
-                yticks[index], yticks[index + 1], num=nticks, endpoint=False
+                yticks[index], yticks[index + 1], num=nticks + 2, endpoint=True
             )
             start = index * nticks
             end = index * nticks + nticks
-            mticks[start:end] = vals
-        if ticks == "y":
+            mticks[start:end] = vals[1:-1]
+        if axis == "y":
             ax.set_yticks(
                 get_transform(transform)(mticks),
                 minor=True,
             )
-            ax.tick_params(
-                axis="y",
-                which="minor",
-                width=self.plot_format["axis_format"]["minor_tickwidth"],
-                length=self.plot_format["axis_format"]["minor_ticklength"],
-                labelfontfamily=self.plot_format["labels"]["font"],
-            )
-
         else:
             ax.set_xticks(
                 get_transform(transform)(mticks),
                 minor=True,
             )
-            ax.tick_params(
-                axis="x",
-                which="minor",
-                width=self.plot_format["axis_format"]["minor_tickwidth"],
-                length=self.plot_format["axis_format"]["minor_ticklength"],
-                labelfontfamily=self.plot_format["labels"]["font"],
-            )
+        ax.tick_params(
+            axis=axis,
+            which="minor",
+            width=self.plot_format["axis_format"]["minor_tickwidth"],
+            length=self.plot_format["axis_format"]["minor_ticklength"],
+            labelfontfamily=self.plot_format["labels"]["font"],
+        )
 
     def _make_legend_patches(self, color_dict, alpha, group, subgroup):
         legend_patches = []
@@ -700,15 +721,19 @@ class LinePlotter(Plotter):
             else:
                 ax.spines[spine].set_linewidth(lw)
 
-        self._set_lims(ax, ydecimals, axis="y")
-        self._set_lims(ax, xdecimals, axis="x")
+        self.set_axis(
+            ax, xdecimals, axis="x", style=self.plot_format["axis_format"]["style"]
+        )
+        self.set_axis(
+            ax, ydecimals, axis="y", style=self.plot_format["axis_format"]["style"]
+        )
 
         if self.plot_format["axis_format"]["yminorticks"] != 0:
             self._set_minorticks(
                 ax,
                 self.plot_format["axis_format"]["yminorticks"],
                 self.plot_transforms["ytransform"],
-                ticks="y",
+                axis="y",
             )
 
         if self.plot_format["axis_format"]["xminorticks"] != 0:
@@ -716,7 +741,7 @@ class LinePlotter(Plotter):
                 ax,
                 self.plot_format["axis_format"]["xminorticks"],
                 self.plot_transforms["xtransform"],
-                ticks="x",
+                axis="x",
             )
 
         ax.margins(self.plot_format["figure"]["margins"])
@@ -794,7 +819,7 @@ class LinePlotter(Plotter):
         # num_plots = len(self.plot_dict["group_order"])
         for index, sub_ax in enumerate(self.ax[: len(self.plot_dict["group_order"])]):
             if self.plot_format["figure"]["projection"] == "rectilinear":
-                self.format_rectilinear(sub_ax, ydecimals, xdecimals)
+                self.format_rectilinear(sub_ax, xdecimals, ydecimals)
             else:
                 self.format_polar(sub_ax)
             if "hline" in self.plot_dict:
@@ -868,7 +893,13 @@ class CategoricalPlotter(Plotter):
                 self.ax.spines[spine].set_linewidth(lw)
         self._set_grid(self.ax)
 
-        self._set_lims(self.ax, self.plot_format["axis"]["ydecimals"], axis="y")
+        self.set_axis(
+            self.ax,
+            self.plot_format["axis"]["ydecimals"],
+            axis="y",
+            style=self.plot_format["axis_format"]["style"],
+        )
+
         truncate = (
             self.plot_format["axis_format"]["xsteps"][1] != 0
             or self.plot_format["axis_format"]["xsteps"][2]
@@ -883,7 +914,7 @@ class CategoricalPlotter(Plotter):
                 self.ax,
                 self.plot_format["axis_format"]["yminorticks"],
                 self.plot_transforms["ytransform"],
-                ticks="y",
+                axis="y",
             )
 
         self.ax.set_ylabel(

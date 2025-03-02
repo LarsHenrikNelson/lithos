@@ -163,9 +163,9 @@ class BasePlot:
         xunits: Literal["degree", "radian" "wradian"] | None = None,
     ):
         if ylim is None:
-            ylim = [None, None]
+            ylim = (None, None)
         if xlim is None:
-            xlim = [None, None]
+            xlim = (None, None)
 
         axis_settings = {
             "yscale": yscale,
@@ -193,10 +193,11 @@ class BasePlot:
         ticklength: float = 5.0,
         minor_tickwidth: float = 1.5,
         minor_ticklength: float = 2.5,
-        yminorticks: bool = False,
-        xminorticks: bool = False,
+        yminorticks: int = 0,
+        xminorticks: int = 0,
         ysteps: int | tuple[int, int, int] = 5,
         xsteps: int | tuple[int, int, int] = 5,
+        style: Literal["default", "lithos"] = "lithos",
     ):
         if isinstance(ysteps, int):
             ysteps = (ysteps, 0, ysteps)
@@ -220,6 +221,7 @@ class BasePlot:
             "xminorticks": xminorticks,
             "xsteps": xsteps,
             "ysteps": ysteps,
+            "style": style,
         }
 
         self.plot_format["axis_format"] = axis_format
