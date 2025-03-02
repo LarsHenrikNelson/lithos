@@ -21,6 +21,7 @@ from .types import (
     Levels,
     LinePlotData,
     RectanglePlotData,
+    JitterPlotData,
     ScatterPlotData,
     SummaryPlotData,
     Transform,
@@ -79,7 +80,7 @@ def _jitter(
     unique_id: str | None = None,
     *args,
     **kwargs,
-) -> ScatterPlotData:
+) -> JitterPlotData:
 
     transform = get_transform(ytransform)
 
@@ -122,7 +123,7 @@ def _jitter(
                 mecs.append(edgecolor_dict[i])
                 mksizes.append(markersize)
 
-    output = ScatterPlotData(
+    output = JitterPlotData(
         x_data=x_data,
         y_data=y_data,
         marker=mks,
@@ -153,7 +154,7 @@ def _jitteru(
     ytransform: Transform = None,
     *args,
     **kwargs,
-) -> ScatterPlotData:
+) -> JitterPlotData:
 
     transform = get_transform(ytransform)
     temp = width / 2
@@ -197,7 +198,7 @@ def _jitteru(
             mfcs.append(color_dict[i])
             mecs.append(edgecolor_dict[i])
             mksizes.append(markersize)
-    output = ScatterPlotData(
+    output = JitterPlotData(
         x_data=x_data,
         y_data=y_data,
         marker=mks,
@@ -599,33 +600,53 @@ def _bar_histogram(
     return output
 
 
-# def __scatter_plot(
-#     data: DataHolder,
-#     y: str,
-#     x: str,
-#     levels: Levels,
-#     markers,
-#     markercolors,
-#     edgecolors,
-#     markersizes,
-#     facetgroup,
-#     facet_dict=None,
-#     xtransform: Transform = None,
-#     ytransform: Transform = None,
-#     *args,
-#     **kwargs,
-# ):
-#     for key, value in facet_dict.items():
-#         indexes = np.array([index for index, j in enumerate(facetgroup) if value == j])
-#         ax[value].scatter(
-#             get_transform(xtransform)(data[indexes, x]),
-#             get_transform(ytransform)(data[indexes, y]),
-#             marker=markers,
-#             color=[markercolors[i] for i in indexes],
-#             edgecolors=[edgecolors[i] for i in indexes],
-#             s=[markersizes[i] for i in indexes],
-#         )
-#     return ax
+def _scatter(
+    data,
+    y,
+    x,
+    levels,
+    markers,
+    markercolors,
+    edgecolors,
+    markersizes,
+    alpha,
+    edge_alpha,
+    facetgroup,
+    facet_dict=None,
+    xtransform=None,
+    ytransform=None,
+    *args,
+    **kwargs,
+) -> ScatterPlotData:
+    x_data = []
+    y_data = []
+    mks = []
+    mksizes = []
+    mfcs = []
+    mecs = []
+    facet = []
+
+    for key, value in facet_dict.items():
+        indexes = np.array([index for index, j in enumerate(facetgroup) if value == j])
+        x_data.append(get_transform(xtransform)(data[indexes, x]))
+        y_data.append(get_transform(ytransform)(data[indexes, y]))
+        mks.append(markers)
+        mfcs.append([markercolors[i] for i in indexes])
+        mecs.append([edgecolors[i] for i in indexes])
+        mksizes.append([markersizes[i] for i in indexes])
+        facet.append(facet_dict[key])
+    output = ScatterPlotData(
+        x_data=x_data,
+        y_data=y_data,
+        marker=mks,
+        markerfacecolor=mfcs,
+        markeredgecolor=mecs,
+        markersize=mksizes,
+        alpha=alpha,
+        edge_alpha=edge_alpha,
+        facet_index=facet,
+    )
+    return output
 
 
 def _aggline(

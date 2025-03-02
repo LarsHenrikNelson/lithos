@@ -906,7 +906,7 @@ class LinePlot(BasePlot):
         edgecolor: ColorParameters = "black",
         markersize: float | str = 1,
         alpha: AlphaRange = 1.0,
-        linealpha: AlphaRange = 1.0,
+        edge_alpha: AlphaRange = 1.0,
     ):
         self._plot_methods.append("scatter")
         self._plot_prefs.append(
@@ -916,7 +916,7 @@ class LinePlot(BasePlot):
                 "edgecolor": edgecolor,
                 "markersize": markersize,
                 "alpha": alpha,
-                "linealpha": linealpha,
+                "edge_alpha": edge_alpha,
             }
         )
 
@@ -969,7 +969,7 @@ class LinePlot(BasePlot):
             "markersizes": markersize,
             "facetgroup": facetgroup,
             "alpha": alpha,
-            "linealpha": linealpha,
+            "edge_alpha": edge_alpha,
         }
 
         self.plot_list.append(("scatter", scatter))

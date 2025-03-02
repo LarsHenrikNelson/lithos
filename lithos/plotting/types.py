@@ -45,6 +45,19 @@ class LinePlotData:
 
 
 @dataclass
+class JitterPlotData:
+    x_data: list[np.ndarray]
+    y_data: list[np.ndarray]
+    marker: list[str]
+    markerfacecolor: list[str]
+    markeredgecolor: list[str]
+    markersize: list[float]
+    alpha: float
+    edge_alpha: float
+    plot_type: str = "jitter"
+
+
+@dataclass
 class ScatterPlotData:
     x_data: list[np.ndarray]
     y_data: list[np.ndarray]
@@ -54,6 +67,7 @@ class ScatterPlotData:
     markersize: list[float]
     alpha: float
     edge_alpha: float
+    facet_index: list[int]
     plot_type: str = "scatter"
 
 

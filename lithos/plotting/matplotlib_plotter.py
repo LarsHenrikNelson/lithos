@@ -296,6 +296,8 @@ class Plotter:
             return self._plot_rectangles
         elif plot_type == "line":
             return self._plot_line
+        elif plot_type == "jitter":
+            return self._plot_jitter
         elif plot_type == "scatter":
             return self._plot_scatter
         elif plot_type == "summary":
@@ -356,7 +358,7 @@ class Plotter:
                 )
         return ax
 
-    def _plot_scatter(
+    def _plot_jitter(
         self,
         x_data: list,
         y_data: list,
@@ -372,6 +374,40 @@ class Plotter:
             x_data, y_data, marker, markerfacecolor, markeredgecolor, markersize
         ):
             ax.plot(
+                x,
+                y,
+                mk,
+                markerfacecolor=to_rgba(mf, alpha=alpha) if mf != "none" else "none",
+                markeredgecolor=(
+                    to_rgba(me, alpha=edge_alpha) if me != "none" else "none"
+                ),
+                markersize=ms,
+            )
+        return ax
+
+    def _plot_scatter(
+        self,
+        x_data: list,
+        y_data: list,
+        marker: str,
+        markerfacecolor: list[str],
+        markeredgecolor: list[str],
+        markersize: float,
+        alpha: float,
+        edge_alpha: float,
+        facet_index: list[int],
+        ax: plt.Axes,
+    ):
+        for x, y, mk, mf, me, ms, facet in zip(
+            x_data,
+            y_data,
+            marker,
+            markerfacecolor,
+            markeredgecolor,
+            markersize,
+            facet_index,
+        ):
+            ax[facet].plot(
                 x,
                 y,
                 mk,
