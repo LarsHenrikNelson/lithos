@@ -1433,6 +1433,7 @@ class CategoricalPlot(BasePlot):
         width: float = 1.0,
         showmeans: bool = False,
         showmedians: bool = False,
+        kde_length: int = 128,
         legend: bool = False,
     ):
         self._plot_methods.append("violin")
@@ -1448,6 +1449,7 @@ class CategoricalPlot(BasePlot):
                 "showmeans": showmeans,
                 "showmedians": showmedians,
                 "legend": legend,
+                "kde_length": kde_length,
             }
         )
         color = _process_colors(
@@ -1468,6 +1470,7 @@ class CategoricalPlot(BasePlot):
             "showmeans": showmeans,
             "showmedians": showmedians,
             "linewidth": linewidth,
+            "kde_length": kde_length,
         }
 
         self.plot_list.append(("violin", violin))

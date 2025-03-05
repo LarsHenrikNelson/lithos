@@ -405,36 +405,111 @@ def _violin(
     showmeans: bool = False,
     showmedians: bool = False,
     ytransform: Transform = None,
+    unique_id: str | None = None,
+    kernel: Kernels = "gaussian",
+    bw: BW = "ISJ",
+    kde_length: int | None = None,
+    agg_func: Agg | None = None,
+    tol: float | int = 1e-3,
+    KDEType="fft",
     *args,
     **kwargs,
 ):
 
     transform = get_transform(ytransform)
 
+    groups = data.groups(levels)
+
     x_data = []
     y_data = []
-    fcs = []
     ecs = []
+    fcs = []
 
-    groups = data.groups(levels)
-    for key, value in groups.items():
-        x_data.append([loc_dict[key]])
-        y_data.append(transform(data[value, y]))
-        fcs.append(facecolor_dict[key])
-        ecs.append(edgecolor_dict[key])
-    output = ViolinPlotData(
-        x_data=x_data,
-        y_data=y_data,
-        facecolors=fcs,
-        edgecolors=ecs,
-        alpha=alpha,
-        edge_alpha=edge_alpha,
-        linewidth=linewidth,
-        width=width,
-        showmeans=showmeans,
-        showmedians=showmedians,
-        showextrema=showextrema,
-    )
+    if unique_id is not None:
+        uid_groups = data.groups(levels + [unique_id])
+    for u, group_indexes in groups.items():
+        if unique_id is None:
+            y_values = np.asarray(data[group_indexes, y]).flatten()
+            x_kde, y_kde = stats.kde(
+                get_transform(transform)(y_values),
+                bw=bw,
+                kernel=kernel,
+                tol=tol,
+                kde_length=kde_length,
+            )
+            if y is not None:
+                y_kde, x_kde = x_kde, y_kde
+            y_data.append(y_kde)
+            x_data.append(x_kde)
+            ecs.append(edgecolor_dict[u])
+        else:
+            subgroups, count = np.unique(
+                data[group_indexes, unique_id], return_counts=True
+            )
+
+            if agg_func is not None:
+                temp_data = data[group_indexes, y]
+                min_data = get_transform(transform)(temp_data.min())
+                max_data = get_transform(transform)(temp_data.max())
+                min_data = min_data - np.abs((min_data * tol))
+                max_data = max_data + np.abs((max_data * tol))
+                min_data = min_data if min_data != 0 else -1e-10
+                max_data = max_data if max_data != 0 else 1e-10
+                if KDEType == "fft":
+                    if kde_length is None:
+                        kde_length = int(np.ceil(np.log2(len(temp_data))))
+                else:
+                    if kde_length is None:
+                        max_len = np.max(count)
+                        kde_length = int(max_len * 1.5)
+                x_array = np.linspace(min_data, max_data, num=kde_length)
+                y_hold = np.zeros((len(subgroups), x_array.size))
+            for hi, s in enumerate(subgroups):
+                s_indexes = uid_groups[u + (s,)]
+                y_values = np.asarray(data[s_indexes, y]).flatten()
+                if agg_func is None:
+                    x_kde, y_kde = stats.kde(
+                        get_transform(transform)(y_values),
+                        bw=bw,
+                        kernel=kernel,
+                        tol=tol,
+                    )
+                    if y is not None:
+                        y_kde, x_kde = x_kde, y_kde
+                    y_data.append(y_kde)
+                    x_data.append(x_kde)
+                    ecs.append(edgecolor_dict[u])
+                else:
+                    _, y_kde = stats.kde(
+                        get_transform(transform)(y_values),
+                        bw=bw,
+                        kernel=kernel,
+                        tol=tol,
+                        x=x_array,
+                        KDEType="fft",
+                    )
+                    y_hold[hi, :] = y_kde
+            if agg_func is not None:
+                if y is not None:
+                    y_kde, x_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
+                else:
+                    x_kde, y_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
+                y_data.append(y_kde)
+                x_data.append(x_kde)
+                ecs.append(edgecolor_dict[u])
+        output = ViolinPlotData(
+            x_data=x_data,
+            y_data=y_data,
+            facecolors=fcs,
+            edgecolors=ecs,
+            alpha=alpha,
+            edge_alpha=edge_alpha,
+            linewidth=linewidth,
+            width=width,
+            showmeans=showmeans,
+            showmedians=showmedians,
+            showextrema=showextrema,
+        )
     return output
 
 
