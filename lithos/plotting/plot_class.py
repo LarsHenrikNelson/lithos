@@ -354,19 +354,19 @@ class BasePlot:
         if group is None:
             unique_groups = [("",)]
             group_order = [""]
-            levels = []
+            levels = ()
         elif subgroup is None:
             if group_order is None:
                 group_order = np.unique(self.data[group])
             unique_groups = [(g,) for g in group_order]
-            levels = [group]
+            levels = (group,)
         else:
             if group_order is None:
                 group_order = np.unique(self.data[group])
             if subgroup_order is None:
                 subgroup_order = np.unique(self.data[subgroup])
             unique_groups = list(set(zip(self.data[group], self.data[subgroup])))
-            levels = [group, subgroup]
+            levels = (group, subgroup)
         return group_order, subgroup_order, unique_groups, levels
 
     def metadata(self):

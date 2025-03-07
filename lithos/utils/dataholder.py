@@ -1,3 +1,5 @@
+import functools
+
 import numpy as np
 import pandas as pd
 
@@ -11,6 +13,7 @@ class DataHolder:
                     data[key] = np.array(value)
         self._data = data._data if isinstance(data, DataHolder) else data
         self._container_type = self._get_container_type()
+        self.groups = functools.lru_cache()(self._groups)
 
     def __contains__(self, item):
         if self._container_type == "pandas" or self._container_type == "dict":
@@ -104,7 +107,8 @@ class DataHolder:
         yy = pd.DataFrame(self._data)[columns + y].groupby(columns, sort=sort)
         return yy
 
-    def groups(self, levels):
+    def _groups(self, levels):
+        levels = list(levels)
         if len(levels) == 0:
             new_groups = {}
             new_groups[("",)] = np.arange(self.shape[0])

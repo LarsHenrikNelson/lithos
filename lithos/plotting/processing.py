@@ -96,7 +96,7 @@ def _jitter(
     groups = data.groups(levels)
 
     if unique_id is not None:
-        unique_groups = data.groups(levels + [unique_id])
+        unique_groups = data.groups(levels + (unique_id,))
 
     jitter_values = np.zeros(data.shape[0])
 
@@ -168,7 +168,7 @@ def _jitteru(
 
     groups = data.groups(levels)
     if unique_id is not None:
-        uid_groups = data.groups(levels + [unique_id])
+        uid_groups = data.groups(levels + (unique_id,))
     for i in groups.keys():
         unique_ids_sub = np.unique(data[groups[i], unique_id])
         if len(unique_ids_sub) > 1:
@@ -290,7 +290,7 @@ def _summaryu(
 
     groups = data.groups(levels)
     if unique_id is not None:
-        uid_groups = data.groups(levels + [unique_id])
+        uid_groups = data.groups(levels + (unique_id,))
     for i, indexes in groups.items():
         uids = np.unique(data[indexes, unique_id])
         if agg_func is None:
@@ -426,7 +426,7 @@ def _violin(
     width = width / 2.0
 
     if unique_id is not None:
-        uid_groups = data.groups(levels + [unique_id])
+        uid_groups = data.groups(levels + (unique_id,))
     for u, group_indexes in groups.items():
         if unique_id is None:
             y_values = np.asarray(data[group_indexes, y]).flatten()
@@ -603,7 +603,7 @@ def _bar_histogram(
     else:
         groups = data.groups(levels)
         if unique_id is not None:
-            unique_id_indexes = data.groups(levels + [unique_id])
+            unique_id_indexes = data.groups(levels + (unique_id,))
         for i, group_indexes in groups.items():
             if unique_id is not None:
                 bins = np.histogram_bin_edges(
@@ -763,7 +763,7 @@ def _aggline(
     mecs = []
 
     err_data = None
-    new_levels = (levels + [x]) if unique_id is None else (levels + [x, unique_id])
+    new_levels = (levels + (x,)) if unique_id is None else (levels + (x, unique_id))
     new_data = (
         data.groupby(y, new_levels, sort=sort).agg(get_transform(func)).reset_index()
     )
@@ -778,20 +778,20 @@ def _aggline(
         if agg_func is not None:
             if err_func is not None:
                 err_data = DataHolder(
-                    new_data[levels + [x, y]]
-                    .groupby(levels + [x], sort=sort)
+                    new_data[levels + (x, y)]
+                    .groupby(levels + (x,), sort=sort)
                     .agg(get_transform(err_func))
                     .reset_index()
                 )
         new_data = (
-            new_data[levels + [x, y]]
-            .groupby(levels + [x], sort=sort)
+            new_data[levels + (x, y)]
+            .groupby(levels + (x,), sort=sort)
             .agg(get_transform(func))
             .reset_index()
         )
     new_data = DataHolder(new_data)
     if unique_id is not None and agg_func is None:
-        ugrps = new_data.groups(levels + [unique_id])
+        ugrps = new_data.groups(levels + (unique_id,))
     else:
         ugrps = new_data.groups(levels)
     if len(ugrps) != 0:
@@ -913,7 +913,7 @@ def _kde(
         groups = data.groups(levels)
 
         if unique_id is not None:
-            uid_groups = data.groups(levels + [unique_id])
+            uid_groups = data.groups(levels + (unique_id,))
         for u, group_indexes in groups.items():
             if unique_id is None:
                 y_values = np.asarray(data[group_indexes, column]).flatten()
@@ -1077,7 +1077,7 @@ def _ecdf(
         ugroups = data.groups(levels)
 
         if unique_id is not None:
-            uid_groups = data.groups(levels + [unique_id])
+            uid_groups = data.groups(levels + (unique_id,))
 
     for u, indexes in ugroups.items():
         if u == ("",):
@@ -1319,7 +1319,7 @@ def _line(
 
     groups = data.groups(levels)
     if unique_id is not None:
-        uid_groups = data.groups(levels + [unique_id])
+        uid_groups = data.groups(levels + (unique_id,))
         for i, indexes in groups.items():
             uids = np.unique(data[indexes])
             for j in uids:
@@ -1530,7 +1530,7 @@ def _percent(
 
     groups = data.groups(levels)
     if unique_id is not None:
-        uid_groups = data.groups(levels + [unique_id])
+        uid_groups = data.groups(levels + (unique_id,))
     for gr, indexes in groups.items():
         if unique_id is None:
             bw.extend([barwidth] * plot_bins)
