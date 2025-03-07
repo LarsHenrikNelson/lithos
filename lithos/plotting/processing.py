@@ -400,18 +400,15 @@ def _violin(
     alpha: AlphaRange = 1.0,
     edge_alpha: AlphaRange = 1.0,
     linewidth: float | int = 1,
-    showextrema: bool = False,
     width: float = 1.0,
-    showmeans: bool = False,
-    showmedians: bool = False,
     ytransform: Transform = None,
     unique_id: str | None = None,
     kernel: Kernels = "gaussian",
     bw: BW = "ISJ",
     kde_length: int | None = None,
-    agg_func: Agg | None = None,
     tol: float | int = 1e-3,
     KDEType="fft",
+    agg_func: Agg | None = None,
     *args,
     **kwargs,
 ):
@@ -422,8 +419,10 @@ def _violin(
 
     x_data = []
     y_data = []
+    loc = []
     ecs = []
     fcs = []
+    width = width / 2.0
 
     if unique_id is not None:
         uid_groups = data.groups(levels + [unique_id])
@@ -436,12 +435,13 @@ def _violin(
                 kernel=kernel,
                 tol=tol,
                 kde_length=kde_length,
+                KDEType=KDEType,
             )
-            if y is not None:
-                y_kde, x_kde = x_kde, y_kde
-            y_data.append(y_kde)
+            y_data.append((y_kde / y_kde.max()) * width)
             x_data.append(x_kde)
             ecs.append(edgecolor_dict[u])
+            fcs.append(facecolor_dict[u])
+            loc.append(loc_dict[u])
         else:
             subgroups, count = np.unique(
                 data[group_indexes, unique_id], return_counts=True
@@ -455,15 +455,8 @@ def _violin(
                 max_data = max_data + np.abs((max_data * tol))
                 min_data = min_data if min_data != 0 else -1e-10
                 max_data = max_data if max_data != 0 else 1e-10
-                if KDEType == "fft":
-                    if kde_length is None:
-                        kde_length = int(np.ceil(np.log2(len(temp_data))))
-                else:
-                    if kde_length is None:
-                        max_len = np.max(count)
-                        kde_length = int(max_len * 1.5)
                 x_array = np.linspace(min_data, max_data, num=kde_length)
-                y_hold = np.zeros((len(subgroups), x_array.size))
+                y_hold = np.zeros((len(subgroups), kde_length))
             for hi, s in enumerate(subgroups):
                 s_indexes = uid_groups[u + (s,)]
                 y_values = np.asarray(data[s_indexes, y]).flatten()
@@ -473,12 +466,14 @@ def _violin(
                         bw=bw,
                         kernel=kernel,
                         tol=tol,
+                        KDEType=KDEType,
+                        kde_length=kde_length,
                     )
-                    if y is not None:
-                        y_kde, x_kde = x_kde, y_kde
-                    y_data.append(y_kde)
+                    y_data.append((y_kde / y_kde.max()) * width)
                     x_data.append(x_kde)
                     ecs.append(edgecolor_dict[u])
+                    fcs.append(facecolor_dict[u])
+                    loc.append(loc_dict[u])
                 else:
                     _, y_kde = stats.kde(
                         get_transform(transform)(y_values),
@@ -486,29 +481,26 @@ def _violin(
                         kernel=kernel,
                         tol=tol,
                         x=x_array,
-                        KDEType="fft",
+                        KDEType=KDEType,
+                        kde_length=kde_length,
                     )
                     y_hold[hi, :] = y_kde
             if agg_func is not None:
-                if y is not None:
-                    y_kde, x_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
-                else:
-                    x_kde, y_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
-                y_data.append(y_kde)
+                x_kde, y_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
+                y_data.append((y_kde / y_kde.max()) * width)
                 x_data.append(x_kde)
                 ecs.append(edgecolor_dict[u])
+                fcs.append(facecolor_dict[u])
+                loc.append(loc_dict[u])
         output = ViolinPlotData(
             x_data=x_data,
             y_data=y_data,
+            location=loc,
             facecolors=fcs,
             edgecolors=ecs,
             alpha=alpha,
             edge_alpha=edge_alpha,
             linewidth=linewidth,
-            width=width,
-            showmeans=showmeans,
-            showmedians=showmedians,
-            showextrema=showextrema,
         )
     return output
 

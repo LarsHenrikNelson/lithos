@@ -516,43 +516,25 @@ class Plotter:
         self,
         x_data: list,
         y_data: list,
+        location: list[float],
         facecolors: list[str],
         edgecolors: list[str],
         alpha: float,
         edge_alpha: float,
         linewidth: float,
-        width: list[float],
-        showmeans: bool,
-        showmedians: bool,
-        showextrema: bool,
         ax: plt.Axes,
     ):
-        for x, y, fcs, ecs in zip(x_data, y_data, facecolors, edgecolors):
-            parts = ax.violinplot(
-                y,
-                positions=x,
-                widths=width,
-                showmeans=showmeans,
-                showmedians=showmedians,
-                showextrema=showextrema,
+        for x, y, loc, fcs, ecs in zip(
+            x_data, y_data, location, facecolors, edgecolors
+        ):
+            ax.fill_betweenx(
+                x,
+                y * -1 + loc,
+                y + loc,
+                facecolor=to_rgba(fcs, alpha),
+                edgecolor=to_rgba(ecs, edge_alpha),
+                linewidth=linewidth,
             )
-            for body in parts["bodies"]:
-                body.set_facecolor(to_rgba(fcs, alpha=alpha) if fcs != "none" else fcs)
-                body.set_edgecolor(
-                    to_rgba(ecs, alpha=edge_alpha) if ecs != "none" else ecs
-                )
-                body.set_linewidth(linewidth)
-            if showmeans:
-                # Matplotlib seems to divide the alpha by 2 so this needs to be equivalent
-                parts["cmeans"].set_color(
-                    to_rgba(ecs, alpha=edge_alpha / 2) if ecs != "none" else ecs
-                )
-                parts["cmeans"].set_linewidth(linewidth)
-            if showmedians:
-                parts["cmedians"].set_color(
-                    to_rgba(ecs, alpha=edge_alpha / 2) if ecs != "none" else ecs
-                )
-                parts["cmedians"].set_linewidth(linewidth)
 
     def _plot_line(
         self,

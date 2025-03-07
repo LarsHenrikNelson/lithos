@@ -105,15 +105,12 @@ class BoxPlotData:
 class ViolinPlotData:
     x_data: list
     y_data: list
+    location: list[float]
     facecolors: list[str]
     edgecolors: list[str]
     alpha: float
     edge_alpha: float
     linewidth: float
-    width: list[float]
-    showmeans: bool
-    showmedians: bool
-    showextrema: bool
     plot_type: str = "violin"
 
 

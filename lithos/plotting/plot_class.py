@@ -527,7 +527,7 @@ class LinePlot(BasePlot):
         linealpha: float = 1.0,
         func="mean",
         err_func="sem",
-        agg_func=None,
+        agg_func: Agg | None = None,
         fill_between: bool = False,
         fillalpha: AlphaRange = 1.0,
         sort=True,
@@ -610,8 +610,8 @@ class LinePlot(BasePlot):
         fillalpha: AlphaRange = 1.0,
         kde_length: int | None = None,
         unique_id: str | None = None,
-        agg_func=None,
-        err_func=None,
+        agg_func: Agg | None = None,
+        err_func: Error = None,
         KDEType: Literal["tree", "fft"] = "fft",
     ):
         self._plot_methods.append("kde")
@@ -747,8 +747,8 @@ class LinePlot(BasePlot):
         bin_limits=None,
         stat: Literal["density", "probability", "count"] = "density",
         nbins=50,
-        err_func=None,
-        agg_func=None,
+        err_func: Error = None,
+        agg_func: Agg | None = None,
         unique_id=None,
     ):
         self._plot_methods.append("hist")
@@ -819,8 +819,8 @@ class LinePlot(BasePlot):
         fill_between: bool = True,
         fillalpha: AlphaRange = 0.5,
         unique_id: str | None = None,
-        agg_func=None,
-        err_func=None,
+        agg_func: Agg | None = None,
+        err_func: Error = None,
         colorall: ColorParameters = None,
         ecdf_type: Literal["spline", "bootstrap", "none"] = "none",
         ecdf_args=None,
@@ -1429,11 +1429,14 @@ class CategoricalPlot(BasePlot):
         linewidth=1,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
-        showextrema: bool = False,
         width: float = 1.0,
-        showmeans: bool = False,
-        showmedians: bool = False,
         kde_length: int = 128,
+        unique_id: str | None = None,
+        agg_func: Agg | None = None,
+        kernel: KDEType = "gaussian",
+        bw: BW = "silverman",
+        tol: float | int = 1e-3,
+        KDEType: Literal["tree", "fft"] = "fft",
         legend: bool = False,
     ):
         self._plot_methods.append("violin")
@@ -1444,12 +1447,15 @@ class CategoricalPlot(BasePlot):
                 "linewidth": linewidth,
                 "alpha": alpha,
                 "edge_alpha": edge_alpha,
-                "showextrema": showextrema,
                 "width": width,
-                "showmeans": showmeans,
-                "showmedians": showmedians,
                 "legend": legend,
                 "kde_length": kde_length,
+                "unique_id": unique_id,
+                "agg_func": agg_func,
+                "KDEType": KDEType,
+                "kernel": kernel,
+                "bw": bw,
+                "tol": tol,
             }
         )
         color = _process_colors(
@@ -1465,12 +1471,15 @@ class CategoricalPlot(BasePlot):
             "edgecolor_dict": edge_dict,
             "alpha": alpha,
             "edge_alpha": edge_alpha,
-            "showextrema": showextrema,
             "width": width * self._plot_dict["width"],
-            "showmeans": showmeans,
-            "showmedians": showmedians,
             "linewidth": linewidth,
             "kde_length": kde_length,
+            "unique_id": unique_id,
+            "agg_func": agg_func,
+            "KDEType": KDEType,
+            "kernel": kernel,
+            "bw": bw,
+            "tol": tol,
         }
 
         self.plot_list.append(("violin", violin))

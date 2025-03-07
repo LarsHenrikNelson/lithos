@@ -11,7 +11,7 @@ def _kde_length(data, kde_obj, tol: float = 0.1, kde_length: int | None = None):
     max_data = data.max() + width * tol
     if kde_length is None:
         kde_length = int(np.ceil(np.log2(len(data))))
-    x = np.linspace(min_data, max_data, num=(1 << kde_length))
+    x = np.linspace(min_data, max_data, num=kde_length)
     return x
 
 
