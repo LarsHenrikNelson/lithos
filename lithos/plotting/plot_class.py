@@ -666,7 +666,7 @@ class LinePlot(BasePlot):
             "err_func": err_func,
             "kde_length": kde_length,
             "KDEType": KDEType,
-            "fillalpha": alpha / 2 if fillalpha is None else fillalpha,
+            "fillalpha": fillalpha,
         }
 
         self.plot_list.append(("kde", kde_plot))
@@ -1437,6 +1437,7 @@ class CategoricalPlot(BasePlot):
         bw: BW = "silverman",
         tol: float | int = 1e-3,
         KDEType: Literal["tree", "fft"] = "fft",
+        unique_style: Literal["split", "overlap"] = "overlap",
         legend: bool = False,
     ):
         self._plot_methods.append("violin")
@@ -1456,6 +1457,7 @@ class CategoricalPlot(BasePlot):
                 "kernel": kernel,
                 "bw": bw,
                 "tol": tol,
+                "unique_style": unique_style,
             }
         )
         color = _process_colors(
@@ -1480,6 +1482,7 @@ class CategoricalPlot(BasePlot):
             "kernel": kernel,
             "bw": bw,
             "tol": tol,
+            "unique_style": unique_style,
         }
 
         self.plot_list.append(("violin", violin))

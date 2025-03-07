@@ -409,6 +409,7 @@ def _violin(
     tol: float | int = 1e-3,
     KDEType="fft",
     agg_func: Agg | None = None,
+    unique_style: Literal["split", "overlap"] = "overlap",
     *args,
     **kwargs,
 ):
@@ -443,10 +444,7 @@ def _violin(
             fcs.append(facecolor_dict[u])
             loc.append(loc_dict[u])
         else:
-            subgroups, count = np.unique(
-                data[group_indexes, unique_id], return_counts=True
-            )
-
+            subgroups = np.unique(data[group_indexes, unique_id])
             if agg_func is not None:
                 temp_data = data[group_indexes, y]
                 min_data = get_transform(transform)(temp_data.min())
@@ -458,6 +456,17 @@ def _violin(
                 x_array = np.linspace(min_data, max_data, num=kde_length)
                 y_hold = np.zeros((len(subgroups), kde_length))
             for hi, s in enumerate(subgroups):
+                if unique_style == "split":
+                    if len(subgroups) > 1:
+                        dist = np.linspace(-width, width, num=len(subgroups) + 1)
+                        uwidth = (dist[1] - dist[0]) / 2.0
+                        dist = np.round((dist[1:] + dist[:-1]) / 2, 10)
+                        dist += loc_dict[u]
+                    else:
+                        dist = [0]
+                else:
+                    dist = np.full(len(subgroups), loc_dict[u])
+                    uwidth = width
                 s_indexes = uid_groups[u + (s,)]
                 y_values = np.asarray(data[s_indexes, y]).flatten()
                 if agg_func is None:
@@ -469,11 +478,11 @@ def _violin(
                         KDEType=KDEType,
                         kde_length=kde_length,
                     )
-                    y_data.append((y_kde / y_kde.max()) * width)
+                    y_data.append((y_kde / y_kde.max()) * uwidth)
                     x_data.append(x_kde)
                     ecs.append(edgecolor_dict[u])
                     fcs.append(facecolor_dict[u])
-                    loc.append(loc_dict[u])
+                    loc.append(dist[hi])
                 else:
                     _, y_kde = stats.kde(
                         get_transform(transform)(y_values),
