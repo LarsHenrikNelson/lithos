@@ -8,7 +8,7 @@ from ..utils import (
     DataHolder,
     metadata_utils,
 )
-from . import processing
+from .processing import Processor
 from .plot_utils import (
     _process_colors,
     _process_positions,
@@ -31,24 +31,6 @@ from .types import (
     Transform,
 )
 
-PLOTS = {
-    "box": processing._box,
-    "hist": processing._hist,
-    "jitter": processing._jitter,
-    "jitteru": processing._jitteru,
-    "line": processing._line,
-    "poly_hist": processing._poly_hist,
-    "summary": processing._summary,
-    "summaryu": processing._summaryu,
-    "violin": processing._violin,
-    "kde": processing._kde,
-    "percent": processing._percent,
-    "ecdf": processing._ecdf,
-    "count": processing._count,
-    # "scatter": processing._scatter,
-    "aggline": processing._aggline,
-}
-
 
 class BasePlot:
     aggregating_funcs = Agg
@@ -57,7 +39,6 @@ class BasePlot:
 
     def __init__(self, data: dict | pd.DataFrame | np.ndarray, inplace: bool = False):
         self.inplace = inplace
-        self.plot_list = []
         self.plot_list = []
         self._plot_methods = []
         self._plot_prefs = []
@@ -298,7 +279,7 @@ class BasePlot:
         save_metadata: bool = False,
         **kwargs,
     ):
-        self._process_data()
+        self.process_data()
         self._plot_processed_data(savefig, path, filename, filetype, **kwargs)
         if save_metadata:
             path = Path(path)
@@ -1005,18 +986,18 @@ class LinePlot(BasePlot):
             }
         )
 
-    def _process_data(self):
-        for p, pdict in self.plot_list:
-            temp = PLOTS[p](
-                data=self.data,
-                y=self._plot_data["y"],
-                x=self._plot_data["x"],
-                facet_dict=self._plot_dict["facet_dict"],
-                levels=self._plot_dict["levels"],
-                **pdict,
-                **self._plot_transforms,
-            )
-            self.processed_data.append(temp)
+    def process_data(self):
+        processor = Processor(mpl.MARKERS, mpl.HATCHES)
+        self.processed_data = processor(
+            data=self.data,
+            plot_list=self.plot_list,
+            levels=self._plot_dict["levels"],
+            y=self._plot_data["y"],
+            x=self._plot_data["x"],
+            facet_dict=self._plot_dict["facet_dict"],
+            transforms=self._plot_transforms,
+            plot_type="line",
+        )
 
     def _plot_processed_data(
         self,
@@ -1649,18 +1630,18 @@ class CategoricalPlot(BasePlot):
         if not self.inplace:
             return self
 
-    def _process_data(self):
-
-        for p, pdict in self.plot_list:
-            temp = PLOTS[p](
-                data=self.data,
-                y=self._plot_data["y"],
-                loc_dict=self._plot_dict["loc_dict"],
-                levels=self._plot_dict["levels"],
-                **pdict,
-                **self._plot_transforms,
-            )
-            self.processed_data.append(temp)
+    def process_data(self):
+        processor = Processor(mpl.MARKERS, mpl.HATCHES)
+        self.processed_data = processor(
+            data=self.data,
+            plot_list=self.plot_list,
+            levels=self._plot_dict["levels"],
+            y=self._plot_data["y"],
+            x=self._plot_data["x"],
+            loc_dict=self._plot_dict["loc_dict"],
+            transforms=self._plot_transforms,
+            plot_type="categorical",
+        )
 
     def _plot_processed_data(
         self,

@@ -11,6 +11,8 @@ def create_synthetic_data(
     n_points: int = 30,
     seed: int = 42,
     distribution: Literal["normal", "gamma"] = "normal",
+    loc: float = 1.2,
+    scale: float = 1.0,
 ):
     unique_grouping = None if n_unique_ids == 0 else []
 
@@ -43,16 +45,16 @@ def create_synthetic_data(
         grouping_2 = []
     for index, i in enumerate(unique_groups):
         if n_unique_ids == 0:
-            y_data.extend(np.sort(dist(1.2, 1, n_points) + additive[index]))
+            y_data.extend(np.sort(dist(loc, scale, n_points) + additive[index]))
             x_data.extend(np.arange(n_points))
             grouping_1.extend([i[0]] * n_points)
             if n_subgroups != 0:
                 grouping_2.extend([i[1]] * n_points)
         else:
-            unique_vals = rng.normal(1.2, 0.2, n_unique_ids)
+            unique_vals = rng.normal(loc, 0.2, n_unique_ids)
             for j in range(n_unique_ids):
                 y_data.extend(
-                    np.sort(rng.normal(unique_vals[j], 1, n_points) + additive[index])
+                    np.sort(dist(unique_vals[j], scale, n_points) + additive[index])
                 )
                 x_data.extend(np.arange(n_points))
                 unique_grouping.extend([j] * n_points)

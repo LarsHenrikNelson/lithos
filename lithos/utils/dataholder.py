@@ -102,9 +102,11 @@ class DataHolder:
         return bool_array
 
     def groupby(self, y, columns, sort=True):
-        if not isinstance(y, list):
-            y = [y]
-        yy = pd.DataFrame(self._data)[columns + y].groupby(columns, sort=sort)
+        if not isinstance(y, tuple):
+            y = (y,)
+        yy = pd.DataFrame(self._data)[list(columns + y)].groupby(
+            list(columns), sort=sort
+        )
         return yy
 
     def _groups(self, levels):

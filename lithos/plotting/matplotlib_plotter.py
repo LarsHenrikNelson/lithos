@@ -17,9 +17,41 @@ from .plot_utils import _decimals, radian_ticks
 from .plot_utils import get_ticks
 from .types import SavePath
 
+MARKERS = [
+    "o",
+    "X",
+    "^",
+    "s",
+    "d",
+    "h",
+    "p",
+    "*",
+    "<",
+    "H",
+    "D",
+    "v",
+    "P",
+    ">",
+    "8",
+    ".",
+]
+HATCHES = [
+    None,
+    "/",
+    "o",
+    "-",
+    "*",
+    "+",
+    "\\",
+    "|",
+    "O",
+    ".",
+    "x",
+]
+
 
 class Plotter:
-    filetypes = [
+    filetypes = {
         "eps",
         "jpeg",
         "jpg",
@@ -34,7 +66,7 @@ class Plotter:
         "tif",
         "tiff",
         "webp",
-    ]
+    }
 
     def __init__(
         self,
@@ -133,7 +165,14 @@ class Plotter:
                 ax.set_xscale(self.plot_format["axis"]["xscale"])
                 ax.set_xlim(left=lim[0], right=lim[1])
 
-    def _format_ticklabels(self, ax: plt.Axes.axes, ticks, decimals: int, axis="x"):
+    def _format_ticklabels(
+        self,
+        ax: plt.Axes.axes,
+        ticks,
+        decimals: int,
+        axis: Literal["y", "x"] = "x",
+        style: Literal["lithos", "default"] = "lithos",
+    ):
         if axis == "y":
             if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
                 if (
@@ -155,8 +194,12 @@ class Plotter:
                         tick_labels = [
                             f"{value:.{decimals}{dformat}}" for value in tick_labels
                         ]
-                label_start = self.plot_format["axis_format"]["ysteps"][1]
-                label_end = self.plot_format["axis_format"]["ysteps"][2]
+                if style == "lithos":
+                    label_start = self.plot_format["axis_format"]["ysteps"][1]
+                    label_end = self.plot_format["axis_format"]["ysteps"][2]
+                else:
+                    label_start = 0
+                    label_end = len(ticks)
                 ax.set_yticks(
                     ticks[label_start:label_end],
                     labels=tick_labels[label_start:label_end],
@@ -195,8 +238,12 @@ class Plotter:
                         tick_labels = [
                             f"{value:.{decimals}{dformat}}" for value in tick_labels
                         ]
-                label_start = self.plot_format["axis_format"]["xsteps"][1]
-                label_end = self.plot_format["axis_format"]["xsteps"][2]
+                if style == "lithos":
+                    label_start = self.plot_format["axis_format"]["xsteps"][1]
+                    label_end = self.plot_format["axis_format"]["xsteps"][2]
+                else:
+                    label_start = 0
+                    label_end = len(ticks)
                 ax.set_xticks(
                     ticks[label_start:label_end],
                     labels=tick_labels[label_start:label_end],
@@ -222,6 +269,7 @@ class Plotter:
         axis: Literal["x", "y"] = "x",
         style: Literal["default", "lithos"] = "lithos",
     ):
+
         if axis == "y":
             ticks = ax.get_yticks()
             if style == "lithos":
@@ -231,8 +279,8 @@ class Plotter:
                     ticks=ticks,
                     steps=self.plot_format["axis_format"]["ysteps"],
                 )
-                minorticks = self.plot_format["axis_format"]["yminorticks"]
-                transform = self.plot_transforms["ytransform"]
+            transform = self.plot_transforms["ytransform"]
+            minorticks = self.plot_format["axis_format"]["yminorticks"]
         else:
             ticks = ax.get_xticks()
             if style == "lithos":
@@ -242,11 +290,13 @@ class Plotter:
                     ticks=ticks,
                     steps=self.plot_format["axis_format"]["xsteps"],
                 )
-                minorticks = self.plot_format["axis_format"]["xminorticks"]
-                transform = self.plot_transforms["xtransform"]
+            transform = self.plot_transforms["xtransform"]
+            minorticks = self.plot_format["axis_format"]["xminorticks"]
         if style == "lithos":
             self._set_lims(ax=ax, lim=lim, ticks=ticks, axis=axis)
-        self._format_ticklabels(ax=ax, ticks=ticks, decimals=decimals, axis=axis)
+        self._format_ticklabels(
+            ax=ax, ticks=ticks, decimals=decimals, axis=axis, style=style
+        )
         if minorticks != 0:
             self._set_minorticks(
                 ax,
