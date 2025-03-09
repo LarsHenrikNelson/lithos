@@ -118,7 +118,7 @@ def _process_colors(
 
 
 def radian_ticks(ticks, rotate=False):
-    pi_symbol = "\u03C0"
+    pi_symbol = "\u03c0"
     mm = [int(180 * i / np.pi) for i in ticks]
     if rotate:
         mm = [deg if deg <= 180 else deg - 360 for deg in mm]
@@ -228,7 +228,6 @@ def get_ticks(
         axis_lim[1],
         steps[0],
     )
-    ticks = ticks[steps[1] : steps[2]]
     return lim, axis_lim, ticks
 
 

@@ -197,6 +197,8 @@ class BasePlot:
         xminorticks: int = 0,
         ysteps: int | tuple[int, int, int] = 5,
         xsteps: int | tuple[int, int, int] = 5,
+        truncate_xaxis: bool = False,
+        truncate_yaxis: bool = False,
         style: Literal["default", "lithos"] = "lithos",
     ):
         if isinstance(ysteps, int):
@@ -222,6 +224,8 @@ class BasePlot:
             "xsteps": xsteps,
             "ysteps": ysteps,
             "style": style,
+            "truncate_xaxis": truncate_xaxis,
+            "truncate_yaxis": truncate_yaxis,
         }
 
         self.plot_format["axis_format"] = axis_format
