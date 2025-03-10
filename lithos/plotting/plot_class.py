@@ -280,6 +280,7 @@ class BasePlot:
         **kwargs,
     ):
         self.process_data()
+        filename = self._plot_data["y"] if filename == "" else filename
         self._plot_processed_data(savefig, path, filename, filetype, **kwargs)
         if save_metadata:
             path = Path(path)

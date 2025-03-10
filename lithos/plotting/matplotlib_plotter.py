@@ -752,7 +752,6 @@ class Plotter:
         if isinstance(path, str):
             path = Path(path)
         if path.suffix[1:] not in self.filetypes:
-            filename = self.plot_data["y"] if filename == "" else filename
             path = path / f"{filename}.{filetype}"
         else:
             filetype = path.suffix[1:]
