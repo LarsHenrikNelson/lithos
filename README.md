@@ -94,11 +94,6 @@ plot.plot()
 
 
 
-    (<Figure size 640x480 with 1 Axes>,
-     <Axes: title={'center': 'Test'}, ylabel='test'>)
-
-
-
 
     
 ![png](README_files/README_10_1.png)
@@ -119,11 +114,6 @@ Then just load the metadata in the future and your plots will be formatted the s
 CategoricalPlot(data=df).load_metadata("my_plot").plot()
 ```
 
-
-
-
-    (<Figure size 640x480 with 1 Axes>,
-     <Axes: title={'center': 'Test'}, ylabel='test'>)
 
 
 
@@ -156,8 +146,8 @@ plot.plot_format
       'ytick_rotation': 'horizontal'},
      'axis': {'yscale': 'linear',
       'xscale': 'linear',
-      'ylim': [None, None],
-      'xlim': [None, None],
+      'ylim': (None, None),
+      'xlim': (None, None),
       'yaxis_lim': None,
       'xaxis_lim': None,
       'ydecimals': None,
@@ -168,13 +158,16 @@ plot.plot_format
       'yformat': 'f'},
      'axis_format': {'tickwidth': 0.5,
       'ticklength': 2,
-      'linewidth': 0.5,
+      'linewidth': {'left': 0.5, 'bottom': 0.5, 'top': 0, 'right': 0},
       'minor_tickwidth': 1.5,
       'minor_ticklength': 2.5,
-      'yminorticks': False,
-      'xminorticks': False,
+      'yminorticks': 0,
+      'xminorticks': 0,
       'xsteps': (5, 0, 5),
-      'ysteps': (5, 0, 5)},
+      'ysteps': (5, 0, 5),
+      'style': 'lithos',
+      'truncate_xaxis': False,
+      'truncate_yaxis': False},
      'figure': {'gridspec_kw': None,
       'margins': 0.05,
       'aspect': 1.0,
@@ -249,28 +242,28 @@ plot = (
 Below is a jitteru plot with a violin plot. Jitteru is my personal favorites since it really gives you a good look at how the data for each nested variable is distributed. The violin plot gives you an idea about the shape of the distribution. By combining the two you can see how each unique subject is contributing to the overall data. Here are several parameters I use below:
 * Jitteru requires a unique_id
 * For jitteru plot you can pass an aggregating function as string for a built-in aggregating function. The aggregrating function will plot a single point for the nested variable. The built-in aggregating functions can be accessed by using ```CategoricalPlot.aggregating_funcs``` or ```LinePlot.aggregrating_funcs```. You can also pass you own custom function or callable.
-* Violin has several parameters you can set. Please note that the linewidth, color and alpha for showmeans and showmedians uses the specified edgecolor, edge_alpha and linewidth.
-* Currently violin plot does not allow for passing a unique_id but will be implemented in the future. 
-
-
+* Violin accepts a unique_id argument. When passing the the unique_id argument you choose the split (see below) the individual violins similar to jitteru or you can overlap the violins using unique_style="overlap". If you pass overlap as the unique_style then you can choose to aggregate the KDEs
+* You can also create a Matplotlib figure separately and the pass the figure and axes items to Lithos. This allows you to create a figure with multiple subplots.
 
 
 ```python
+import matplotlib.pyplot as plt
+
 df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
+fig, ax = plt.subplots(
+    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
+)
 plot = (
     CategoricalPlot(data=df)
     .load_metadata("my_plot")
-    .grouping(
-        group="grouping_1",
-        subgroup="grouping_2",
-        group_spacing=0.9,
-    )
+    .grouping(group="grouping_1", subgroup="grouping_2", group_spacing=0.9)
     .jitteru(
         unique_id="unique_grouping",
         marker="o",
         edgecolor="none",
+
         alpha=0.5,
-        width=0.8,
+        width=0.9,
         markersize=3,
     )
     .jitteru(
@@ -278,23 +271,49 @@ plot = (
         marker="d",
         color="grey",
         edgecolor="none",
+
         alpha=0.9,
-        width=0.8,
+        width=0.9,
         markersize=8,
         agg_func="mean",
     )
+)
+plot.save_metadata("violin_example")
+plot1 = (
+    CategoricalPlot(data=df)
+    .load_metadata("violin_example")
     .violin(
+        unique_id="unique_grouping",
         facecolor="none",
         edgecolor="black",
-        linewidth=2,
+        linewidth=1,
+        edge_alpha=0.8,
         width=0.9,
-        showmeans=True,
-        # showmedians=True, # you can add means or medians
+        unique_style="split",
     )
-    .axis_format(ysteps=7)
-    .axis(ydecimals=2)
-    .plot_data(y="y", ylabel="test", title="")
-    .plot()
+    .plot(figure=fig, axes=ax.flat[0])
+)
+plot2 = (
+    CategoricalPlot(data=df)
+    .load_metadata("violin_example")
+    .violin(
+        unique_id="unique_grouping",
+        facecolor="none",
+        edgecolor="black",
+        linewidth=1,
+        edge_alpha=0.8,
+        width=0.9,
+        agg_func="mean",
+    )
+    .violin(
+        unique_id="unique_grouping",
+        facecolor="none",
+        edgecolor="black",
+        linewidth=1,
+        edge_alpha=0.3,
+        width=0.9,
+    )
+    .plot(figure=fig, axes=ax.flat[1])
 )
 ```
 
@@ -305,7 +324,7 @@ plot = (
 
 
 ### Boxplot
-Boxplots are a great way to visualize the distribution of data. They can be used to compare different groups and identify outliers in your data. Currently there is no unique_id parameter for boxplot due to how they show data and the fact the plots get overly complicated to look at when there a many tiny boxes.
+Boxplots are a great way to visualize the distribution of data. They can be used to compare different groups and identify outliers in your data. Currently there is no unique_id parameter for boxplot due to how they show data and the fact the plots get overly complicated to look at when there are many tiny boxes.
 
 
 ```python
@@ -353,10 +372,11 @@ plot = (
         fill_between=True,
         linewidth=2,
         fillalpha=0.3,
+        kde_length=1028,
     )
     .plot_data(x="y")
     .axis_format(ysteps=(8, 1, 7))
-    .axis(ydecimals=1)
+    .axis(ydecimals=2)
     .figure(ncols=2)
     .plot()
 )
@@ -370,7 +390,12 @@ plot = (
 
 ### ECDF plot
 Similar to the KDE, you can pass a unique_id to the ECDF. In the case of the plot below I do not pass an aggregate function and you can see that the individual lines for each unique_group are plotted.
-Additionally you will notice that you can specify two different axis limits to control the range of values displayed on each axis and control the range of the ticks thus creating a truncated axis with the plot data "floating" which is more visually appealing to some.
+Additionally you will notice that you can specify two different axis limits to control the range of values displayed on each axis and control the range of the ticks thus creating a truncated axis with the plot data "floating" which is more visually appealing to some. Here are several parameters this plots uses:
+* You can easily add minorticks by specifying more than 0 minor ticks.
+* Minorticks can be formatted similarily to the main ticks by specifying the minor_tickwidth and minor_ticklength parameters.
+* Major ticks can be formatted by tickwidth and ticklength.
+
+
 
 
 ```python
@@ -389,12 +414,20 @@ plot = (
     .plot_data(y="y")
     .figure(ncols=2)
     .axis(
-        ylim=[-0.1, 1.1],
-        yaxis_lim=[0.0, 1.0],
-        xlim=[-4, 8],
-        xaxis_lim=[-3, 7],
+        ylim=(-0.1, 1.1),
+        yaxis_lim=(0.0, 1.0),
+        xlim=(-4, 8),
+        xaxis_lim=(-3, 7),
         ydecimals=2,
         xdecimals=2,
+    )
+    .axis_format(
+        linewidth=3,
+        tickwidth=3,
+        xminorticks=3,
+        yminorticks=3,
+        minor_ticklength=3.5,
+        minor_tickwidth=2,
     )
     .plot()
 )
@@ -407,14 +440,29 @@ plot = (
 
 
 ### Aggline
+Aggline allows you to aggregate points before plotting the data. This is useful when you have time series or distance data that you want to aggregate the y values (but not x) at discrete times or distances. Here are several parameters this plots uses:
+* You can choose to plot the aggregating error however only the error for the y values is plotted.
+* You can choose to plot the individual lines of the unique_id by passing agg_func=None.
+* You can transform data. All transforms in Lithos occur before aggregating.
+* Aggline contains a agg_func argument which aggregates unique_ids and func which aggregates the subgroups. This can be a little confusing but allows for control over how the data is aggregated. For example when you pass a unique_id with an agg_func, the data is aggregated for the unique_id first using func then it uses the agg_func to aggregate the next level up. If you don't pass agg_func then the unique_ids are not aggregated an instead plotted separately.
+* Linestyle defaults to a simple line for all groups. If you want to change the linestyle you will need to pass a dictionary specifying the linestyle for each group.
+* If you like the default the axis style but just want to format the font and size of the labels then just pass style as "default" to the axis_format method. This will use the default axis style, which in this case is the Matplotlib default. The only settings that do not get ignore by the default style are the decimal settings.
 
 
 ```python
-df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
-plot = (
+df = create_synthetic_data(
+    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60, distribution="lognormal"
+)
+df["y"] = [i + min(df["y"]) + 1e-10 for i in df["y"]]
+fig, ax = plt.subplots(
+    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
+)
+ax = ax.flatten()
+plot1 = (
     LinePlot(data=df)
-    .grouping(group="grouping_1", subgroup="grouping_2", facet=True)
+    .grouping(group="grouping_1")
     .aggline(
+
         unique_id="unique_grouping",
         agg_func="mean",
         fill_between=True,
@@ -422,12 +470,38 @@ plot = (
         fillalpha=0.3,
         err_func="ci",
     )
-    .axis(ydecimals=2, xdecimals=-1)
+    .transform(ytransform="log10")
+    .axis(ydecimals=2, xdecimals=2)
+    .axis_format(style="default")
     .plot_data(y="y", x="x")
-    .plot()
+    .plot(figure=fig, axes=ax[0])
+)
+plot2 = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .aggline(
+        unique_id="unique_grouping",
+        agg_func=None,
+        fill_between=True,
+        linewidth=1,
+        linealpha=0.3,
+        err_func=None,
+    )
+    .aggline(
+        unique_id="unique_grouping",
+        agg_func="mean",
+        fill_between=True,
+        linewidth=2,
+        linealpha=1,
+        err_func=None,
+    )
+    .transform(ytransform="log10")
+    .axis(ydecimals=2, xdecimals=2)
+    .axis_format(style="default")
+    .plot_data(y="y", x="x")
+    .plot(figure=fig, axes=ax[1])
 )
 ```
-
 
     
 ![png](README_files/README_28_1.png)

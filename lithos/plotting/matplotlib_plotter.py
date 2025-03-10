@@ -77,8 +77,8 @@ class Plotter:
         path: SavePath = "",
         filetype: str = "svg",
         filename: str | Path = "",
-        ax: mpl.axes.Axes | list[mpl.axes.Axes] = None,
-        fig: mpl.figure.Figure = None,
+        axes: mpl.axes.Axes | list[mpl.axes.Axes] = None,
+        figure: mpl.figure.Figure = None,
     ):
         self.plot_data = plot_data
         self.plot_format = metadata["format"]
@@ -93,14 +93,14 @@ class Plotter:
         mpl.rcParams["pdf.fonttype"] = 42
         mpl.rcParams["svg.fonttype"] = "none"
 
-        if ax is None:
-            self.fig, self.ax = self.create_figure()
+        if axes is None:
+            self.fig, self.axes = self.create_figure()
         else:
-            if isinstance(ax, list):
-                self.ax = ax
+            if isinstance(axes, (list, np.ndarray, tuple)):
+                self.axes = axes
             else:
-                self.ax = [ax]
-            self.fig = fig
+                self.axes = [axes]
+            self.fig = figure
 
     def _set_grid(self, sub_ax):
         if self.plot_format["grid"]["ygrid"]:
@@ -453,7 +453,7 @@ class Plotter:
         for x, y, mk, mf, me, ms in zip(
             x_data, y_data, marker, markerfacecolor, markeredgecolor, markersize
         ):
-            ax.plot(
+            ax[0].plot(
                 x,
                 y,
                 mk,
@@ -513,7 +513,7 @@ class Plotter:
         ax: plt.Axes,
     ):
         for xd, yd, e, c, w in zip(x_data, y_data, error_data, colors, widths):
-            _, caplines, bars = ax.errorbar(
+            _, caplines, bars = ax[0].errorbar(
                 x=xd,
                 y=yd,
                 yerr=e,
@@ -528,7 +528,7 @@ class Plotter:
                 cap._marker._capstyle = CapStyle(capstyle)
             for b in bars:
                 b.set_capstyle(capstyle)
-            _, caplines, bars = ax.errorbar(
+            _, caplines, bars = ax[0].errorbar(
                 y=yd,
                 x=xd,
                 xerr=w / 2,
@@ -578,7 +578,7 @@ class Plotter:
                 props["meanprops"] = {
                     "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
                 }
-            bplot = ax.boxplot(
+            bplot = ax[0].boxplot(
                 y,
                 positions=x,
                 sym=fliers,
@@ -607,7 +607,7 @@ class Plotter:
         for x, y, loc, fcs, ecs in zip(
             x_data, y_data, location, facecolors, edgecolors
         ):
-            ax.fill_betweenx(
+            ax[0].fill_betweenx(
                 x,
                 y * -1 + loc,
                 y + loc,
@@ -725,7 +725,7 @@ class Plotter:
             plot_func = self.get_plot_func(p.plot_type)
             p_dict = asdict(p)
             p_dict.pop("plot_type")
-            plot_func(**p_dict, ax=self.ax)
+            plot_func(**p_dict, ax=self.axes)
 
     def plot(self):
 
@@ -739,7 +739,7 @@ class Plotter:
                 filename=self.filename,
                 filetype=self.filetype,
             )
-        return self.fig, self.ax
+        return self.fig, self.axes
 
     def savefig(
         self,
@@ -899,7 +899,7 @@ class LinePlotter(Plotter):
         else:
             xdecimals = self.plot_format["axis"]["xdecimals"]
         # num_plots = len(self.plot_dict["group_order"])
-        for index, sub_ax in enumerate(self.ax[: len(self.plot_dict["group_order"])]):
+        for index, sub_ax in enumerate(self.axes[: len(self.plot_dict["group_order"])]):
             if self.plot_format["figure"]["projection"] == "rectilinear":
                 self.format_rectilinear(sub_ax, xdecimals, ydecimals)
             else:
@@ -957,10 +957,11 @@ class CategoricalPlotter(Plotter):
             figsize=self.plot_format["figure"]["figsize"],
             layout="constrained",
         )
-        return fig, ax
+        return fig, [ax]
 
     def format_plot(self):
-        self.ax.set_xticks(
+        ax = self.axes[0]
+        ax.set_xticks(
             ticks=self.plot_dict["x_ticks"],
             labels=self.plot_dict["group_order"],
             rotation=self.plot_format["labels"]["xtick_rotation"],
@@ -970,13 +971,13 @@ class CategoricalPlotter(Plotter):
         )
         for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
             if lw == 0:
-                self.ax.spines[spine].set_visible(False)
+                ax.spines[spine].set_visible(False)
             else:
-                self.ax.spines[spine].set_linewidth(lw)
-        self._set_grid(self.ax)
+                ax.spines[spine].set_linewidth(lw)
+        self._set_grid(ax)
 
         self.set_axis(
-            self.ax,
+            ax,
             self.plot_format["axis"]["ydecimals"],
             axis="y",
             style=self.plot_format["axis_format"]["style"],
@@ -984,22 +985,22 @@ class CategoricalPlotter(Plotter):
 
         if self.plot_format["axis_format"]["truncate_xaxis"]:
             ticks = self.plot_dict["x_ticks"]
-            self.ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+            ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
 
-        self.ax.set_ylabel(
+        ax.set_ylabel(
             self.plot_labels["ylabel"],
             fontsize=self.plot_format["labels"]["labelsize"],
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["label_fontweight"],
             rotation=self.plot_format["labels"]["ylabel_rotation"],
         )
-        self.ax.set_title(
+        ax.set_title(
             self.plot_labels["title"],
             fontsize=self.plot_format["labels"]["titlesize"],
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["title_fontweight"],
         )
-        self.ax.tick_params(
+        ax.tick_params(
             axis="both",
             which="major",
             labelsize=self.plot_format["labels"]["ticklabel_size"],
@@ -1007,7 +1008,7 @@ class CategoricalPlotter(Plotter):
             length=self.plot_format["axis_format"]["ticklength"],
             labelfontfamily=self.plot_format["labels"]["font"],
         )
-        self.ax.margins(x=self.plot_format["figure"]["margins"])
+        ax.margins(x=self.plot_format["figure"]["margins"])
 
         if "legend_dict" in self.plot_dict:
             handles = self._make_legend_patches(
@@ -1016,7 +1017,7 @@ class CategoricalPlotter(Plotter):
                 group=self.plot_dict["group_order"],
                 subgroup=self.plot_dict["subgroup_order"],
             )
-            self.ax.legend(
+            ax.legend(
                 handles=handles,
                 bbox_to_anchor=self.plot_dict["legend_anchor"],
                 loc=self.plot_dict["legend_loc"],

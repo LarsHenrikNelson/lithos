@@ -10,7 +10,7 @@ def create_synthetic_data(
     n_unique_ids: int = 0,
     n_points: int = 30,
     seed: int = 42,
-    distribution: Literal["normal", "gamma"] = "normal",
+    distribution: Literal["normal", "lognormal", "gamma"] = "normal",
     loc: float = 1.2,
     scale: float = 1.0,
 ):
@@ -20,8 +20,10 @@ def create_synthetic_data(
 
     if distribution == "normal":
         dist = rng.normal
-    else:
+    elif distribution == "gamma":
         dist = rng.gamma
+    else:
+        dist = rng.lognormal
 
     additive = []
 

@@ -487,10 +487,10 @@ class Processor:
                         if len(subgroups) > 1:
                             dist = np.linspace(-width, width, num=len(subgroups) + 1)
                             uwidth = (dist[1] - dist[0]) / 2.0
-                            dist = np.round((dist[1:] + dist[:-1]) / 2, 10)
+                            dist = (dist[1:] + dist[:-1]) / 2.0
                             dist += loc_dict[u]
                         else:
-                            dist = [0]
+                            dist = [loc_dict[u]]
                     else:
                         dist = np.full(len(subgroups), loc_dict[u])
                         uwidth = width
@@ -793,33 +793,29 @@ class Processor:
 
         err_data = None
         new_levels = (levels + (x,)) if unique_id is None else (levels + (x, unique_id))
-        new_data = (
-            data.groupby(y, new_levels, sort=sort)
-            .agg(get_transform(func))
-            .reset_index()
+        ytransform = get_transform(ytransform)
+        func = get_transform(func)
+        new_data = data.groupby(y, new_levels, sort=sort).agg(
+            y=(y, lambda x: func(ytransform(x)))
         )
         if unique_id is None:
             if err_func is not None:
                 err_data = DataHolder(
-                    data.groupby(y, new_levels, sort=sort)
-                    .agg(get_transform(err_func))
-                    .reset_index()
+                    data.groupby(y, new_levels, sort=sort).agg(get_transform(err_func))
                 )
         else:
             if agg_func is not None:
                 if err_func is not None:
                     err_data = DataHolder(
                         new_data[list(levels + (x, y))]
-                        .groupby(list(levels + (x,)), sort=sort)
+                        .groupby(list(levels + (x,)), sort=sort, as_index=False)
                         .agg(get_transform(err_func))
-                        .reset_index()
                     )
-            new_data = (
-                new_data[list(levels + (x, y))]
-                .groupby(list(levels + (x,)), sort=sort)
-                .agg(get_transform(func))
-                .reset_index()
-            )
+                new_data = (
+                    new_data[list(levels + (x, y))]
+                    .groupby(list(levels + (x,)), sort=sort, as_index=False)
+                    .agg(get_transform(agg_func))
+                )
         new_data = DataHolder(new_data)
         if unique_id is not None and agg_func is None:
             ugrps = new_data.groups(levels + (unique_id,))
@@ -827,7 +823,8 @@ class Processor:
             ugrps = new_data.groups(levels)
         if len(ugrps) != 0:
             for u, indexes in ugrps.items():
-                ytemp = get_transform(ytransform)(new_data[indexes, y])
+                u = u if len(u) == len(levels) else u[: len(levels)]
+                ytemp = new_data[indexes, y]
                 y_data.append(ytemp)
                 xtemp = get_transform(xtransform)(new_data[indexes, x])
                 x_data.append(xtemp)
@@ -1002,6 +999,7 @@ class Processor:
                                 bw=bw,
                                 kernel=kernel,
                                 tol=tol,
+                                kde_length=kde_length,
                             )
                             if y is not None:
                                 y_kde, x_kde = x_kde, y_kde

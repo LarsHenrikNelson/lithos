@@ -286,7 +286,9 @@ class BasePlot:
             filename = self._plot_data["y"] if filename == "" else filename
             path = path / f"{filename}.txt"
             self.save_metadata(path)
-        return None
+
+        if not self.inplace:
+            return self
 
     def transform(
         self,
@@ -510,8 +512,8 @@ class LinePlot(BasePlot):
         linewidth: float = 1.0,
         linestyle: str = "-",
         linealpha: float = 1.0,
-        func="mean",
-        err_func="sem",
+        func: Agg = "mean",
+        err_func: Error = "sem",
         agg_func: Agg | None = None,
         fill_between: bool = False,
         fillalpha: AlphaRange = 1.0,
