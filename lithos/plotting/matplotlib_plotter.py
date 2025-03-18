@@ -945,9 +945,9 @@ class LinePlotter(Plotter):
                     fontweight=self.plot_format["labels"]["title_fontweight"],
                 )
 
-        if self.plot_labels["title"] is not None:
+        if self.plot_labels["figure_title"] != "":
             self.fig.suptitle(
-                self.plot_labels["title"],
+                self.plot_labels["figure_title"],
                 fontsize=self.plot_format["labels"]["titlesize"],
             )
 
