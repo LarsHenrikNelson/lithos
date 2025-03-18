@@ -8,9 +8,7 @@ import numpy as np
 
 @dataclass
 class RectanglePlotData:
-    width: float
-    height: float
-    tops: list[float]
+    heights: list[float]
     bottoms: list[float]
     bins: list[float]
     binwidths: list[float]

@@ -637,7 +637,6 @@ class Processor:
                         bins=nbins,
                         bin_limits=bin_limits,
                     )
-                    x = (bins[1:] + bins[:-1]) / 2
                     temp_bw = np.full(nbins, bins[1] - bins[0])
                     subgroup = np.unique(data[group_indexes, unique_id])
                     if agg_func is not None:
@@ -677,7 +676,6 @@ class Processor:
                         bin_limits=bin_limits,
                     )
                     bw.append(np.full(nbins, bins[1] - bins[0]))
-                    x = (bins[1:] + bins[:-1]) / 2
                     poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
                     plot_data.append(poly)
                     colors.append([color_dict[i]] * nbins)
@@ -689,7 +687,7 @@ class Processor:
 
         bottom = [bottom for _ in range(count)]
         output = RectanglePlotData(
-            tops=plot_data,
+            heights=plot_data,
             bottoms=bottom,
             bins=plot_bins,
             binwidths=bw,
@@ -1526,7 +1524,6 @@ class Processor:
         linealpha: AlphaRange = 1.0,
         hatch: str | None = None,
         unique_id: str | None = None,
-        transform: Transform = None,
         invert: bool = False,
         axis_type: BinType = "density",
         *args,
@@ -1554,7 +1551,7 @@ class Processor:
         else:
             hs = [None] * plot_bins
 
-        tops = []
+        heights = []
         bottoms = []
         edgecolors = []
         fillcolors = []
@@ -1571,7 +1568,7 @@ class Processor:
                 top, bottom = _bin_data(
                     data[indexes, y], bins, axis_type, invert, cutoff
                 )
-                tops.extend(top[include_bins])
+                heights.extend(top[include_bins])
                 bottoms.extend(bottom[include_bins])
                 fc = [
                     color_dict[gr],
@@ -1604,7 +1601,7 @@ class Processor:
                         cutoff,
                     )
 
-                    tops.extend(top[include_bins])
+                    heights.extend(top[include_bins])
                     bottoms.extend(bottom[include_bins])
                     fc = [
                         color_dict[gr],
@@ -1618,7 +1615,7 @@ class Processor:
                     x_loc.extend(x_s)
                     hatches.extend(hs)
         output = RectanglePlotData(
-            tops=tops,
+            heights=heights,
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
@@ -1628,6 +1625,7 @@ class Processor:
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
+            axis="x",
         )
         return output
 
@@ -1656,7 +1654,7 @@ class Processor:
 
         bw = []
         bottoms = []
-        tops = []
+        heights = []
         fillcolors = []
         edgecolors = []
         x_loc = []
@@ -1680,7 +1678,7 @@ class Processor:
             for index, ui_group, count in enumerate(zip(unique_groups_sub, counts)):
                 if unique_id is None:
                     bottoms.append(0)
-                    tops.append(
+                    heights.append(
                         (count / size if axis_type != "count" else count) * multiplier
                     )
                     fillcolors.append(color_dict[str(ui_group)])
@@ -1690,7 +1688,7 @@ class Processor:
                 else:
                     pass
         output = RectanglePlotData(
-            tops=tops,
+            heights=heights,
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,

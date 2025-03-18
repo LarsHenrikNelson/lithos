@@ -391,7 +391,7 @@ class Plotter:
 
     def _plot_rectangles(
         self,
-        tops: list,
+        heights: list,
         bottoms: list,
         bins: list,
         binwidths: list,
@@ -401,22 +401,25 @@ class Plotter:
         edge_alpha: float,
         hatches: list[str],
         linewidth: float,
-        ax: mpl.axes.Axes,
+        ax: mpl.axes.Axes | list[mpl.axes.Axes] | np.ndarray[mpl.axes.Axes],
+        facet_index: list[int] | None = None,
         axis: Literal["x", "y"] = "x",
     ):
-        for t, b, b, bw, fc, ec, ht, sub_ax in zip(
-            tops,
+        if facet_index is None:
+            facet_index = [0] * len(heights)
+        for t, b, loc, bw, fc, ec, ht, facet in zip(
+            heights,
             bottoms,
             bins,
             binwidths,
             fillcolors,
             edgecolors,
             hatches,
-            ax,
+            facet_index,
         ):
             if axis == "x":
-                sub_ax.bar(
-                    x=bins,
+                ax[facet].bar(
+                    x=loc,
                     height=t,
                     bottom=b,
                     width=bw,
@@ -426,7 +429,7 @@ class Plotter:
                     hatch=ht,
                 )
             else:
-                sub_ax.barh(
+                ax[facet].barh(
                     y=bins,
                     width=t,
                     left=b,
