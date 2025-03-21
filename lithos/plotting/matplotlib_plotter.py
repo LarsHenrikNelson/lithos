@@ -487,15 +487,15 @@ class Plotter:
             markersize,
             facet_index,
         ):
-            ax[facet].plot(
-                x,
-                y,
-                mk,
-                markerfacecolor=to_rgba(mf, alpha=alpha) if mf != "none" else "none",
-                markeredgecolor=(
-                    to_rgba(me, alpha=edge_alpha) if me != "none" else "none"
+            ax[facet].scatter(
+                x=x,
+                y=y,
+                marker=mk,
+                c=([to_rgba(x, alpha=alpha) for x in mf] if mf != "none" else "none"),
+                edgecolor=(
+                    [to_rgba(x, alpha=alpha) for x in me] if me != "none" else "none"
                 ),
-                markersize=ms,
+                s=ms,
             )
         return ax
 

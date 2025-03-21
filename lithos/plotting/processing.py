@@ -48,7 +48,7 @@ class Processor:
             "percent": self._percent,
             "ecdf": self._ecdf,
             "count": self._count,
-            # "scatter": self._scatter,
+            "scatter": self._scatter,
             "aggline": self._aggline,
         }
 
@@ -66,6 +66,7 @@ class Processor:
         processed_data = []
         for p, pdict in plot_list:
             if plot_type == "line":
+                print(pdict.keys())
                 temp = self.PLOTS[p](
                     data=data,
                     y=y,
@@ -704,6 +705,7 @@ class Processor:
         return output
 
     def _scatter(
+        self,
         data,
         y,
         x,
@@ -715,9 +717,9 @@ class Processor:
         alpha,
         edge_alpha,
         facetgroup,
-        facet_dict=None,
-        xtransform=None,
-        ytransform=None,
+        facet_dict: dict[str, int],
+        xtransform: Transform = None,
+        ytransform: Transform = None,
         *args,
         **kwargs,
     ) -> ScatterPlotData:

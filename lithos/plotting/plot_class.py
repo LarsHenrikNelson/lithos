@@ -892,7 +892,7 @@ class LinePlot(BasePlot):
         marker: str = ".",
         markercolor: ColorParameters | tuple[str, str] = "black",
         edgecolor: ColorParameters = "black",
-        markersize: float | str = 1,
+        markersize: float | str = 4,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
     ):
@@ -928,7 +928,6 @@ class LinePlot(BasePlot):
             self._plot_dict["levels"],
             self._plot_dict["unique_groups"],
             markercolor1,
-            alpha=alpha,
         )
         edgecolors = process_scatter_args(
             edgecolor0,
@@ -936,7 +935,6 @@ class LinePlot(BasePlot):
             self._plot_dict["levels"],
             self._plot_dict["unique_groups"],
             edgecolor1,
-            alpha=alpha,
         )
         markersize = process_scatter_args(
             markersize,
