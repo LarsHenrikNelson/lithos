@@ -57,7 +57,7 @@ class BasePlot:
             self.axis()
             self.axis_format()
             self.figure()
-            self.grid_settings()
+            self.grid()
             self.transform()
             self.inplace = False
         else:
@@ -65,7 +65,7 @@ class BasePlot:
             self.axis()
             self.axis_format()
             self.figure()
-            self.grid_settings()
+            self.grid()
             self.transform()
 
     def add_axline(
@@ -240,23 +240,25 @@ class BasePlot:
         if not self.inplace:
             return self
 
-    def grid_settings(
+    def grid(
         self,
-        ygrid: bool = False,
-        xgrid: bool = False,
+        ygrid: int | float = 0,
+        xgrid: int | float = 0,
+        yminor_grid: int | float = 0,
+        xminor_grid: int | float = 0,
         linestyle: str | tuple = "solid",
-        ylinewidth: float | int = 1,
-        xlinewidth: float | int = 1,
+        minor_linestyle: str | tuple = "solid",
     ):
 
-        grid_settings = {
+        grid = {
             "ygrid": ygrid,
             "xgrid": xgrid,
+            "yminor_grid": yminor_grid,
+            "xminor_grid": xminor_grid,
             "linestyle": linestyle,
-            "xlinewidth": xlinewidth,
-            "ylinewidth": ylinewidth,
+            "minor_linestyle": minor_linestyle,
         }
-        self.plot_format["grid"] = grid_settings
+        self.plot_format["grid"] = grid
 
         if not self.inplace:
             return self
@@ -894,7 +896,8 @@ class LinePlot(BasePlot):
         marker: str = ".",
         markercolor: ColorParameters | tuple[str, str] = "black",
         edgecolor: ColorParameters = "black",
-        markersize: float | str = 4,
+        markersize: float | str = 36,
+        linewidth: float = 1.5,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
     ):
@@ -907,6 +910,7 @@ class LinePlot(BasePlot):
                 "markersize": markersize,
                 "alpha": alpha,
                 "edge_alpha": edge_alpha,
+                "linewidth": linewidth,
             }
         )
 
@@ -938,12 +942,18 @@ class LinePlot(BasePlot):
             self._plot_dict["unique_groups"],
             edgecolor1,
         )
-        markersize = process_scatter_args(
-            markersize,
-            self.data,
-            self._plot_dict["levels"],
-            self._plot_dict["unique_groups"],
-        )
+        if isinstance(markersize, tuple):
+            column = markersize[0]
+            start, stop = markersize[1].split(":")
+            start, stop = int(start) * 4, int(stop) * 4
+            vmin = self.data.min(column)
+            vmax = self.data.max(column)
+            vals = self.data[column]
+            markersize = (np.array(vals) - vmin) * (stop - start) / (
+                vmax - vmin
+            ) + start
+        else:
+            markersize = [markersize * 4] * self.data.shape[0]
         facetgroup = process_scatter_args(
             self._plot_dict["facet"],
             self.data,
@@ -958,6 +968,7 @@ class LinePlot(BasePlot):
             "facetgroup": facetgroup,
             "alpha": alpha,
             "edge_alpha": edge_alpha,
+            "linewidth": linewidth,
         }
 
         self.plot_list.append(("scatter", scatter))

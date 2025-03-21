@@ -64,6 +64,7 @@ class ScatterPlotData:
     markeredgecolor: list[str]
     markersize: list[float]
     alpha: float
+    linewidth: float | int
     edge_alpha: float
     facet_index: list[int]
     plot_type: str = "scatter"

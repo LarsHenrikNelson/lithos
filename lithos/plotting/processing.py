@@ -66,7 +66,6 @@ class Processor:
         processed_data = []
         for p, pdict in plot_list:
             if plot_type == "line":
-                print(pdict.keys())
                 temp = self.PLOTS[p](
                     data=data,
                     y=y,
@@ -714,6 +713,7 @@ class Processor:
         markersizes,
         alpha,
         edge_alpha,
+        linewidth,
         facetgroup,
         facet_dict: dict[str, int],
         xtransform: Transform = None,
@@ -750,6 +750,7 @@ class Processor:
             alpha=alpha,
             edge_alpha=edge_alpha,
             facet_index=facet,
+            linewidth=linewidth,
         )
         return output
 

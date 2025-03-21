@@ -169,11 +169,12 @@ plot.plot_format
       'nrows': None,
       'ncols': None,
       'projection': 'rectilinear'},
-     'grid': {'ygrid': False,
-      'xgrid': False,
+     'grid': {'ygrid': 0,
+      'xgrid': 0,
+      'yminor_grid': 0,
+      'xminor_grid': 0,
       'linestyle': 'solid',
-      'xlinewidth': 1,
-      'ylinewidth': 1}}
+      'minor_linestyle': 'solid'}}
 
 
 
@@ -563,5 +564,53 @@ plot2 = (
 
     
 ![png](README_files/README_30_0.png)
+    
+
+
+### Scatter plot
+
+
+```python
+df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
+df1 = create_synthetic_data(
+    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60, seed=30
+)
+df["y1"] = df1["y"]
+fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
+plot = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .scatter(
+        markercolor={0: "orange", 1: "blue"},
+        alpha=0.1,
+        edgecolor="none",
+        markersize=("grouping_2", "36:100"),
+        marker=".",
+    )
+    .plot_data(x="y", y="y1")
+    .figure(ncols=2)
+    .plot(figure=fig, axes=ax[0])
+)
+plot = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .scatter(
+        markercolor=("grouping_2", "kb:10-255"),
+        alpha=0.3,
+        edgecolor="white",
+        linewidth=0.5,
+        markersize=("grouping_2", "30:100"),
+        marker=".",
+    )
+    .plot_data(x="y", y="y1")
+    .figure(ncols=2)
+    .grid(ygrid=1, xgrid=1, yminor_grid=1, xminor_grid=1)
+    .plot(figure=fig, axes=ax[1])
+)
+```
+
+
+    
+![png](README_files/README_32_0.png)
     
 

@@ -103,17 +103,41 @@ class Plotter:
             self.fig = figure
 
     def _set_grid(self, sub_ax):
-        if self.plot_format["grid"]["ygrid"]:
+        if self.plot_format["grid"]["ygrid"] > 0:
             sub_ax.yaxis.grid(
-                linewidth=self.plot_format["grid"]["ylinewidth"],
+                linewidth=self.plot_format["grid"]["ygrid"],
                 linestyle=self.plot_format["grid"]["linestyle"],
+                zorder=1,
             )
-
-        if self.plot_format["grid"]["xgrid"]:
+        if self.plot_format["grid"]["xgrid"] > 0:
             sub_ax.xaxis.grid(
-                linewidth=self.plot_format["grid"]["xlinewidth"],
+                linewidth=self.plot_format["grid"]["xgrid"],
                 linestyle=self.plot_format["grid"]["linestyle"],
+                zorder=1,
             )
+        if self.plot_format["grid"]["yminor_grid"] > 0:
+            sub_ax.grid(
+                visible=True,
+                which="minor",
+                axis="y",
+                linewidth=self.plot_format["grid"]["yminor_grid"],
+                linestyle=self.plot_format["grid"]["minor_linestyle"],
+                zorder=1,
+            )
+            sub_ax.minorticks_on()
+        if self.plot_format["grid"]["xminor_grid"] > 0:
+            sub_ax.grid(
+                visible=True,
+                which="minor",
+                axis="x",
+                linewidth=self.plot_format["grid"]["xminor_grid"],
+                linestyle=self.plot_format["grid"]["minor_linestyle"],
+                zorder=1,
+            )
+            sub_ax.minorticks_on()
+        sub_ax.tick_params(
+            axis="both", which="minor", bottom=False, left=False, zorder=1
+        )
 
     def _plot_axlines(self, line_dict, ax):
         for ll in line_dict["lines"]:
@@ -323,34 +347,31 @@ class Plotter:
             start = index * nticks
             end = index * nticks + nticks
             mticks[start:end] = vals[1:-1]
+        if self.plot_format["axis_format"][f"truncate_{axis}axis"]:
+            start = self.plot_format["axis_format"][f"{axis}steps"][1] * nticks
+            end = self.plot_format["axis_format"][f"{axis}steps"][2] * nticks
+        else:
+            start = 0
+            end = len(mticks)
         if axis == "y":
-            if self.plot_format["axis_format"]["truncate_yaxis"]:
-                start = self.plot_format["axis_format"]["ysteps"][1] * nticks
-                end = self.plot_format["axis_format"]["ysteps"][2] * nticks
-            else:
-                start = 0
-                end = len(mticks)
             ax.set_yticks(
                 get_transform(transform)(mticks[start:end]),
                 minor=True,
             )
+            kwargs = {"left": True}
         else:
-            if self.plot_format["axis_format"]["truncate_xaxis"]:
-                start = self.plot_format["axis_format"]["xsteps"][1] * nticks
-                end = self.plot_format["axis_format"]["xsteps"][2] * nticks
-            else:
-                start = 0
-                end = len(mticks)
             ax.set_xticks(
                 get_transform(transform)(mticks[start:end]),
                 minor=True,
             )
+            kwargs = {"bottom": True}
         ax.tick_params(
             axis=axis,
             which="minor",
             width=self.plot_format["axis_format"]["minor_tickwidth"],
             length=self.plot_format["axis_format"]["minor_ticklength"],
             labelfontfamily=self.plot_format["labels"]["font"],
+            **kwargs,
         )
 
     def _make_legend_patches(self, color_dict, alpha, group, subgroup):
@@ -478,6 +499,7 @@ class Plotter:
         markersize: float,
         alpha: float,
         edge_alpha: float,
+        linewidth: float,
         facet_index: list[int],
         ax: plt.Axes,
     ):
@@ -496,9 +518,12 @@ class Plotter:
                 marker=mk,
                 c=([to_rgba(x, alpha=alpha) for x in mf] if mf != "none" else "none"),
                 edgecolor=(
-                    [to_rgba(x, alpha=alpha) for x in me] if me != "none" else "none"
+                    [to_rgba(x, alpha=edge_alpha) for x in me]
+                    if me != "none"
+                    else "none"
                 ),
                 s=ms,
+                linewidth=linewidth,
             )
         return ax
 
@@ -902,6 +927,7 @@ class LinePlotter(Plotter):
             xdecimals = self.plot_format["axis"]["xdecimals"]
         # num_plots = len(self.plot_dict["group_order"])
         for index, sub_ax in enumerate(self.axes[: len(self.plot_dict["group_order"])]):
+            self._set_grid(sub_ax)
             if self.plot_format["figure"]["projection"] == "rectilinear":
                 self.format_rectilinear(sub_ax, xdecimals, ydecimals)
             else:
@@ -920,8 +946,6 @@ class LinePlotter(Plotter):
                 length=self.plot_format["axis_format"]["ticklength"],
                 labelfontfamily=self.plot_format["labels"]["font"],
             )
-
-            self._set_grid(sub_ax)
 
             sub_ax.set_ylabel(
                 self.plot_labels["ylabel"],

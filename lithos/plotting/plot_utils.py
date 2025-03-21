@@ -336,7 +336,7 @@ def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
         else:
             start = 0
             stop = 255
-    elif arg_cycle in cc.palette:
+    if arg_cycle in cc.palette:
         if arg not in data:
             raise AttributeError("arg[0] of arg must be in data passed to LinePlot")
         output = _continuous_cycler(arg, data, arg_cycle, start, stop)
@@ -365,14 +365,17 @@ def _continuous_cycler(arg, data, arg_cycle, start=0, stop=255):
     ):
         uvals = set(data[arg])
         vmax = len(uvals)
-        cvals = np.linspace(0, 255, num=vmax)
+        cvals = np.linspace(start, stop - 1, num=vmax)
         mapping = {key: cmap[c] for c, key in zip(cvals, uvals)}
         colors = [mapping[key] for key in data[arg]]
     else:
         vmin = data.min(arg)
         vmax = data.max(arg)
         vals = data[arg]
-        color_normal = int((np.array(vals) - vmin) * vmax * 255)
+        color_normal = (np.array(vals) - vmin) * ((stop - 1) - start) / (
+            vmax - vmin
+        ) + start
+        color_normal = color_normal.astype(int)
         colors = [cmap[e] for e in color_normal]
     return colors
 
