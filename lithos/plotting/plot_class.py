@@ -324,6 +324,7 @@ class BasePlot:
         ylabel: str = "",
         xlabel: str = "",
         title: str = "",
+        figure_title: str = "",
     ):
         if x is None and y is None:
             raise AttributeError("Must specify either x or y")
@@ -333,6 +334,7 @@ class BasePlot:
             "ylabel": ylabel,
             "xlabel": xlabel,
             "title": title,
+            "figure_title": figure_title,
         }
 
         if not self.inplace:
@@ -472,7 +474,7 @@ class LinePlot(BasePlot):
 
     def line(
         self,
-        linecolor: ColorParameters = "black",
+        linecolor: ColorParameters = None,
         linestyle: str = "-",
         linewidth: int = 2,
         alpha: AlphaRange = 1.0,
@@ -498,7 +500,7 @@ class LinePlot(BasePlot):
             "alpha": alpha,
             "unique_id": unique_id,
         }
-        self.plot_list.append(("line_plot", line_plot))
+        self.plot_list.append(("line", line_plot))
 
         if not self.inplace:
             return self
@@ -589,7 +591,7 @@ class LinePlot(BasePlot):
         kernel: KDEType = "gaussian",
         bw: BW = "silverman",
         tol: float | int = 1e-3,
-        common_norm: bool = True,
+        common_norm: bool = False,
         linecolor: ColorParameters = None,
         linestyle: str = "-",
         linewidth: int = 2,
@@ -1488,7 +1490,7 @@ class CategoricalPlot(BasePlot):
 
     def percent(
         self,
-        cutoff: None | float | int | list[float | int],
+        cutoff: None | float | int | list[float | int] = None,
         unique_id=None,
         facecolor=None,
         edgecolor: ColorParameters = "black",

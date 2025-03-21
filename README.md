@@ -87,16 +87,13 @@ plot = (
     )
     .axis_format(linewidth=0.5, tickwidth=0.5, ticklength=2)
     .plot_data(y="y", ylabel="test", title="Test")
+    .plot()
 )
-plot.plot()
 ```
 
 
-
-
-
     
-![png](README_files/README_10_1.png)
+![png](README_files/README_10_0.png)
     
 
 
@@ -111,15 +108,12 @@ Then just load the metadata in the future and your plots will be formatted the s
 
 
 ```python
-CategoricalPlot(data=df).load_metadata("my_plot").plot()
+plot = CategoricalPlot(data=df).load_metadata("my_plot").plot()
 ```
 
 
-
-
-
     
-![png](README_files/README_14_1.png)
+![png](README_files/README_14_0.png)
     
 
 
@@ -261,7 +255,6 @@ plot = (
         unique_id="unique_grouping",
         marker="o",
         edgecolor="none",
-
         alpha=0.5,
         width=0.9,
         markersize=3,
@@ -271,7 +264,6 @@ plot = (
         marker="d",
         color="grey",
         edgecolor="none",
-
         alpha=0.9,
         width=0.9,
         markersize=8,
@@ -355,6 +347,72 @@ plot = (
     
 
 
+### Percent plot
+The percent plot is a like a histogram but stacked by categorical features. It is a good way to assess the distribution of data for a small number of bins or categorical groups. 
+- Like most other plot methods, the percent plot takes a unique_id parameter that will assess each unique group within the larger group or subgroup.
+- If you don't pass a cutoff or pass None for cutoff, then Lithos assumes that your y column contains categorical values and will plot the percent of each category.
+
+
+```python
+df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=100)
+fig, ax = plt.subplots(ncols=3, layout="constrained", figsize=(6.4 * 3, 4.8 * 1))
+plot = (
+    CategoricalPlot(data=df)
+    .load_metadata("my_plot")
+    .grouping(
+        group="grouping_1",
+        subgroup="grouping_2",
+        group_spacing=0.9,
+    )
+    .percent(
+        cutoff=sum(df["y"]) / len(df["y"]),
+        barwidth=0.8,
+        alpha=0.8,
+    )
+    .plot_data(y="y", ylabel="test", title="")
+    .plot(figure=fig, axes=ax[0])
+)
+plot = (
+    CategoricalPlot(data=df)
+    .load_metadata("my_plot")
+    .grouping(
+        group="grouping_1",
+        subgroup="grouping_2",
+        group_spacing=0.9,
+    )
+    .percent(
+        unique_id="unique_grouping",
+        cutoff=sum(df["y"]) / len(df["y"]),
+        barwidth=0.8,
+        alpha=0.8,
+    )
+    .plot_data(y="y", ylabel="test", title="")
+    .plot(figure=fig, axes=ax[1])
+)
+plot = (
+    CategoricalPlot(data=df)
+    .load_metadata("my_plot")
+    .grouping(
+        group="grouping_1",
+        subgroup="grouping_2",
+        group_spacing=0.9,
+    )
+    .percent(
+        cutoff=None,
+        barwidth=0.8,
+        alpha=0.8,
+    )
+    .plot_data(y="unique_grouping", ylabel="test", title="")
+    .plot(figure=fig, axes=ax[2])
+)
+```
+
+
+    
+![png](README_files/README_24_0.png)
+    
+
+
 ### KDE plot
 Many functions have unique_id parameter which allows for nested aggregations and transforms. In the case of a KDE plot, you can first run KDE on the unique_groupings then aggregate the individual KDEs together to create a single KDE plot. When you pass an agg_func you can also pass an err_func. This allows you to plot the error in your KDE measure.
 Additionally, you will notice that you can truncate the axis limits by passing a tuple that goes (number of ticks, start, end) to control the ticks that are displayed on each axis. Note that start and end follow python indexing so that start is zero indexe and end is not inclusive. 
@@ -384,7 +442,7 @@ plot = (
 
 
     
-![png](README_files/README_24_0.png)
+![png](README_files/README_26_0.png)
     
 
 
@@ -435,7 +493,7 @@ plot = (
 
 
     
-![png](README_files/README_26_0.png)
+![png](README_files/README_28_0.png)
     
 
 
@@ -462,7 +520,6 @@ plot1 = (
     LinePlot(data=df)
     .grouping(group="grouping_1")
     .aggline(
-
         unique_id="unique_grouping",
         agg_func="mean",
         fill_between=True,
@@ -503,7 +560,8 @@ plot2 = (
 )
 ```
 
+
     
-![png](README_files/README_28_1.png)
+![png](README_files/README_30_0.png)
     
 
