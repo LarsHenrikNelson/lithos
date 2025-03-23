@@ -51,13 +51,6 @@ def create_dict(grouping: str | int | dict, unique_groups: list) -> dict:
     return output_dict
 
 
-def process_none(markefacecolor, unique_groups):
-    if markefacecolor is None or markefacecolor == "none":
-        return {key: None for key in unique_groups}
-    else:
-        return markefacecolor
-
-
 def _process_colors(
     color: str | list | dict | None,
     group_order: list | None = None,

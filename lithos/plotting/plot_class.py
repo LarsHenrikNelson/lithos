@@ -732,7 +732,7 @@ class LinePlot(BasePlot):
         hist_type: Literal["bar", "step", "stepfilled"] = "bar",
         color: ColorParameters = None,
         linecolor: ColorParameters = None,
-        linewidth: int = 2,
+        linewidth: float | int = 2,
         hatch=None,
         fillalpha: AlphaRange = 1.0,
         linealpha: float = 1.0,

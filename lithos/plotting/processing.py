@@ -556,6 +556,7 @@ class Processor:
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
         bin_limits: list[float, float] | None = None,
+        linewidth: float | int = 2,
         nbins=None,
         stat="probability",
         agg_func: Agg | None = None,
@@ -566,7 +567,7 @@ class Processor:
         **kwargs,
     ):
         if hist_type == "bar":
-            self._bar_histogram(
+            output = self._bar_histogram(
                 data=data,
                 y=y,
                 x=x,
@@ -583,9 +584,11 @@ class Processor:
                 unique_id=unique_id,
                 ytransform=ytransform,
                 xtransfrom=xtransfrom,
+                linewidth=linewidth,
                 *args,
                 **kwargs,
             )
+        return output
 
     def _bar_histogram(
         self,
@@ -598,7 +601,8 @@ class Processor:
         hatch: str | dict[str, str] | None = None,
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
-        bin_limits: list[float, float] | None = None,
+        linewidth: float | int = 2,
+        bin_limits: list[float, float] | Literal["common"] | None = None,
         nbins=None,
         stat="probability",
         agg_func: Agg | None = None,
@@ -622,7 +626,10 @@ class Processor:
         facet = []
         edgec = []
         hatches = []
-        linewidth = []
+
+        bins = None
+        if bin_limits == "common":
+            bins = np.histogram_bin_edges(get_transform(transform)(data[y]), bins=nbins)
 
         if len(levels) == 0:
             pass
@@ -632,11 +639,12 @@ class Processor:
                 unique_id_indexes = data.groups(levels + (unique_id,))
             for i, group_indexes in groups.items():
                 if unique_id is not None:
-                    bins = np.histogram_bin_edges(
-                        get_transform(transform)(data[unique_id_indexes[i], y]),
-                        bins=nbins,
-                        bin_limits=bin_limits,
-                    )
+                    if bins is None:
+                        bins = np.histogram_bin_edges(
+                            get_transform(transform)(data[group_indexes[i], y]),
+                            bins=nbins,
+                            range=bin_limits,
+                        )
                     temp_bw = np.full(nbins, bins[1] - bins[0])
                     subgroup = np.unique(data[group_indexes, unique_id])
                     if agg_func is not None:
@@ -657,7 +665,7 @@ class Processor:
                             facet.append(facet_dict[i])
                             bw.append(temp_bw)
                             plot_bins.append(bins[:-1])
-                            hatches.append([[hatch] * bins.size - 1] * count)
+                            hatches.append([hatch] * nbins)
                             count += 1
                     if agg_func is not None:
                         plot_data.append(get_transform(agg_func)(temp_list, axis=0))
@@ -666,15 +674,16 @@ class Processor:
                         facet.append(facet_dict[i])
                         bw.append(temp_bw)
                         plot_bins.append(bins[:-1])
-                        hatches.append([[hatch] * bins.size - 1] * count)
+                        hatches.append([hatch] * nbins)
                         count += 1
                 else:
                     temp_data = np.sort(data[groups[i], y])
-                    bins = np.histogram_bin_edges(
-                        get_transform(transform)(data[unique_id_indexes[i], y]),
-                        bins=nbins,
-                        bin_limits=bin_limits,
-                    )
+                    if bins is None:
+                        bins = np.histogram_bin_edges(
+                            get_transform(transform)(data[group_indexes, y]),
+                            bins=nbins,
+                            range=bin_limits,
+                        )
                     bw.append(np.full(nbins, bins[1] - bins[0]))
                     poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
                     plot_data.append(poly)
@@ -682,13 +691,13 @@ class Processor:
                     edgec.append([color_dict[i]] * nbins)
                     facet.append(facet_dict[i])
                     plot_bins.append(bins[:-1])
-                    hatches.append([[hatch] * bins.size - 1] * count)
+                    hatches.append([hatch] * nbins)
                     count += 1
 
-        bottom = [bottom for _ in range(count)]
+        bottoms = [bottom for _ in plot_bins]
         output = RectanglePlotData(
             heights=plot_data,
-            bottoms=bottom,
+            bottoms=bottoms,
             bins=plot_bins,
             binwidths=bw,
             fillcolors=colors,
@@ -697,6 +706,7 @@ class Processor:
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
+            facet_index=facet,
             axis=axis,
         )
         return output

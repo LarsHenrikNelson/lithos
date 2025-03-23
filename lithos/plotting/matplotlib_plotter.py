@@ -102,6 +102,16 @@ class Plotter:
                 self.axes = [axes]
             self.fig = figure
 
+    def _process_color(self, color, alpha):
+        if color is None:
+            color = "none"
+        if isinstance(color, list):
+            return [
+                to_rgba(c, alpha=alpha) if color != "none" else "none" for c in color
+            ]
+        else:
+            return to_rgba(color, alpha=alpha) if color != "none" else "none"
+
     def _set_grid(self, sub_ax):
         if self.plot_format["grid"]["ygrid"] > 0:
             sub_ax.yaxis.grid(
@@ -443,21 +453,21 @@ class Plotter:
                     height=t,
                     bottom=b,
                     width=bw,
-                    color=to_rgba(fc, alpha=fill_alpha),
-                    edgecolor=to_rgba(ec, edge_alpha),
+                    color=self._process_color(fc, fill_alpha),
+                    edgecolor=self._process_color(ec, edge_alpha),
                     linewidth=linewidth,
                     hatch=ht,
                 )
             else:
                 ax[facet].barh(
-                    y=bins,
+                    y=loc,
                     width=t,
                     left=b,
                     height=bw,
-                    color=to_rgba(fc, alpha=fill_alpha),
-                    edgecolor=to_rgba(ec, edge_alpha),
+                    color=self._process_color(fc, fill_alpha),
+                    edgecolor=self._process_color(ec, edge_alpha),
                     linewidth=linewidth,
-                    hatch=hatches,
+                    hatch=ht,
                 )
         return ax
 
@@ -480,9 +490,9 @@ class Plotter:
                 x,
                 y,
                 mk,
-                markerfacecolor=to_rgba(mf, alpha=alpha) if mf != "none" else "none",
+                markerfacecolor=(self._process_color(mf, alpha)),
                 markeredgecolor=(
-                    to_rgba(me, alpha=edge_alpha) if me != "none" else "none"
+                    self._process_color(me, edge_alpha) if me != "none" else "none"
                 ),
                 markersize=ms,
             )
@@ -515,9 +525,13 @@ class Plotter:
                 x=x,
                 y=y,
                 marker=mk,
-                c=([to_rgba(x, alpha=alpha) for x in mf] if mf != "none" else "none"),
+                c=(
+                    [self._process_color(x, alpha) for x in mf]
+                    if mf != "none"
+                    else "none"
+                ),
                 edgecolor=(
-                    [to_rgba(x, alpha=edge_alpha) for x in me]
+                    [self._process_color(x, edge_alpha) for x in me]
                     if me != "none"
                     else "none"
                 ),
@@ -544,7 +558,7 @@ class Plotter:
                 x=xd,
                 y=yd,
                 yerr=e,
-                c=to_rgba(c, alpha=alpha),
+                c=self._process_color(c, alpha),
                 fmt="none",
                 linewidth=linewidth,
                 capsize=capsize,
@@ -559,7 +573,7 @@ class Plotter:
                 y=yd,
                 x=xd,
                 xerr=w / 2,
-                c=to_rgba(c, alpha=alpha),
+                c=self._process_color(c, alpha),
                 fmt="none",
                 linewidth=linewidth,
                 capsize=0,
@@ -586,25 +600,15 @@ class Plotter:
         for x, y, fcs, ecs in zip(x_data, y_data, facecolors, edgecolors):
             props = {
                 "boxprops": {
-                    "facecolor": to_rgba(fcs, alpha=alpha) if fcs != "none" else fcs,
-                    "edgecolor": (
-                        to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
-                    ),
+                    "facecolor": (self._process_color(fcs, alpha)),
+                    "edgecolor": (self._process_color(ecs, linealpha)),
                 },
-                "medianprops": {
-                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
-                },
-                "whiskerprops": {
-                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
-                },
-                "capprops": {
-                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
-                },
+                "medianprops": {"color": (self._process_color(ecs, linealpha))},
+                "whiskerprops": {"color": (self._process_color(ecs, linealpha))},
+                "capprops": {"color": (self._process_color(ecs, linealpha))},
             }
             if showmeans:
-                props["meanprops"] = {
-                    "color": to_rgba(ecs, alpha=linealpha) if ecs != "none" else ecs
-                }
+                props["meanprops"] = {"color": (self._process_color(ecs, linealpha))}
             bplot = ax[0].boxplot(
                 y,
                 positions=x,
@@ -638,8 +642,8 @@ class Plotter:
                 x,
                 y * -1 + loc,
                 y + loc,
-                facecolor=to_rgba(fcs, alpha),
-                edgecolor=to_rgba(ecs, edge_alpha),
+                facecolor=self._process_color(fcs, alpha),
+                edgecolor=(self._process_color(ecs, edge_alpha)),
                 linewidth=linewidth,
             )
 
@@ -711,7 +715,7 @@ class Plotter:
                             x,
                             y - err,
                             y + err,
-                            color=to_rgba(lc, alpha=fillalpha),
+                            color=self._process_color(lc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
                         )
@@ -720,7 +724,7 @@ class Plotter:
                             y,
                             x - err,
                             x + err,
-                            color=to_rgba(lc, alpha=fillalpha),
+                            color=self._process_color(lc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
                         )
@@ -896,13 +900,38 @@ class LinePlotter(Plotter):
         )
         ax.set_rmax(ax.dataLim.ymax)
         ticks = ax.get_yticks()
+        decimals = self.plot_format["axis"]["ydecimals"]
+        if self.plot_format["axis_format"]["style"] == "lithos":
+            lim, _, ticks = get_ticks(
+                lim=self.plot_format["axis"]["ylim"],
+                axis_lim=self.plot_format["axis"]["yaxis_lim"],
+                ticks=ticks,
+                steps=self.plot_format["axis_format"]["xsteps"],
+            )
+        if decimals is not None:
+            if decimals == -1:
+                tick_labels = ticks.astype(int)
+            else:
+                # This does not work with scientific format
+                tick_labels = np.round(ticks, decimals=decimals)
+                dformat = self.plot_format["axis"]["yformat"]
+                tick_labels = [f"{value:.{decimals}{dformat}}" for value in tick_labels]
+        else:
+            tick_labels = ticks
         ax.set_yticks(
             ticks,
+            tick_labels,
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["tick_fontweight"],
             fontsize=self.plot_format["labels"]["ticklabel_size"],
             rotation=self.plot_format["labels"]["ytick_rotation"],
         )
+        # self.set_axis(
+        #     ax,
+        #     decimals=self.plot_format["axis"]["ydecimals"],
+        #     axis="y",
+        #     style=self.plot_format["axis_format"]["style"],
+        # )
 
     def format_plot(self):
         for p in self.plot_data:

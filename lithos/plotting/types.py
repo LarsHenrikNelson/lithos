@@ -19,6 +19,7 @@ class RectanglePlotData:
     hatches: list[str]
     linewidth: float
     axis: Literal["x", "y"]
+    facet_index: None | list[int] = None
     plot_type: str = "rectangle"
 
 
