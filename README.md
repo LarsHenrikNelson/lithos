@@ -2,17 +2,17 @@
 
 ### ***The develop branch is undergoing a lot of change. There may be breaking changes.***
 
-Lithos is a simple plotting package written in Python and intend for scientific publications. There is a strong focus on plotting clustered data within groups. This is particularly useful for studies where many neurons are measured per mouse or subjects per location or repeated measures per subject. Data can be transformed (log10, inverse, etc) and/or aggregated (mean, median, circular mean, etc) within Lithos. You can also design plots, save the metadata and load the metadata for us in other plots making this comparable to GraphPad "magic" function.
+Lithos is a simple plotting package written in Python and intended for scientific publications. There is a strong focus on plotting clustered data within groups. This is particularly useful for studies where many neurons are measured per mouse or subjects per location or repeated measures per subject. Data can be transformed (log10, inverse, etc) easily and/or aggregated (mean, median, circular mean, etc) within Lithos. You can also design plots, save the metadata and load the metadata for us in other plots making this comparable to GraphPad "magic" function.
 
-Below is a quick tutorial of how to use Lithos. There are two main classes: `CategoricalPlot` for plotting means, medians, etc and `LinePlot` for plotting continuous variables like KDEs, scatterplots. Both of these classes have a number of methods that can be used to transform the data, aggregate it, design plots, save metadata, etc. There are a variety of ways you can format the plots to generate visual appealing plots that greatly simplifies what you would have to do in other packages.
+Below is a quick tutorial of how to use Lithos. There are two main classes: `CategoricalPlot` for plotting means, medians, etc and `LinePlot` for plotting continuous variables like KDEs, scatterplots. Both of these classes have a number of methods that can be used to transform the data, aggregate it, design plots, save metadata, etc. There are a variety of ways you can format the plots to generate visual appealing plots that greatly simplifies what you would have to do in other packages. Lithos takes Pandas dataframes, dictionaries, and 2D numpy arrays as input.
 
 ## Installation
-Install from github (need to have git installed)
+#### Install from github (need to have git installed)
 ```bash
 pip install git+https://github.com/LarsHenrikNelson/Lithos.git
 ```
 
-Install locally
+#### Install locally
 1. Download the package
 2. Open a shell or terminal
 3. Activate your python environment
@@ -29,6 +29,7 @@ Import the plots and data generator (or use your own data).
 ```python
 from lithos.plotting import CategoricalPlot, LinePlot
 from lithos.utils import create_synthetic_data
+import matplotlib.pyplot as plt
 ```
 
 ### Create some data
@@ -188,12 +189,14 @@ Below is jitter plot with several custom settings.
 * Edgecolor defaults to "none" which means no edge color is used around the points. You can also pass the same types of arguments as color or you can  pass "color" to use the same colors as the color argument.
 * For summary plot you can pass an aggregating function as string for a built-in aggregating function. The built-in aggregating function can be accessed by using ```CategoricalPlot.aggregating_funcs``` or ```LinePlot.aggregrating_funcs```. You can also pass you own custom function or callable.
 * For summary plot you can pass an error function as string for a built-in error function. The built-in error function can be accessed by using ```CategoricalPlot.error_funcs``` or ```LinePlot.error_funcs```. You can also pass you own custom function or callable.
+* If you pass unique_id to jitter plot the nested subgroups will be plotted with different marker types.
 
 
 ```python
 df = create_synthetic_data(
     n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, distribution="gamma"
 )
+fig, ax = plt.subplots(ncols=2, figsize=(6.4 * 2, 4.8 * 1), layout="constrained")
 plot = (
     CategoricalPlot(data=df)
     .load_metadata("my_plot")
@@ -203,7 +206,6 @@ plot = (
         group_spacing=0.9,
     )
     .jitter(
-        # unique_id="unique_grouping",
         marker="o",
         color="blues:100-200",
         edgecolor="black",
@@ -223,7 +225,38 @@ plot = (
     .axis_format(ysteps=7)  # Adding a custom number of steps to the y-axis
     .axis(ydecimals=2)  # Formatting the number of decimals to use.
     .plot_data(y="y", ylabel="test", title="")
-    .plot()
+    .plot(figure=fig, axes=ax[0])
+)
+plot = (
+    CategoricalPlot(data=df)
+    .load_metadata("my_plot")
+    .grouping(
+        group="grouping_1",
+        subgroup="grouping_2",
+        group_spacing=0.9,
+    )
+    .jitter(
+        unique_id="unique_grouping",
+        marker="o",
+        color="blues:100-200",
+        edgecolor="black",
+        alpha=0.7,
+        width=0.5,
+        markersize=8,
+        seed=30,
+    )
+    .summary(
+        func="mean",
+        capsize=0,
+        capstyle="round",
+        barwidth=0.8,
+        err_func="sem",
+        linewidth=3,
+    )
+    .axis_format(ysteps=7)  # Adding a custom number of steps to the y-axis
+    .axis(ydecimals=2)  # Formatting the number of decimals to use.
+    .plot_data(y="y", ylabel="test", title="")
+    .plot(figure=fig, axes=ax[1])
 )
 ```
 
@@ -242,8 +275,6 @@ Below is a jitteru plot with a violin plot. Jitteru is my personal favorites sin
 
 
 ```python
-import matplotlib.pyplot as plt
-
 df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
 fig, ax = plt.subplots(
     ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
@@ -350,8 +381,10 @@ plot = (
 
 ### Percent plot
 The percent plot is a like a histogram but stacked by categorical features. It is a good way to assess the distribution of data for a small number of bins or categorical groups. 
-- Like most other plot methods, the percent plot takes a unique_id parameter that will assess each unique group within the larger group or subgroup.
-- If you don't pass a cutoff or pass None for cutoff, then Lithos assumes that your y column contains categorical values and will plot the percent of each category.
+* Like most other plot methods, the percent plot takes a unique_id parameter that will assess each unique group within the larger group or subgroup.
+* If you don't pass a cutoff or pass None for cutoff, then Lithos assumes that your y column contains categorical values and will plot the percent of each category.
+* You can either pass a list of hatches you want to use or you can just pass True to auto-assign hatches to the individual groups.
+* You can pass an include_bins argument as a list of boolean values to only plot the bins you want.
 
 
 ```python
@@ -382,12 +415,12 @@ plot = (
         group_spacing=0.9,
     )
     .percent(
-        unique_id="unique_grouping",
-        cutoff=sum(df["y"]) / len(df["y"]),
+        cutoff=None,
         barwidth=0.8,
         alpha=0.8,
+        include_bins=[True, False, True, False, True],
     )
-    .plot_data(y="y", ylabel="test", title="")
+    .plot_data(y="unique_grouping", ylabel="test", title="")
     .plot(figure=fig, axes=ax[1])
 )
 plot = (
@@ -398,11 +431,7 @@ plot = (
         subgroup="grouping_2",
         group_spacing=0.9,
     )
-    .percent(
-        cutoff=None,
-        barwidth=0.8,
-        alpha=0.8,
-    )
+    .percent(cutoff=None, barwidth=0.8, alpha=0.8, hatch=True)
     .plot_data(y="unique_grouping", ylabel="test", title="")
     .plot(figure=fig, axes=ax[2])
 )
@@ -512,7 +541,6 @@ Aggline allows you to aggregate points before plotting the data. This is useful 
 df = create_synthetic_data(
     n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60, distribution="lognormal"
 )
-df["y"] = [i + min(df["y"]) + 1e-10 for i in df["y"]]
 fig, ax = plt.subplots(
     ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
 )
@@ -554,7 +582,7 @@ plot2 = (
         err_func=None,
     )
     .transform(ytransform="log10")
-    .axis(ydecimals=2, xdecimals=2)
+    .axis(ydecimals=1, xdecimals=1)
     .axis_format(style="default")
     .plot_data(y="y", x="x")
     .plot(figure=fig, axes=ax[1])

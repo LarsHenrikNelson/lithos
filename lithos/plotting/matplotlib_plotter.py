@@ -178,8 +178,7 @@ class Plotter:
         else:
             if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
                 ax.set_xlim(left=lim[0], right=lim[1])
-                truncate = self.plot_format["axis_format"]["truncate_xaxis"]
-                if truncate:
+                if self.plot_format["axis_format"]["truncate_xaxis"]:
                     start = self.plot_format["axis_format"]["xsteps"][1]
                     end = self.plot_format["axis_format"]["xsteps"][2] - 1
                     ax.spines["bottom"].set_bounds(ticks[start], ticks[end])
@@ -283,7 +282,7 @@ class Plotter:
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
                     fontsize=self.plot_format["labels"]["ticklabel_size"],
-                    rotation=self.plot_format["labels"]["ytick_rotation"],
+                    rotation=self.plot_format["labels"]["xtick_rotation"],
                 )
 
     def set_axis(
@@ -847,10 +846,16 @@ class LinePlotter(Plotter):
                 ax.spines[spine].set_linewidth(lw)
 
         self.set_axis(
-            ax, xdecimals, axis="x", style=self.plot_format["axis_format"]["style"]
+            ax=ax,
+            decimals=xdecimals,
+            axis="x",
+            style=self.plot_format["axis_format"]["style"],
         )
         self.set_axis(
-            ax, ydecimals, axis="y", style=self.plot_format["axis_format"]["style"]
+            ax,
+            decimals=ydecimals,
+            axis="y",
+            style=self.plot_format["axis_format"]["style"],
         )
 
         ax.margins(self.plot_format["figure"]["margins"])

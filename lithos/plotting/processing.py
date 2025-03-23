@@ -1542,10 +1542,15 @@ class Processor:
 
             if include_bins is None:
                 include_bins = [True] * (len(bins) - 1)
+            if len(include_bins) < (len(bins) - 1):
+                include_bins.extend([True] * ((len(bins) - 1) - len(include_bins)))
         else:
             bins = np.unique(data[y])
             if include_bins is None:
                 include_bins = [True] * len(bins)
+
+            if len(include_bins) < len(bins):
+                include_bins.extend([True] * (len(bins) - len(include_bins)))
 
         plot_bins = sum(include_bins)
 
