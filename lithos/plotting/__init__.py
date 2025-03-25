@@ -1,2 +1,2 @@
-from .plot_class import CategoricalPlot, LinePlot  # noqa F401
-from . import types  # noqa F401
+from .plot_class import CategoricalPlot, LinePlot
+from . import types

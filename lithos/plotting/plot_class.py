@@ -68,6 +68,13 @@ class BasePlot:
             self.grid()
             self.transform()
 
+    def _set_zorder(self):
+        adder = len(self.plot_list) * len(self._plot_dict["zorder_dict"])
+        zorder_dict = {
+            key: value + adder for key, value in self._plot_dict["zorder_dict"].keys()
+        }
+        return zorder_dict
+
     def add_axline(
         self,
         linetype: Literal["hline", "vline"],
@@ -459,6 +466,8 @@ class LinePlot(BasePlot):
         else:
             facet_dict = create_dict(0, unique_groups)
 
+        zorder_dict = create_dict(group_order, unique_groups)
+
         self._plot_dict = {
             "group": group,
             "subgroup": subgroup,
@@ -469,6 +478,7 @@ class LinePlot(BasePlot):
             "facet_dict": facet_dict,
             "facet_title": facet_title,
             "levels": levels,
+            "zorder_dict": zorder_dict,
         }
 
         if not self.inplace:
@@ -501,6 +511,7 @@ class LinePlot(BasePlot):
             "linewidth": linewidth,
             "alpha": alpha,
             "unique_id": unique_id,
+            "zorder_dict": self._plot_dict["zorder_dict"],
         }
         self.plot_list.append(("line", line_plot))
 
@@ -582,6 +593,7 @@ class LinePlot(BasePlot):
             "markersize": markersize,
             "unique_id": unique_id,
             "agg_func": agg_func,
+            "zorder_dict": self._plot_dict["zorder_dict"],
         }
         self.plot_list.append(("aggline", line_plot))
 
@@ -659,6 +671,7 @@ class LinePlot(BasePlot):
             "kde_length": kde_length,
             "KDEType": KDEType,
             "fillalpha": fillalpha,
+            "zorder_dict": self._plot_dict["zorder_dict"],
         }
 
         self.plot_list.append(("kde", kde_plot))
@@ -721,6 +734,7 @@ class LinePlot(BasePlot):
             "fit_func": fit_func,
             "unique_id": unique_id,
             "alpha": alpha,
+            "zorder_dict": self._plot_dict["zorder_dict"],
         }
         self.plot_list.append(("poly_hist", poly_hist))
 
@@ -788,6 +802,7 @@ class LinePlot(BasePlot):
             "fillalpha": fillalpha,
             "linealpha": linealpha,
             "projection": self.plot_format["figure"]["projection"],
+            "zorder_dict": self._plot_dict["zorder_dict"],
         }
         self.plot_list.append(("hist", hist))
 
@@ -883,6 +898,7 @@ class LinePlot(BasePlot):
             "err_func": err_func,
             "fillalpha": fillalpha,
             "fill_between": fill_between,
+            "zorder_dict": self._plot_dict["zorder_dict"],
         }
         self.plot_list.append(("ecdf", ecdf))
 
@@ -969,6 +985,7 @@ class LinePlot(BasePlot):
             "alpha": alpha,
             "edge_alpha": edge_alpha,
             "linewidth": linewidth,
+            "zorder_dict": self._plot_dict["zorder_dict"],
         }
 
         self.plot_list.append(("scatter", scatter))
@@ -997,6 +1014,7 @@ class LinePlot(BasePlot):
                 "unique_id": unique_id,
                 "agg_func": agg_func,
                 "err_func": err_func,
+                "fit_func": fit_func,
             }
         )
 
