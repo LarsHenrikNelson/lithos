@@ -69,9 +69,9 @@ class BasePlot:
             self.transform()
 
     def _set_zorder(self):
-        adder = len(self.plot_list) * len(self._plot_dict["zorder_dict"])
+        adder = len(self.plot_list) * len(self._plot_dict["zorder_dict"]) + 1
         zorder_dict = {
-            key: value + adder for key, value in self._plot_dict["zorder_dict"].keys()
+            key: value + adder for key, value in self._plot_dict["zorder_dict"].items()
         }
         return zorder_dict
 
@@ -466,7 +466,8 @@ class LinePlot(BasePlot):
         else:
             facet_dict = create_dict(0, unique_groups)
 
-        zorder_dict = create_dict(group_order, unique_groups)
+        zgroup = group_order if subgroup_order is None else subgroup_order
+        zorder_dict = create_dict(zgroup, unique_groups)
 
         self._plot_dict = {
             "group": group,
@@ -511,7 +512,7 @@ class LinePlot(BasePlot):
             "linewidth": linewidth,
             "alpha": alpha,
             "unique_id": unique_id,
-            "zorder_dict": self._plot_dict["zorder_dict"],
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("line", line_plot))
 
@@ -593,7 +594,7 @@ class LinePlot(BasePlot):
             "markersize": markersize,
             "unique_id": unique_id,
             "agg_func": agg_func,
-            "zorder_dict": self._plot_dict["zorder_dict"],
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("aggline", line_plot))
 
@@ -671,7 +672,7 @@ class LinePlot(BasePlot):
             "kde_length": kde_length,
             "KDEType": KDEType,
             "fillalpha": fillalpha,
-            "zorder_dict": self._plot_dict["zorder_dict"],
+            "zorder_dict": self._set_zorder(),
         }
 
         self.plot_list.append(("kde", kde_plot))
@@ -734,7 +735,7 @@ class LinePlot(BasePlot):
             "fit_func": fit_func,
             "unique_id": unique_id,
             "alpha": alpha,
-            "zorder_dict": self._plot_dict["zorder_dict"],
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("poly_hist", poly_hist))
 
@@ -781,6 +782,7 @@ class LinePlot(BasePlot):
             self._plot_dict["subgroup_order"],
         )
         color_dict = create_dict(color, self._plot_dict["unique_groups"])
+        hatch_dict = create_dict(hatch, self._plot_dict["unique_groups"])
         linecolor = _process_colors(
             linecolor,
             self._plot_dict["group_order"],
@@ -792,7 +794,7 @@ class LinePlot(BasePlot):
             "color_dict": color_dict,
             "linecolor_dict": linecolor_dict,
             "linewidth": linewidth,
-            "hatch": hatch,
+            "hatch_dict": hatch_dict,
             "stat": stat,
             "bin_limits": bin_limits,
             "nbins": nbins,
@@ -802,7 +804,7 @@ class LinePlot(BasePlot):
             "fillalpha": fillalpha,
             "linealpha": linealpha,
             "projection": self.plot_format["figure"]["projection"],
-            "zorder_dict": self._plot_dict["zorder_dict"],
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("hist", hist))
 
@@ -815,10 +817,6 @@ class LinePlot(BasePlot):
 
     def ecdf(
         self,
-        marker: str = "none",
-        markerfacecolor: ColorParameters | tuple[str, str] = None,
-        markeredgecolor: ColorParameters | tuple[str, str] = None,
-        markersize: float | str = 1,
         linecolor: ColorParameters = None,
         linestyle: str = "-",
         linewidth: int = 2,
@@ -828,7 +826,6 @@ class LinePlot(BasePlot):
         unique_id: str | None = None,
         agg_func: Agg | None = None,
         err_func: Error = None,
-        colorall: ColorParameters = None,
         ecdf_type: Literal["spline", "bootstrap", "none"] = "none",
         ecdf_args=None,
     ):
@@ -838,10 +835,6 @@ class LinePlot(BasePlot):
         self._plot_methods.append("ecdf")
         self._plot_prefs.append(
             {
-                "marker": marker,
-                "markerfacecolor": markerfacecolor,
-                "markeredgecolor": markeredgecolor,
-                "markersize": markersize,
                 "linecolor": linecolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
@@ -851,35 +844,19 @@ class LinePlot(BasePlot):
                 "ecdf_type": ecdf_type,
                 "agg_func": agg_func,
                 "err_func": err_func,
-                "colorall": colorall,
                 "ecdf_args": ecdf_args,
             }
         )
-        if colorall is None:
-            linecolor = _process_colors(
-                linecolor,
-                self._plot_dict["group_order"],
-                self._plot_dict["subgroup_order"],
-            )
-            linecolor_dict = create_dict(
-                linecolor,
-                self._plot_dict["unique_groups"],
-            )
-            markerfacecolor_dict = create_dict(
-                markerfacecolor,
-                self._plot_dict["unique_groups"],
-            )
-            markeredgecolor_dict = create_dict(
-                markeredgecolor,
-                self._plot_dict["unique_groups"],
-            )
-        else:
-            temp_dict = create_dict(colorall, self._plot_dict["unique_groups"])
-            markeredgecolor_dict = temp_dict
-            markerfacecolor_dict = temp_dict
-            linecolor_dict = temp_dict
+        linecolor = _process_colors(
+            linecolor,
+            self._plot_dict["group_order"],
+            self._plot_dict["subgroup_order"],
+        )
+        linecolor_dict = create_dict(
+            linecolor,
+            self._plot_dict["unique_groups"],
+        )
 
-        marker_dict = create_dict(marker, self._plot_dict["unique_groups"])
         linestyle_dict = create_dict(linestyle, self._plot_dict["unique_groups"])
 
         ecdf = {
@@ -887,10 +864,6 @@ class LinePlot(BasePlot):
             "linestyle": linestyle_dict,
             "linewidth": linewidth,
             "linealpha": linealpha,
-            "marker": marker_dict,
-            "markersize": markersize,
-            "markerfacecolor": markerfacecolor_dict,
-            "markeredgecolor": markeredgecolor_dict,
             "unique_id": unique_id,
             "ecdf_type": ecdf_type,
             "ecdf_args": ecdf_args if ecdf_args is not None else {},
@@ -898,7 +871,7 @@ class LinePlot(BasePlot):
             "err_func": err_func,
             "fillalpha": fillalpha,
             "fill_between": fill_between,
-            "zorder_dict": self._plot_dict["zorder_dict"],
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("ecdf", ecdf))
 
@@ -985,7 +958,7 @@ class LinePlot(BasePlot):
             "alpha": alpha,
             "edge_alpha": edge_alpha,
             "linewidth": linewidth,
-            "zorder_dict": self._plot_dict["zorder_dict"],
+            "zorder_dict": self._set_zorder(),
         }
 
         self.plot_list.append(("scatter", scatter))
@@ -1095,6 +1068,9 @@ class CategoricalPlot(BasePlot):
             loc_dict = {("",): 0.0}
             width = 1.0
 
+        zgroup = group_order if subgroup_order is None else subgroup_order
+        zorder_dict = create_dict(zgroup, unique_groups)
+
         x_ticks = [index for index, _ in enumerate(group_order)]
         self._plot_dict = {
             "group": group,
@@ -1106,6 +1082,7 @@ class CategoricalPlot(BasePlot):
             "loc_dict": loc_dict,
             "width": width,
             "levels": levels,
+            "zorder_dict": zorder_dict,
         }
 
         if not self.inplace:
@@ -1160,6 +1137,7 @@ class CategoricalPlot(BasePlot):
             "seed": seed,
             "markersize": markersize,
             "unique_id": unique_id,
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("jitter", jitter_plot))
 
@@ -1206,7 +1184,6 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        marker_dict = create_dict(marker, self._plot_dict["unique_groups"])
         color = _process_colors(
             color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
         )
@@ -1222,7 +1199,7 @@ class CategoricalPlot(BasePlot):
 
         jitteru_plot = {
             "color_dict": color_dict,
-            "marker_dict": marker_dict,
+            "marker": marker,
             "edgecolor_dict": edgecolor_dict,
             "alpha": alpha,
             "edge_alpha": edge_alpha,
@@ -1231,6 +1208,7 @@ class CategoricalPlot(BasePlot):
             "unique_id": unique_id,
             "duplicate_offset": duplicate_offset,
             "agg_func": agg_func,
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("jitteru", jitteru_plot))
 
@@ -1287,6 +1265,7 @@ class CategoricalPlot(BasePlot):
             "linewidth": linewidth,
             "color_dict": color_dict,
             "alpha": alpha,
+            "zorder_dict": self._set_zorder(),
         }
 
         self.plot_list.append(("summary", summary_plot))
@@ -1349,6 +1328,7 @@ class CategoricalPlot(BasePlot):
             "color_dict": color_dict,
             "alpha": alpha,
             "agg_width": agg_width,
+            "zorder_dict": self._set_zorder(),
         }
 
         self.plot_list.append(("summaryu", summary_plot))
@@ -1422,6 +1402,7 @@ class CategoricalPlot(BasePlot):
             "linewidth": linewidth,
             "alpha": alpha,
             "linealpha": linealpha,
+            "zorder_dict": self._set_zorder(),
         }
 
         self.plot_list.append(("box", box))
@@ -1500,6 +1481,7 @@ class CategoricalPlot(BasePlot):
             "bw": bw,
             "tol": tol,
             "unique_style": unique_style,
+            "zorder_dict": self._set_zorder(),
         }
 
         self.plot_list.append(("violin", violin))
@@ -1579,6 +1561,7 @@ class CategoricalPlot(BasePlot):
             "unique_id": unique_id,
             "invert": invert,
             "axis_type": axis_type,
+            "zorder_dict": self._set_zorder(),
         }
 
         self.plot_list.append(("percent", percent_plot))
@@ -1646,6 +1629,7 @@ class CategoricalPlot(BasePlot):
             "alpha": alpha,
             "edge_alpha": edge_alpha,
             "axis_type": axis_type,
+            "zorder_dict": self._set_zorder(),
         }
         self.plot_list.append(("count", count_plot))
 

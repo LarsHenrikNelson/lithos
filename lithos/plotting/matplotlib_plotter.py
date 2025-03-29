@@ -434,6 +434,7 @@ class Plotter:
         ax: mpl.axes.Axes | list[mpl.axes.Axes] | np.ndarray[mpl.axes.Axes],
         facet_index: list[int] | None = None,
         axis: Literal["x", "y"] = "x",
+        **kwargs,
     ):
         if facet_index is None:
             facet_index = [0] * len(heights)
@@ -482,6 +483,7 @@ class Plotter:
         alpha: float,
         edge_alpha: float,
         ax: plt.Axes,
+        **kwargs,
     ):
         for x, y, mk, mf, me, ms in zip(
             x_data, y_data, marker, markerfacecolor, markeredgecolor, markersize
@@ -511,6 +513,7 @@ class Plotter:
         linewidth: float,
         facet_index: list[int],
         ax: plt.Axes,
+        **kwargs,
     ):
         for x, y, mk, mf, me, ms, facet in zip(
             x_data,
@@ -552,6 +555,7 @@ class Plotter:
         capstyle: str,
         capsize: float,
         ax: plt.Axes,
+        **kwargs,
     ):
         for xd, yd, e, c, w in zip(x_data, y_data, error_data, colors, widths):
             _, caplines, bars = ax[0].errorbar(
@@ -596,6 +600,7 @@ class Plotter:
         show_ci: bool,
         showmeans: bool,
         ax: plt.Axes,
+        **kwargs,
     ):
         for x, y, fcs, ecs in zip(x_data, y_data, facecolors, edgecolors):
             props = {
@@ -634,6 +639,7 @@ class Plotter:
         edge_alpha: float,
         linewidth: float,
         ax: plt.Axes,
+        **kwargs,
     ):
         for x, y, loc, fcs, ecs in zip(
             x_data, y_data, location, facecolors, edgecolors
@@ -665,6 +671,7 @@ class Plotter:
         markersize: float | None = None,
         fillalpha: float | None = None,
         linealpha: float | None = None,
+        **kwargs,
     ):
         for x, y, err, ls, lc, mf, me, mk, fc in zip(
             x_data,

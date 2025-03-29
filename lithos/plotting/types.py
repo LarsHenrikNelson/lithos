@@ -7,7 +7,13 @@ import numpy as np
 
 
 @dataclass
-class RectanglePlotData:
+class PlotData:
+    group_labels: list[str]
+    zorder: list[int]
+
+
+@dataclass
+class RectanglePlotData(PlotData):
     heights: list[float]
     bottoms: list[float]
     bins: list[float]
@@ -24,7 +30,7 @@ class RectanglePlotData:
 
 
 @dataclass
-class LinePlotData:
+class LinePlotData(PlotData):
     x_data: list
     y_data: list
     error_data: list
@@ -44,7 +50,7 @@ class LinePlotData:
 
 
 @dataclass
-class JitterPlotData:
+class JitterPlotData(PlotData):
     x_data: list[np.ndarray]
     y_data: list[np.ndarray]
     marker: list[str]
@@ -57,7 +63,7 @@ class JitterPlotData:
 
 
 @dataclass
-class ScatterPlotData:
+class ScatterPlotData(PlotData):
     x_data: list[np.ndarray]
     y_data: list[np.ndarray]
     marker: list[str]
@@ -72,7 +78,7 @@ class ScatterPlotData:
 
 
 @dataclass
-class SummaryPlotData:
+class SummaryPlotData(PlotData):
     x_data: list
     y_data: list
     error_data: list
@@ -86,7 +92,7 @@ class SummaryPlotData:
 
 
 @dataclass
-class BoxPlotData:
+class BoxPlotData(PlotData):
     x_data: list
     y_data: list
     facecolors: list[str]
@@ -102,7 +108,7 @@ class BoxPlotData:
 
 
 @dataclass
-class ViolinPlotData:
+class ViolinPlotData(PlotData):
     x_data: list
     y_data: list
     location: list[float]

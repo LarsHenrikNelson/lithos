@@ -87,6 +87,13 @@ class Processor:
             processed_data.append(temp)
         return processed_data
 
+    def _process_dict(self, groups, dict, subgroups=None, agg: str | None = None):
+        if subgroups is None or agg is not None:
+            output = [dict[g] for g in groups.keys()]
+        else:
+            output = [dict[g[:-1]] for g in subgroups.keys()]
+        return output
+
     def _jitter(
         self,
         data: DataHolder,
@@ -97,6 +104,7 @@ class Processor:
         color_dict: dict[str, str],
         marker_dict: dict[str, str],
         edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         seed: int = 42,
@@ -113,50 +121,49 @@ class Processor:
 
         x_data = []
         y_data = []
-        mks = []
-        mfcs = []
-        mecs = []
-        mksizes = []
+        markers = []
+        group_labels = []
 
         groups = data.groups(levels)
+        unique_groups = None
 
         if unique_id is not None:
             unique_groups = data.groups(levels + (unique_id,))
 
         jitter_values = np.zeros(data.shape[0])
 
-        for i, indexes in groups.items():
-            temp_jitter = process_jitter(data[indexes, y], loc_dict[i], width, rng=rng)
+        for group_key, indexes in groups.items():
+            temp_jitter = process_jitter(
+                data[indexes, y], loc_dict[group_key], width, rng=rng
+            )
             jitter_values[indexes] = temp_jitter
 
-        for i, indexes in groups.items():
+        for group_key, indexes in groups.items():
             if unique_id is None:
                 x_data.append(jitter_values[indexes])
                 y_data.append(transform(data[indexes, y]))
-                mks.append(marker_dict[i])
-                mfcs.append(color_dict[i])
-                mecs.append(edgecolor_dict[i])
-                mksizes.append(markersize)
+                group_labels.append(group_key)
+                markers.append(marker_dict[group_key])
             else:
                 subgroups = np.unique(data[indexes, unique_id])
                 for ui_group, mrk in zip(subgroups, cycle(self.MARKERS)):
-                    sub_indexes = unique_groups[i + (ui_group,)]
+                    sub_indexes = unique_groups[group_key + (ui_group,)]
                     x_data.append(jitter_values[sub_indexes])
                     y_data.append(transform(data[sub_indexes, y]))
-                    mks.append(mrk)
-                    mfcs.append(color_dict[i])
-                    mecs.append(edgecolor_dict[i])
-                    mksizes.append(markersize)
+                    group_labels.append(group_key)
+                    markers.append(mrk)
 
         output = JitterPlotData(
             x_data=x_data,
             y_data=y_data,
-            marker=mks,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
-            markersize=mksizes,
+            marker=markers,
+            markerfacecolor=self._process_dict(groups, color_dict, unique_groups),
+            markeredgecolor=self._process_dict(groups, edgecolor_dict, unique_groups),
+            markersize=[markersize] * len(y_data),
             alpha=alpha,
             edge_alpha=edge_alpha,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups),
         )
         return output
 
@@ -169,8 +176,9 @@ class Processor:
         loc_dict: dict[str, float],
         width: float,
         color_dict: dict[str, str],
-        marker_dict: dict[str, str],
+        marker: str,
         edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         duplicate_offset: float = 0.0,
@@ -186,28 +194,27 @@ class Processor:
 
         x_data = []
         y_data = []
-        mks = []
-        mfcs = []
-        mecs = []
-        mksizes = []
+        group_labels = []
+        unique_groups = None
 
         groups = data.groups(levels)
         if unique_id is not None:
-            uid_groups = data.groups(levels + (unique_id,))
-        for i in groups.keys():
-            unique_ids_sub = np.unique(data[groups[i], unique_id])
+            unique_groups = data.groups(levels + (unique_id,))
+
+        for group_key in groups.keys():
+            unique_ids_sub = np.unique(data[groups[group_key], unique_id])
             if len(unique_ids_sub) > 1:
                 dist = np.linspace(-temp, temp, num=len(unique_ids_sub) + 1)
                 dist = np.round((dist[1:] + dist[:-1]) / 2, 10)
             else:
                 dist = [0]
             for index, ui_group in enumerate(unique_ids_sub):
-                if i == ("",):
+                if group_key == ("",):
                     temp_group = (ui_group,)
                 else:
-                    temp_group = i + (ui_group,)
-                sub_indexes = uid_groups[temp_group]
-                x = np.full(len(sub_indexes), loc_dict[i]) + dist[index]
+                    temp_group = group_key + (ui_group,)
+                sub_indexes = unique_groups[temp_group]
+                x = np.full(len(sub_indexes), loc_dict[group_key]) + dist[index]
                 if duplicate_offset > 0.0:
                     output = (
                         process_duplicates(data[sub_indexes, y])
@@ -221,19 +228,22 @@ class Processor:
                     x = x[0]
                 x_data.append(x)
                 y_data.append(get_transform(agg_func)(transform(data[sub_indexes, y])))
-                mks.append(marker_dict[i])
-                mfcs.append(color_dict[i])
-                mecs.append(edgecolor_dict[i])
-                mksizes.append(markersize)
+                group_labels.append(group_key)
         output = JitterPlotData(
             x_data=x_data,
             y_data=y_data,
-            marker=mks,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
-            markersize=mksizes,
+            marker=[marker] * len(y_data),
+            markerfacecolor=self._process_dict(
+                groups, color_dict, unique_groups, agg_func
+            ),
+            markeredgecolor=self._process_dict(
+                groups, edgecolor_dict, unique_groups, agg_func
+            ),
+            markersize=[markersize] * len(y_data),
             alpha=alpha,
             edge_alpha=edge_alpha,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
 
@@ -248,6 +258,7 @@ class Processor:
         capstyle: CapStyle,
         barwidth: float,
         linewidth: float | int,
+        zorder_dict: dict[str, int],
         color_dict: dict[str, str],
         alpha: AlphaRange,
         err_func: Error | None = None,
@@ -259,16 +270,14 @@ class Processor:
         transform = get_transform(ytransform)
         y_data = []
         error_data = []
-        colors = []
         x_data = []
-        widths = []
+        group_labels = []
 
         groups = data.groups(levels)
         for i, indexes in groups.items():
             x_data.append(loc_dict[i])
-            colors.append(color_dict[i])
-            widths.append(barwidth)
             y_data.append(get_transform(func)(transform(data[indexes, y])))
+            group_labels.append(i)
             if err_func is not None:
                 error_data.append(get_transform(err_func)(transform(data[indexes, y])))
             else:
@@ -277,12 +286,14 @@ class Processor:
             x_data=x_data,
             y_data=y_data,
             error_data=error_data,
-            widths=widths,
-            colors=colors,
+            widths=[barwidth] * len(y_data),
+            colors=self._process_dict(groups, color_dict),
             linewidth=linewidth,
             alpha=alpha,
             capstyle=capstyle,
             capsize=capsize,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict),
         )
         return output
 
@@ -299,6 +310,7 @@ class Processor:
         barwidth: float,
         linewidth: float | int,
         color_dict: dict[str, str],
+        zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         agg_func: Agg | None = None,
         err_func: Error = None,
@@ -311,14 +323,15 @@ class Processor:
         transform = get_transform(ytransform)
         y_data = []
         error_data = []
-        colors = []
         x_data = []
         widths = []
+        group_labels = []
+        unique_groups = None
 
         groups = data.groups(levels)
         if unique_id is not None:
-            uid_groups = data.groups(levels + (unique_id,))
-        for i, indexes in groups.items():
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, indexes in groups.items():
             subgroups = np.unique(data[indexes, unique_id])
             if agg_func is None:
                 temp = barwidth / 2
@@ -329,15 +342,17 @@ class Processor:
                     centers = [0]
                 w = agg_width / len(subgroups)
                 for index, j in enumerate(subgroups):
-                    if i == ("",):
+                    if group_key == ("",):
                         temp_group = (j,)
                     else:
-                        temp_group = i + (j,)
+                        temp_group = group_key + (j,)
                     widths.append(w)
-                    vals = transform(data[uid_groups[temp_group], y])
-                    x_data.append(loc_dict[i] + centers[index])
-                    colors.append(color_dict[i])
+                    vals = transform(data[unique_groups[temp_group], y])
+                    x_data.append(loc_dict[group_key] + centers[index])
+
                     y_data.append(get_transform(func)(vals))
+                    group_labels.append(group_key)
+
                     if err_func is not None:
                         error_data.append(get_transform(err_func)(vals))
                     else:
@@ -345,12 +360,12 @@ class Processor:
             else:
                 temp_vals = []
                 for index, j in enumerate(subgroups):
-                    vals = transform(data[uid_groups[i + (j,)], y])
+                    vals = transform(data[unique_groups[group_key + (j,)], y])
                     temp_vals.append(get_transform(func)(vals))
-                x_data.append(loc_dict[i])
-                colors.append(color_dict[i])
+                x_data.append(loc_dict[group_key])
                 widths.append(barwidth)
                 y_data.append(get_transform(func)(np.array(temp_vals)))
+                group_labels.append(group_key)
                 if err_func is not None:
                     error_data.append(get_transform(err_func)(np.array(temp_vals)))
                 else:
@@ -360,11 +375,13 @@ class Processor:
             y_data=y_data,
             error_data=error_data,
             widths=widths,
-            colors=colors,
+            colors=self._process_dict(groups, color_dict, unique_groups, agg_func),
             linewidth=linewidth,
             alpha=alpha,
             capstyle=capstyle,
             capsize=capsize,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
 
@@ -376,6 +393,7 @@ class Processor:
         loc_dict: dict[str, float],
         color_dict: dict[str, str],
         edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
         fliers: str = "",
         width: float = 1.0,
         linewidth: float | int = 1,
@@ -392,20 +410,18 @@ class Processor:
 
         y_data = []
         x_data = []
-        fcs = []
-        ecs = []
+        group_labels = []
 
         groups = data.groups(levels)
-        for key, value in groups.items():
+        for group_key, value in groups.items():
             y_data.append(transform(data[value, y]))
-            x_data.append([loc_dict[key]])
-            fcs.append(color_dict[key])
-            ecs.append(edgecolor_dict[key])
+            x_data.append([loc_dict[group_key]])
+            group_labels.append(group_key)
         output = BoxPlotData(
             x_data=x_data,
             y_data=y_data,
-            facecolors=fcs,
-            edgecolors=ecs,
+            facecolors=self._process_dict(groups, color_dict),
+            edgecolors=self._process_dict(groups, edgecolor_dict),
             alpha=alpha,
             linealpha=linealpha,
             fliers=fliers,
@@ -413,6 +429,8 @@ class Processor:
             width=width,
             show_ci=show_ci,
             showmeans=showmeans,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict),
         )
         return output
 
@@ -424,6 +442,7 @@ class Processor:
         loc_dict: dict[str, float],
         facecolor_dict,
         edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         linewidth: float | int = 1,
@@ -444,17 +463,17 @@ class Processor:
         transform = get_transform(ytransform)
 
         groups = data.groups(levels)
+        unique_groups = None
 
         x_data = []
         y_data = []
         loc = []
-        ecs = []
-        fcs = []
         width = width / 2.0
+        group_labels = []
 
         if unique_id is not None:
-            uid_groups = data.groups(levels + (unique_id,))
-        for u, group_indexes in groups.items():
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, group_indexes in groups.items():
             if unique_id is None:
                 y_values = np.asarray(data[group_indexes, y]).flatten()
                 x_kde, y_kde = stats.kde(
@@ -467,9 +486,8 @@ class Processor:
                 )
                 y_data.append((y_kde / y_kde.max()) * width)
                 x_data.append(x_kde)
-                ecs.append(edgecolor_dict[u])
-                fcs.append(facecolor_dict[u])
-                loc.append(loc_dict[u])
+                loc.append(loc_dict[group_key])
+                group_labels.append(group_key)
             else:
                 subgroups = np.unique(data[group_indexes, unique_id])
                 if agg_func is not None:
@@ -488,13 +506,13 @@ class Processor:
                             dist = np.linspace(-width, width, num=len(subgroups) + 1)
                             uwidth = (dist[1] - dist[0]) / 2.0
                             dist = (dist[1:] + dist[:-1]) / 2.0
-                            dist += loc_dict[u]
+                            dist += loc_dict[group_key]
                         else:
-                            dist = [loc_dict[u]]
+                            dist = [loc_dict[group_key]]
                     else:
-                        dist = np.full(len(subgroups), loc_dict[u])
+                        dist = np.full(len(subgroups), loc_dict[group_key])
                         uwidth = width
-                    s_indexes = uid_groups[u + (s,)]
+                    s_indexes = unique_groups[group_key + (s,)]
                     y_values = np.asarray(data[s_indexes, y]).flatten()
                     if agg_func is None:
                         x_kde, y_kde = stats.kde(
@@ -507,9 +525,8 @@ class Processor:
                         )
                         y_data.append((y_kde / y_kde.max()) * uwidth)
                         x_data.append(x_kde)
-                        ecs.append(edgecolor_dict[u])
-                        fcs.append(facecolor_dict[u])
                         loc.append(dist[hi])
+                        group_labels.append(group_key)
                     else:
                         _, y_kde = stats.kde(
                             get_transform(transform)(y_values),
@@ -525,18 +542,24 @@ class Processor:
                     x_kde, y_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
                     y_data.append((y_kde / y_kde.max()) * width)
                     x_data.append(x_kde)
-                    ecs.append(edgecolor_dict[u])
-                    fcs.append(facecolor_dict[u])
-                    loc.append(loc_dict[u])
+                    loc.append(loc_dict[group_key])
+                    group_labels.append(group_key)
+
             output = ViolinPlotData(
                 x_data=x_data,
                 y_data=y_data,
                 location=loc,
-                facecolors=fcs,
-                edgecolors=ecs,
+                facecolors=self._process_dict(
+                    groups, facecolor_dict, unique_groups, agg_func
+                ),
+                edgecolors=self._process_dict(
+                    groups, edgecolor_dict, unique_groups, agg_func
+                ),
                 alpha=alpha,
                 edge_alpha=edge_alpha,
                 linewidth=linewidth,
+                group_labels=group_labels,
+                zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
             )
         return output
 
@@ -551,7 +574,8 @@ class Processor:
         levels: Levels,
         color_dict: dict[str, str],
         facet_dict: dict[str, int],
-        hatch: str | dict[str, str] | None = None,
+        zorder_dict: dict[str, int],
+        hatch_dict: dict[str, str],
         hist_type: Literal["bar", "step", "stepfilled"] = "bar",
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
@@ -574,7 +598,8 @@ class Processor:
                 levels=levels,
                 color_dict=color_dict,
                 facet_dict=facet_dict,
-                hatch=hatch,
+                zorder_dict=zorder_dict,
+                hatch_dict=hatch_dict,
                 fillalpha=fillalpha,
                 linealpha=linealpha,
                 bin_limits=bin_limits,
@@ -598,7 +623,8 @@ class Processor:
         levels: Levels,
         color_dict: dict[str, str],
         facet_dict: dict[str, int],
-        hatch: str | dict[str, str] | None = None,
+        zorder_dict: dict[str, int],
+        hatch_dict: dict[str, str],
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
         linewidth: float | int = 2,
@@ -622,77 +648,62 @@ class Processor:
         plot_data = []
         plot_bins = []
         count = 0
-        colors = []
-        facet = []
-        edgec = []
-        hatches = []
+        group_labels = []
+
+        unique_groups = None
 
         bins = None
         if bin_limits == "common":
             bins = np.histogram_bin_edges(get_transform(transform)(data[y]), bins=nbins)
 
-        if len(levels) == 0:
-            pass
-        else:
-            groups = data.groups(levels)
+        groups = data.groups(levels)
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, group_indexes in groups.items():
             if unique_id is not None:
-                unique_id_indexes = data.groups(levels + (unique_id,))
-            for i, group_indexes in groups.items():
-                if unique_id is not None:
-                    if bins is None:
-                        bins = np.histogram_bin_edges(
-                            get_transform(transform)(data[group_indexes[i], y]),
-                            bins=nbins,
-                            range=bin_limits,
-                        )
-                    temp_bw = np.full(nbins, bins[1] - bins[0])
-                    subgroup = np.unique(data[group_indexes, unique_id])
+                if bins is None:
+                    bins = np.histogram_bin_edges(
+                        get_transform(transform)(data[group_indexes[group_key], y]),
+                        bins=nbins,
+                        range=bin_limits,
+                    )
+                temp_bw = np.full(nbins, bins[1] - bins[0])
+                subgroup = np.unique(data[group_indexes, unique_id])
+                if agg_func is not None:
+                    temp_list = np.zeros((len(subgroup), nbins))
+                else:
+                    temp_list = []
+                for index, j in enumerate(subgroup):
+                    temp_data = np.sort(data[unique_groups[group_key + (j,)], y])
+                    poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
                     if agg_func is not None:
-                        temp_list = np.zeros((len(subgroup), nbins))
+                        temp_list[index] = poly
                     else:
-                        temp_list = []
-                    for index, j in enumerate(subgroup):
-                        temp_data = np.sort(data[unique_id_indexes[i + (j,)], y])
-                        poly = _calc_hist(
-                            get_transform(transform)(temp_data), bins, stat
-                        )
-                        if agg_func is not None:
-                            temp_list[index] = poly
-                        else:
-                            plot_data.append(poly)
-                            colors.append([color_dict[i]] * nbins)
-                            edgec.append([color_dict[i]] * nbins)
-                            facet.append(facet_dict[i])
-                            bw.append(temp_bw)
-                            plot_bins.append(bins[:-1])
-                            hatches.append([hatch] * nbins)
-                            count += 1
-                    if agg_func is not None:
-                        plot_data.append(get_transform(agg_func)(temp_list, axis=0))
-                        colors.append([color_dict[i]] * nbins)
-                        edgec.append([color_dict[i]] * nbins)
-                        facet.append(facet_dict[i])
+                        plot_data.append(poly)
                         bw.append(temp_bw)
                         plot_bins.append(bins[:-1])
-                        hatches.append([hatch] * nbins)
+                        group_labels.append(group_key)
                         count += 1
-                else:
-                    temp_data = np.sort(data[groups[i], y])
-                    if bins is None:
-                        bins = np.histogram_bin_edges(
-                            get_transform(transform)(data[group_indexes, y]),
-                            bins=nbins,
-                            range=bin_limits,
-                        )
-                    bw.append(np.full(nbins, bins[1] - bins[0]))
-                    poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
-                    plot_data.append(poly)
-                    colors.append([color_dict[i]] * nbins)
-                    edgec.append([color_dict[i]] * nbins)
-                    facet.append(facet_dict[i])
+                if agg_func is not None:
+                    plot_data.append(get_transform(agg_func)(temp_list, axis=0))
+                    bw.append(temp_bw)
                     plot_bins.append(bins[:-1])
-                    hatches.append([hatch] * nbins)
+                    group_labels.append(group_key)
                     count += 1
+            else:
+                temp_data = np.sort(data[groups[group_key], y])
+                if bins is None:
+                    bins = np.histogram_bin_edges(
+                        get_transform(transform)(data[group_indexes, y]),
+                        bins=nbins,
+                        range=bin_limits,
+                    )
+                bw.append(np.full(nbins, bins[1] - bins[0]))
+                poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
+                plot_data.append(poly)
+                plot_bins.append(bins[:-1])
+                group_labels.append(group_key)
+                count += 1
 
         bottoms = [bottom for _ in plot_bins]
         output = RectanglePlotData(
@@ -700,14 +711,16 @@ class Processor:
             bottoms=bottoms,
             bins=plot_bins,
             binwidths=bw,
-            fillcolors=colors,
-            edgecolors=edgec,
+            fillcolors=self._process_dict(groups, color_dict, unique_groups, agg_func),
+            edgecolors=self._process_dict(groups, color_dict, unique_groups, agg_func),
             fill_alpha=fillalpha,
             edge_alpha=linealpha,
-            hatches=hatches,
+            hatches=self._process_dict(groups, hatch_dict, unique_groups, agg_func),
             linewidth=linewidth,
-            facet_index=facet,
+            facet_index=self._process_dict(groups, facet_dict, unique_groups, agg_func),
             axis=axis,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
 
@@ -716,7 +729,6 @@ class Processor:
         data,
         y,
         x,
-        levels,
         markers,
         markercolors,
         edgecolors,
@@ -725,6 +737,7 @@ class Processor:
         edge_alpha,
         linewidth,
         facetgroup,
+        zorder_dict: dict[str, int],
         facet_dict: dict[str, int],
         xtransform: Transform = None,
         ytransform: Transform = None,
@@ -738,6 +751,8 @@ class Processor:
         mfcs = []
         mecs = []
         facet = []
+        group_labels = []
+        zorder = []
 
         for key, value in facet_dict.items():
             indexes = np.array(
@@ -750,6 +765,8 @@ class Processor:
             mecs.append([edgecolors[i] for i in indexes])
             mksizes.append([markersizes[i] for i in indexes])
             facet.append(facet_dict[key])
+            group_labels.append(key)
+            zorder.append(zorder_dict[key])
         output = ScatterPlotData(
             x_data=x_data,
             y_data=y_data,
@@ -761,6 +778,8 @@ class Processor:
             edge_alpha=edge_alpha,
             facet_index=facet,
             linewidth=linewidth,
+            group_labels=group_labels,
+            zorder=zorder,
         )
         return output
 
@@ -779,6 +798,7 @@ class Processor:
         linecolor: str | dict[str, str],
         linealpha: float | int,
         facet_dict: dict[str, int],
+        zorder_dict: dict[str, int],
         func: Agg = None,
         err_func: Error = None,
         fill_between: bool = False,
@@ -801,6 +821,8 @@ class Processor:
         lss = []
         mfcs = []
         mecs = []
+        group_labels = []
+        zorder = []
 
         err_data = None
         new_levels = (levels + (x,)) if unique_id is None else (levels + (x, unique_id))
@@ -832,34 +854,22 @@ class Processor:
             ugrps = new_data.groups(levels + (unique_id,))
         else:
             ugrps = new_data.groups(levels)
-        if len(ugrps) != 0:
-            for u, indexes in ugrps.items():
-                u = u if len(u) == len(levels) else u[: len(levels)]
-                ytemp = new_data[indexes, y]
-                y_data.append(ytemp)
-                xtemp = get_transform(xtransform)(new_data[indexes, x])
-                x_data.append(xtemp)
-                temp_err = err_data[indexes, y] if err_func is not None else None
-                error_data.append(temp_err)
-                facet_index.append(facet_dict[u])
-                mks.append(marker[u])
-                lcs.append(linecolor[u])
-                lss.append(linestyle[u])
-                mfcs.append(markerfacecolor[u])
-                mecs.append(markeredgecolor[u])
-        else:
-            ytemp = get_transform(ytransform)(new_data[y])
+        for u, indexes in ugrps.items():
+            u = u if len(u) == len(levels) else u[: len(levels)]
+            ytemp = new_data[indexes, y]
             y_data.append(ytemp)
-            xtemp = get_transform(xtransform)(new_data[x])
+            xtemp = get_transform(xtransform)(new_data[indexes, x])
             x_data.append(xtemp)
             temp_err = err_data[indexes, y] if err_func is not None else None
             error_data.append(temp_err)
-            facet_index.append(facet_dict[("",)])
-            mks.append(marker[("",)])
-            lcs.append(linecolor[("",)])
-            lss.append(linestyle[("",)])
-            mfcs.append(markerfacecolor[("",)])
-            mecs.append(markeredgecolor[("",)])
+            facet_index.append(facet_dict[u])
+            mks.append(marker[u])
+            lcs.append(linecolor[u])
+            lss.append(linestyle[u])
+            mfcs.append(markerfacecolor[u])
+            mecs.append(markeredgecolor[u])
+            group_labels.append(u)
+            zorder.append(zorder_dict[u])
         output = LinePlotData(
             x_data=x_data,
             y_data=y_data,
@@ -876,6 +886,8 @@ class Processor:
             linealpha=linealpha,
             fillalpha=fillalpha,
             fb_direction="y",
+            group_labels=group_labels,
+            zorder=zorder,
         )
 
         return output
@@ -894,6 +906,7 @@ class Processor:
         fillalpha: float | int,
         fill_between: bool,
         fill_under: bool,
+        zorder_dict: dict[str, int],
         kernel: Kernels = "gaussian",
         bw: BW = "ISJ",
         kde_length: int | None = None,
@@ -913,164 +926,119 @@ class Processor:
         x_data = []
         y_data = []
         error_data = []
-        facet_index = []
-        mks = []
-        lcs = []
-        lss = []
-        mfcs = []
-        mecs = []
+        group_labels = []
+        unique_groups = None
 
         column = y if x is None else x
         direction = "x" if x is None else "y"
         transform = ytransform if xtransform is None else xtransform
 
-        if len(levels) == 0:
-            y_values = np.asarray(data[column]).flatten()
-            temp_size = size
-            x_kde, y_kde = stats.kde(
-                get_transform(transform)(y_values),
-                bw=bw,
-                kernel=kernel,
-                tol=tol,
-                kde_length=kde_length,
-            )
-            if common_norm:
-                multiplier = float(temp_size / size)
-                y_kde *= multiplier
-            if y is not None:
-                y_kde, x_kde = x_kde, y_kde
-            y_data.append(y_kde)
-            x_data.append(x_kde)
-            lcs.append(linecolor[("",)])
-            lss.append(linestyle[("",)])
-            facet_index.append(facet_dict[("",)])
-            error_data.append(None)
-            mfcs.append(None)
-            mecs.append(None)
-            mks.append(None)
-        else:
-            groups = data.groups(levels)
+        groups = data.groups(levels)
 
-            if unique_id is not None:
-                uid_groups = data.groups(levels + (unique_id,))
-            for u, group_indexes in groups.items():
-                if unique_id is None:
-                    y_values = np.asarray(data[group_indexes, column]).flatten()
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, group_indexes in groups.items():
+            if unique_id is None:
+                y_values = np.asarray(data[group_indexes, column]).flatten()
+                temp_size = y_values.size
+                x_kde, y_kde = stats.kde(
+                    get_transform(transform)(y_values),
+                    bw=bw,
+                    kernel=kernel,
+                    tol=tol,
+                    kde_length=kde_length,
+                )
+                if common_norm:
+                    multiplier = float(temp_size / size)
+                    y_kde *= multiplier
+                if y is not None:
+                    y_kde, x_kde = x_kde, y_kde
+                y_data.append(y_kde)
+                x_data.append(x_kde)
+                error_data.append(None)
+                group_labels.append(group_key)
+            else:
+                subgroups, count = np.unique(
+                    data[group_indexes, unique_id], return_counts=True
+                )
+
+                if agg_func is not None:
+                    temp_data = data[group_indexes, column]
+                    min_data = get_transform(transform)(temp_data.min())
+                    max_data = get_transform(transform)(temp_data.max())
+                    min_data = min_data - np.abs((min_data * tol))
+                    max_data = max_data + np.abs((max_data * tol))
+                    min_data = min_data if min_data != 0 else -1e-10
+                    max_data = max_data if max_data != 0 else 1e-10
+                    if KDEType == "fft":
+                        if kde_length is None:
+                            kde_length = int(np.ceil(np.log2(len(temp_data))))
+                    else:
+                        if kde_length is None:
+                            max_len = np.max(count)
+                            kde_length = int(max_len * 1.5)
+                    x_array = np.linspace(min_data, max_data, num=kde_length)
+                    y_hold = np.zeros((len(subgroups), x_array.size))
+                for hi, s in enumerate(subgroups):
+                    s_indexes = unique_groups[group_key + (s,)]
+                    y_values = np.asarray(data[s_indexes, column]).flatten()
                     temp_size = y_values.size
-                    x_kde, y_kde = stats.kde(
-                        get_transform(transform)(y_values),
-                        bw=bw,
-                        kernel=kernel,
-                        tol=tol,
-                        kde_length=kde_length,
-                    )
-                    if common_norm:
-                        multiplier = float(temp_size / size)
-                        y_kde *= multiplier
-                    if y is not None:
-                        y_kde, x_kde = x_kde, y_kde
-                    y_data.append(y_kde)
-                    x_data.append(x_kde)
-                    lcs.append(linecolor[u])
-                    lss.append(linestyle[u])
-                    facet_index.append(facet_dict[u])
-                    error_data.append(None)
-                    mfcs.append(None)
-                    mecs.append(None)
-                    mks.append(None)
-                else:
-                    subgroups, count = np.unique(
-                        data[group_indexes, unique_id], return_counts=True
-                    )
-
-                    if agg_func is not None:
-                        temp_data = data[group_indexes, column]
-                        min_data = get_transform(transform)(temp_data.min())
-                        max_data = get_transform(transform)(temp_data.max())
-                        min_data = min_data - np.abs((min_data * tol))
-                        max_data = max_data + np.abs((max_data * tol))
-                        min_data = min_data if min_data != 0 else -1e-10
-                        max_data = max_data if max_data != 0 else 1e-10
-                        if KDEType == "fft":
-                            if kde_length is None:
-                                kde_length = int(np.ceil(np.log2(len(temp_data))))
-                        else:
-                            if kde_length is None:
-                                max_len = np.max(count)
-                                kde_length = int(max_len * 1.5)
-                        x_array = np.linspace(min_data, max_data, num=kde_length)
-                        y_hold = np.zeros((len(subgroups), x_array.size))
-                    for hi, s in enumerate(subgroups):
-                        s_indexes = uid_groups[u + (s,)]
-                        y_values = np.asarray(data[s_indexes, column]).flatten()
-                        temp_size = y_values.size
-                        if agg_func is None:
-                            x_kde, y_kde = stats.kde(
-                                get_transform(transform)(y_values),
-                                bw=bw,
-                                kernel=kernel,
-                                tol=tol,
-                                kde_length=kde_length,
-                            )
-                            if y is not None:
-                                y_kde, x_kde = x_kde, y_kde
-                            y_data.append(y_kde)
-                            x_data.append(x_kde)
-                            lcs.append(linecolor[u])
-                            lss.append(linestyle[u])
-                            facet_index.append(facet_dict[u])
-                            mfcs.append(None)
-                            error_data.append(None)
-                            mecs.append(None)
-                            mks.append(None)
-                        else:
-                            _, y_kde = stats.kde(
-                                get_transform(transform)(y_values),
-                                bw=bw,
-                                kernel=kernel,
-                                tol=tol,
-                                x=x_array,
-                                KDEType="fft",
-                            )
-                            y_hold[hi, :] = y_kde
-                    if agg_func is not None:
+                    if agg_func is None:
+                        x_kde, y_kde = stats.kde(
+                            get_transform(transform)(y_values),
+                            bw=bw,
+                            kernel=kernel,
+                            tol=tol,
+                            kde_length=kde_length,
+                        )
                         if y is not None:
-                            y_kde, x_kde = x_array, get_transform(agg_func)(
-                                y_hold, axis=0
-                            )
-                        else:
-                            x_kde, y_kde = x_array, get_transform(agg_func)(
-                                y_hold, axis=0
-                            )
+                            y_kde, x_kde = x_kde, y_kde
                         y_data.append(y_kde)
                         x_data.append(x_kde)
-                        lcs.append(linecolor[u])
-                        lss.append(linestyle[u])
-                        facet_index.append(facet_dict[u])
-                        mfcs.append(None)
-                        mecs.append(None)
-                        mks.append(None)
-                        error_data.append(
-                            get_transform(err_func)(y_hold, axis=0)
-                            if err_func is not None
-                            else None
+                        error_data.append(None)
+                        group_labels.append(group_key)
+                    else:
+                        _, y_kde = stats.kde(
+                            get_transform(transform)(y_values),
+                            bw=bw,
+                            kernel=kernel,
+                            tol=tol,
+                            x=x_array,
+                            KDEType="fft",
                         )
+                        y_hold[hi, :] = y_kde
+                if agg_func is not None:
+                    if y is not None:
+                        y_kde, x_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
+                    else:
+                        x_kde, y_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
+                    y_data.append(y_kde)
+                    x_data.append(x_kde)
+                    group_labels.append(group_key)
+                    error_data.append(
+                        get_transform(err_func)(y_hold, axis=0)
+                        if err_func is not None
+                        else None
+                    )
+        nones = [None] * len(y_data)
         output = LinePlotData(
             x_data=x_data,
             y_data=y_data,
             error_data=error_data,
-            facet_index=facet_index,
-            marker=mks,
-            linecolor=lcs,
+            facet_index=self._process_dict(groups, facet_dict, unique_groups, agg_func),
+            marker=nones,
+            linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
             linewidth=linewidth,
-            linestyle=lss,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
+            linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
+            markerfacecolor=nones,
+            markeredgecolor=nones,
             markersize=None,
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
             fb_direction=direction,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
 
@@ -1080,15 +1048,12 @@ class Processor:
         y: str,
         x: str,
         levels: Levels,
-        marker: str | dict[str, str],
-        markersize: float | int,
-        markerfacecolor: str | dict[str, str],
-        markeredgecolor: str | dict[str, str],
         linewidth: float | int,
         linecolor: str | dict[str, str],
         facet_dict: dict[str, int],
         linestyle: str | dict[str, str],
         linealpha: float | int,
+        zorder_dict: dict[str, int],
         fill_between: bool = False,
         fillalpha: AlphaRange = 1.0,
         unique_id: str | None = None,
@@ -1107,66 +1072,38 @@ class Processor:
 
         x_data = []
         y_data = []
-        lss = []
-        lcs = []
-        facet_index = []
         error_data = []
-        mks = []
-        mfcs = []
-        mecs = []
+        group_labels = []
+        unique_groups = None
 
-        etypes = {"spline", "bootstrap"}
+        groups = data.groups(levels)
 
-        if len(levels) > 0:
-            ugroups = data.groups(levels)
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
 
-            if unique_id is not None:
-                uid_groups = data.groups(levels + (unique_id,))
-
-        for u, indexes in ugroups.items():
-            if u == ("",):
-                y_values = np.asarray(data[column]).flatten()
-                x_ecdf, y_ecdf = stats.ecdf(
-                    get_transform(transform)(y_values), ecdf_type=ecdf_type, **ecdf_args
-                )
-                y_data.append(y_ecdf)
-                x_data.append(x_ecdf)
-                lcs.append(linecolor[u])
-                lss.append(linestyle[u])
-                facet_index.append(facet_dict[u])
-                mks.append(marker[u])
-                mfcs.append(markerfacecolor[u])
-                mecs.append(markeredgecolor[u])
-                error_data.append(None)
-            elif unique_id is None:
+        for group_key, indexes in groups.items():
+            if unique_id is None:
                 y_values = np.asarray(data[indexes, column]).flatten()
                 x_ecdf, y_ecdf = stats.ecdf(
                     get_transform(transform)(y_values), ecdf_type=ecdf_type, **ecdf_args
                 )
                 y_data.append(y_ecdf)
                 x_data.append(x_ecdf)
-                lcs.append(linecolor[u])
-                lss.append(linestyle[u])
-                facet_index.append(facet_dict[u])
-                mks.append(marker[u])
-                mfcs.append(markerfacecolor[u])
-                mecs.append(markeredgecolor[u])
                 error_data.append(None)
+                group_labels.append(group_key)
             else:
                 subgroups, counts = np.unique(
-                    data[ugroups[u], unique_id], return_counts=True
+                    data[indexes, unique_id], return_counts=True
                 )
                 if agg_func is not None:
-                    if ecdf_type not in etypes:
-                        raise ValueError(
-                            "ecdf_type must be spline or bootstrap when using an agg_func"
-                        )
                     if "size" not in ecdf_args:
                         ecdf_args["size"] = np.max(counts)
                     y_ecdf = np.arange(ecdf_args["size"]) / ecdf_args["size"]
                     x_hold = np.zeros((len(subgroups), ecdf_args["size"]))
                 for hi, s in enumerate(subgroups):
-                    y_values = np.asarray(data[uid_groups[u + (s,)], column]).flatten()
+                    y_values = np.asarray(
+                        data[unique_groups[group_key + (s,)], column]
+                    ).flatten()
                     if agg_func is None:
                         x_ecdf, y_ecdf = stats.ecdf(
                             get_transform(transform)(y_values),
@@ -1175,13 +1112,8 @@ class Processor:
                         )
                         y_data.append(y_ecdf)
                         x_data.append(x_ecdf)
-                        lcs.append(linecolor[u])
-                        lss.append(linestyle[u])
-                        facet_index.append(facet_dict[u])
-                        mks.append(marker[u])
-                        mfcs.append(markerfacecolor[u])
-                        mecs.append(markeredgecolor[u])
                         error_data.append(None)
+                        group_labels.append(group_key)
                     else:
                         x_ecdf, _ = stats.ecdf(
                             get_transform(transform)(y_values),
@@ -1192,33 +1124,31 @@ class Processor:
                 if agg_func is not None:
                     x_data.append(get_transform(agg_func)(x_hold, axis=0))
                     y_data.append(y_ecdf)
-                    lcs.append(linecolor[u])
-                    lss.append(linestyle[u])
-                    facet_index.append(facet_dict[u])
-                    mks.append(marker[u])
-                    mfcs.append(markerfacecolor[u])
-                    mecs.append(markeredgecolor[u])
+                    group_labels.append(group_key)
                     error_data.append(
                         get_transform(err_func)(x_hold, axis=0)
                         if err_func is not None
                         else None
                     )
+        nones = [None] * len(y_data)
         output = LinePlotData(
             x_data=x_data,
             y_data=y_data,
             error_data=error_data,
-            facet_index=facet_index,
-            marker=mks,
-            linecolor=lcs,
+            facet_index=self._process_dict(groups, facet_dict, unique_groups, agg_func),
+            marker=nones,
+            linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
             linewidth=linewidth,
-            linestyle=lss,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
-            markersize=markersize,
+            linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
+            markerfacecolor=nones,
+            markeredgecolor=nones,
+            markersize=None,
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
             fb_direction="x",
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
 
@@ -1344,6 +1274,7 @@ class Processor:
         color_dict: dict[str, str],
         facet_dict: dict[str, int],
         linestyle_dict: dict[str, str],
+        zorder_dict: dict[str, int],
         linewidth: float | int = 2,
         unique_id: str | None = None,
         alpha: AlphaRange = 1.0,
@@ -1355,61 +1286,48 @@ class Processor:
 
         x_data = []
         y_data = []
-        error_data = []
-        facet_index = []
-        mks = []
-        lcs = []
-        lss = []
-        mfcs = []
-        mecs = []
+        group_labels = []
+        unique_groups = None
 
         groups = data.groups(levels)
         if unique_id is not None:
-            uid_groups = data.groups(levels + (unique_id,))
-            for i, indexes in groups.items():
-                uids = np.unique(data[indexes])
-                for j in uids:
-                    temp = uid_groups[i + (j,)]
-                    temp_y = np.asarray(data[temp, y])
-                    temp_x = np.asarray(data[temp, x])
-                    x_data.append(get_transform(xtransform)(temp_x))
-                    y_data.append(get_transform(ytransform)(temp_y))
-                    facet_index.append(facet_dict[i])
-                    mks.append(None)
-                    lcs.append(color_dict[i])
-                    lss.append(linestyle_dict[i])
-                    mfcs.append("none")
-                    mecs.append("none")
-                    error_data.append(None)
-        else:
-            for i, indexes in groups.items():
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, indexes in groups.items():
+            if unique_id is None:
                 temp_y = np.asarray(data[indexes, y])
                 temp_x = np.asarray(data[indexes, x])
                 x_data.append(get_transform(xtransform)(temp_x))
                 y_data.append(get_transform(ytransform)(temp_y))
-                facet_index.append(facet_dict[i])
-                mks.append(None)
-                lcs.append(color_dict[i])
-                lss.append(linestyle_dict[i])
-                mfcs.append("none")
-                mecs.append("none")
-                error_data.append(None)
+                group_labels.append(group_key)
+            else:
+                for i, indexes in groups.items():
+                    uids = np.unique(data[indexes])
+                    for j in uids:
+                        temp = unique_groups[i + (j,)]
+                        temp_y = np.asarray(data[temp, y])
+                        temp_x = np.asarray(data[temp, x])
+                        x_data.append(get_transform(xtransform)(temp_x))
+                        y_data.append(get_transform(ytransform)(temp_y))
+                        group_labels.append(group_key)
+        nones = [None] * len(y_data)
         output = LinePlotData(
             x_data=x_data,
             y_data=y_data,
-            error_data=error_data,
-            facet_index=facet_index,
-            marker=mks,
-            linecolor=lcs,
+            error_data=nones,
+            facet_index=self._process_dict(groups, facet_dict, unique_groups),
+            marker=nones,
+            linecolor=self._process_dict(groups, color_dict, unique_groups),
             linewidth=linewidth,
-            linestyle=lss,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
+            linestyle=self._process_dict(groups, linestyle_dict, unique_groups),
+            markerfacecolor=nones,
+            markeredgecolor=nones,
             markersize=None,
             fill_between=False,
             linealpha=alpha,
             fillalpha=alpha,
             fb_direction="y",
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups),
         )
         return output
 
@@ -1531,6 +1449,7 @@ class Processor:
         edgecolor_dict: dict[str, str],
         cutoff: None | float | int | list[float | int],
         include_bins: list[bool],
+        zorder_dict: dict[str, int],
         barwidth: float = 1.0,
         linewidth: float | int = 1,
         alpha: AlphaRange = 1.0,
@@ -1571,38 +1490,31 @@ class Processor:
 
         heights = []
         bottoms = []
-        edgecolors = []
-        fillcolors = []
         x_loc = []
         hatches = []
         bw = []
+        group_labels = []
+        unique_groups = None
 
         groups = data.groups(levels)
         if unique_id is not None:
-            uid_groups = data.groups(levels + (unique_id,))
-        for gr, indexes in groups.items():
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, indexes in groups.items():
             if unique_id is None:
-                bw.extend([barwidth] * plot_bins)
+                bw.append([barwidth] * plot_bins)
                 top, bottom = _bin_data(
                     data[indexes, y], bins, axis_type, invert, cutoff
                 )
-                heights.extend(top[include_bins])
-                bottoms.extend(bottom[include_bins])
-                fc = [
-                    color_dict[gr],
-                ] * plot_bins
-                fillcolors.extend(fc)
-                ec = [
-                    edgecolor_dict[gr],
-                ] * plot_bins
-                edgecolors.extend(ec)
-                x_s = [loc_dict[gr]] * plot_bins
-                x_loc.extend(x_s)
-                hatches.extend(hs)
+                heights.append(top[include_bins])
+                bottoms.append(bottom[include_bins])
+                x_s = [loc_dict[group_key]] * plot_bins
+                x_loc.append(x_s)
+                hatches.append(hs)
+                group_labels.append(group_key)
             else:
-                unique_ids_sub = np.unique(data[groups[gr], unique_id])
+                unique_ids_sub = np.unique(data[groups[group_key], unique_id])
                 temp_width = barwidth / len(unique_ids_sub)
-                bw.extend([temp_width] * plot_bins * len(unique_ids_sub))
+                bw.append([temp_width] * plot_bins * len(unique_ids_sub))
                 if len(unique_ids_sub) > 1:
                     dist = np.linspace(
                         -barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1
@@ -1612,38 +1524,32 @@ class Processor:
                     dist = [0]
                 for index, ui_group in enumerate(unique_ids_sub):
                     top, bottom = _bin_data(
-                        data[uid_groups[gr + (ui_group,)], y],
+                        data[unique_groups[group_key + (ui_group,)], y],
                         bins,
                         axis_type,
                         invert,
                         cutoff,
                     )
-
-                    heights.extend(top[include_bins])
-                    bottoms.extend(bottom[include_bins])
-                    fc = [
-                        color_dict[gr],
-                    ] * plot_bins
-                    fillcolors.extend(fc)
-                    ec = [
-                        edgecolor_dict[gr],
-                    ] * plot_bins
-                    edgecolors.extend(ec)
-                    x_s = [loc_dict[gr] + dist[index]] * plot_bins
-                    x_loc.extend(x_s)
-                    hatches.extend(hs)
+                    heights.append(top[include_bins])
+                    bottoms.append(bottom[include_bins])
+                    x_s = [loc_dict[group_key] + dist[index]] * plot_bins
+                    x_loc.append(x_s)
+                    hatches.append(hs)
+                    group_labels.append(group_key)
         output = RectanglePlotData(
             heights=heights,
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
-            fillcolors=fillcolors,
-            edgecolors=edgecolors,
+            fillcolors=self._process_dict(groups, color_dict, unique_groups),
+            edgecolors=self._process_dict(groups, edgecolor_dict, unique_groups),
             fill_alpha=alpha,
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
             axis="x",
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups),
         )
         return output
 
@@ -1660,6 +1566,7 @@ class Processor:
         linewidth: float | int,
         alpha: float | int,
         edge_alpha: float | int,
+        zorder_dict: dict[str, int],
         axis_type: CountPlotTypes,
         unique_id: str | None = None,
         invert: bool = False,
@@ -1681,7 +1588,7 @@ class Processor:
         multiplier = 100 if axis_type == "percent" else 1
 
         groups = data.groups(levels)
-        for gr, indexes in groups.items():
+        for group_key, indexes in groups.items():
             unique_groups_sub, counts = np.unique(data[indexes, y], return_counts=True)
             size = sum(counts)
             temp_width = barwidth / len(unique_groups_sub)
@@ -1692,7 +1599,7 @@ class Processor:
                 dist = (dist[1:] + dist[:-1]) / 2
             else:
                 dist = [0]
-            bw.extend([temp_width] * len(unique_groups_sub))
+            bw.append([temp_width] * len(unique_groups_sub))
             for index, ui_group, count in enumerate(zip(unique_groups_sub, counts)):
                 if unique_id is None:
                     bottoms.append(0)
@@ -1701,7 +1608,7 @@ class Processor:
                     )
                     fillcolors.append(color_dict[str(ui_group)])
                     edgecolors.append(edgecolor_dict[str(ui_group)])
-                    x_loc.append(loc_dict[gr] + dist[index])
+                    x_loc.append(loc_dict[group_key] + dist[index])
                     hatches.append(self.HATCHES[index] if hatch else None)
                 else:
                     pass
