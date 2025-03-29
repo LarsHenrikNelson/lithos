@@ -182,7 +182,7 @@ plot.plot_format
 ### Jitter + Summary plot
 Below is jitter plot with several custom settings. 
 * The metadata previously saved is loaded first.
-* Plots can be layered by just adding a plot type method call. 
+* Plots elements can be layered by just adding a plot method call. The order the plot methods are called matters. The ealiers plot methods will have a lower zorder and will be plot underneath any plot methods that are called after that plot method.
 * Colors can set using a string color, None,a dictionary of colors with values in either the subgroup or group as the keys and colors as the values or as a colormap provided by colorcet with optionally restricting the number of values use in the 255 value colormap by adding an integer start and end as :start-end to the name of the color map. 
 * The number of steps in the yaxis and the number of decimals to use set. Unlike matplotlib, Lithos always plots ticks at the end. This makes for more uniform plots and is visually appealing with the potential problem of too much white space. I generally do not have issues with too much white space.
 * The optional unique_id is passed to jitter plot to plot nested data with individual marker types.
@@ -640,5 +640,82 @@ plot = (
 
     
 ![png](README_files/README_32_0.png)
+    
+
+
+### Histogram
+Histogram has several unique parameters:
+* You can plot on both the x and y axis.
+* If you pass "common" to bin_limits then all the plots will have bins of the same size and the same max and min.
+* You can also pass custom bins and custom bin limits.
+* Like many other plotting methods you can pass a unique_id and agg_func which will create a histogram per unique_id then aggregate the data together.
+
+
+```python
+df = create_synthetic_data(n_groups=2, n_unique_ids=5, n_points=60)
+fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
+plot1 = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .hist(
+        bin_limits="common",
+        linewidth=0,
+        fillalpha=0.3,
+    )
+    .plot_data(y="y")
+    .axis(ydecimals=2, xdecimals=2)
+    .plot(figure=fig, axes=ax[0])
+)
+plot1 = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .hist(
+        unique_id="unique_grouping",
+        agg_func="mean",
+        bin_limits="common",
+        linewidth=0,
+        fillalpha=0.3,
+    )
+    .plot_data(x="y")
+    .axis(ydecimals=2, xdecimals=2)
+    .plot(figure=fig, axes=ax[1])
+)
+```
+
+
+    
+![png](README_files/README_34_0.png)
+    
+
+
+* You can also plot the histogram as a polar plot.
+* Additionally you can use pi values instead of floats if you pass xunits as radian (0, 2pi) or wradian (-pi, pi).
+
+
+```python
+df = create_synthetic_data(n_groups=2, n_unique_ids=5, n_points=60)
+mx = max(df["y"])
+mn = min(df["y"])
+df["y"] = (((df["y"] - mn)) / (mx - mn) * 3.09) + 0.00001
+plot1 = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .hist(
+        # unique_id="unique_grouping",
+        # agg_func="mean",
+        bin_limits="common",
+        linewidth=0,
+        fillalpha=0.3,
+    )
+    .plot_data(x="y")
+    .axis(ydecimals=2, xdecimals=2, xunits="radian")
+    .figure(projection="polar")
+    .plot()
+)
+```
+
+
+    
+![png](README_files/README_36_0.png)
     
 

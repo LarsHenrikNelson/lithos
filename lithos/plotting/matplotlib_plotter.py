@@ -432,13 +432,14 @@ class Plotter:
         hatches: list[str],
         linewidth: float,
         ax: mpl.axes.Axes | list[mpl.axes.Axes] | np.ndarray[mpl.axes.Axes],
+        zorder: list[int],
         facet_index: list[int] | None = None,
         axis: Literal["x", "y"] = "x",
         **kwargs,
     ):
         if facet_index is None:
             facet_index = [0] * len(heights)
-        for t, b, loc, bw, fc, ec, ht, facet in zip(
+        for t, b, loc, bw, fc, ec, ht, facet, z in zip(
             heights,
             bottoms,
             bins,
@@ -447,6 +448,7 @@ class Plotter:
             edgecolors,
             hatches,
             facet_index,
+            zorder,
         ):
             if axis == "x":
                 ax[facet].bar(
@@ -458,6 +460,7 @@ class Plotter:
                     edgecolor=self._process_color(ec, edge_alpha),
                     linewidth=linewidth,
                     hatch=ht,
+                    zorder=z,
                 )
             else:
                 ax[facet].barh(
@@ -469,6 +472,7 @@ class Plotter:
                     edgecolor=self._process_color(ec, edge_alpha),
                     linewidth=linewidth,
                     hatch=ht,
+                    zorder=z,
                 )
         return ax
 
@@ -482,11 +486,12 @@ class Plotter:
         markersize: float,
         alpha: float,
         edge_alpha: float,
+        zorder: list[int],
         ax: plt.Axes,
         **kwargs,
     ):
-        for x, y, mk, mf, me, ms in zip(
-            x_data, y_data, marker, markerfacecolor, markeredgecolor, markersize
+        for x, y, mk, mf, me, ms, z in zip(
+            x_data, y_data, marker, markerfacecolor, markeredgecolor, markersize, zorder
         ):
             ax[0].plot(
                 x,
@@ -497,6 +502,7 @@ class Plotter:
                     self._process_color(me, edge_alpha) if me != "none" else "none"
                 ),
                 markersize=ms,
+                zorder=z,
             )
         return ax
 
@@ -512,10 +518,11 @@ class Plotter:
         edge_alpha: float,
         linewidth: float,
         facet_index: list[int],
+        zorder: list[int],
         ax: plt.Axes,
         **kwargs,
     ):
-        for x, y, mk, mf, me, ms, facet in zip(
+        for x, y, mk, mf, me, ms, facet, z in zip(
             x_data,
             y_data,
             marker,
@@ -523,6 +530,7 @@ class Plotter:
             markeredgecolor,
             markersize,
             facet_index,
+            zorder,
         ):
             ax[facet].scatter(
                 x=x,
@@ -540,6 +548,7 @@ class Plotter:
                 ),
                 s=ms,
                 linewidth=linewidth,
+                zorder=z,
             )
         return ax
 
@@ -554,10 +563,13 @@ class Plotter:
         alpha: float,
         capstyle: str,
         capsize: float,
+        zorder: list[int],
         ax: plt.Axes,
         **kwargs,
     ):
-        for xd, yd, e, c, w in zip(x_data, y_data, error_data, colors, widths):
+        for xd, yd, e, c, w, z in zip(
+            x_data, y_data, error_data, colors, widths, zorder
+        ):
             _, caplines, bars = ax[0].errorbar(
                 x=xd,
                 y=yd,
@@ -566,6 +578,7 @@ class Plotter:
                 fmt="none",
                 linewidth=linewidth,
                 capsize=capsize,
+                zorder=z,
             )
             for cap in caplines:
                 cap.set_solid_capstyle(capstyle)
@@ -581,6 +594,7 @@ class Plotter:
                 fmt="none",
                 linewidth=linewidth,
                 capsize=0,
+                zorder=z,
             )
             for b in bars:
                 b.set_capstyle(capstyle)
@@ -599,10 +613,11 @@ class Plotter:
         width: float,
         show_ci: bool,
         showmeans: bool,
+        zorder: list[int],
         ax: plt.Axes,
         **kwargs,
     ):
-        for x, y, fcs, ecs in zip(x_data, y_data, facecolors, edgecolors):
+        for x, y, fcs, ecs, z in zip(x_data, y_data, facecolors, edgecolors, zorder):
             props = {
                 "boxprops": {
                     "facecolor": (self._process_color(fcs, alpha)),
@@ -623,6 +638,7 @@ class Plotter:
                 patch_artist=True,
                 showmeans=showmeans,
                 meanline=showmeans,
+                zorder=z,
                 **props,
             )
             for i in bplot["boxes"]:
@@ -638,11 +654,12 @@ class Plotter:
         alpha: float,
         edge_alpha: float,
         linewidth: float,
+        zorder: list[int],
         ax: plt.Axes,
         **kwargs,
     ):
-        for x, y, loc, fcs, ecs in zip(
-            x_data, y_data, location, facecolors, edgecolors
+        for x, y, loc, fcs, ecs, z in zip(
+            x_data, y_data, location, facecolors, edgecolors, zorder
         ):
             ax[0].fill_betweenx(
                 x,
@@ -651,6 +668,7 @@ class Plotter:
                 facecolor=self._process_color(fcs, alpha),
                 edgecolor=(self._process_color(ecs, edge_alpha)),
                 linewidth=linewidth,
+                zorder=z,
             )
 
     def _plot_line(
@@ -660,6 +678,7 @@ class Plotter:
         y_data: list,
         error_data: list,
         facet_index: list[int],
+        zorder: list[int],
         marker: list[str | None] | None = None,
         linecolor: list[str | None] | None = None,
         linewidth: list[float | None] | None = None,
@@ -673,7 +692,7 @@ class Plotter:
         linealpha: float | None = None,
         **kwargs,
     ):
-        for x, y, err, ls, lc, mf, me, mk, fc in zip(
+        for x, y, err, ls, lc, mf, me, mk, fc, z in zip(
             x_data,
             y_data,
             error_data,
@@ -683,6 +702,7 @@ class Plotter:
             markeredgecolor,
             marker,
             facet_index,
+            zorder,
         ):
             if not fill_between:
                 if fb_direction == "x":
@@ -699,6 +719,7 @@ class Plotter:
                         markeredgecolor=me,
                         markersize=markersize,
                         alpha=linealpha,
+                        zorder=z,
                     )
                 else:
                     ax[fc].errorbar(
@@ -714,6 +735,7 @@ class Plotter:
                         markeredgecolor=me,
                         markersize=markersize,
                         alpha=linealpha,
+                        zorder=z,
                     )
             else:
                 if err is not None:
@@ -725,6 +747,7 @@ class Plotter:
                             color=self._process_color(lc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
+                            zorder=z,
                         )
                     else:
                         ax[fc].fill_betweenx(
@@ -734,6 +757,7 @@ class Plotter:
                             color=self._process_color(lc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
+                            zorder=z,
                         )
                 ax[fc].plot(
                     x,
@@ -742,6 +766,7 @@ class Plotter:
                     linewidth=linewidth,
                     color=lc,
                     alpha=linealpha,
+                    zorder=z,
                 )
 
     def plot_legend(self):
