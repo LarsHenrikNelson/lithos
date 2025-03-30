@@ -1295,20 +1295,25 @@ class Processor:
         for group_key, indexes in groups.items():
             if unique_id is None:
                 temp_y = np.asarray(data[indexes, y])
-                temp_x = np.asarray(data[indexes, x])
-                x_data.append(get_transform(xtransform)(temp_x))
+                if x is not None:
+                    temp_x = np.asarray(data[indexes, x])
+                    x_data.append(get_transform(xtransform)(temp_x))
+                else:
+                    x_data.append(get_transform(xtransform)(np.arange(len(temp_y))))
                 y_data.append(get_transform(ytransform)(temp_y))
                 group_labels.append(group_key)
             else:
-                for i, indexes in groups.items():
-                    uids = np.unique(data[indexes])
-                    for j in uids:
-                        temp = unique_groups[i + (j,)]
-                        temp_y = np.asarray(data[temp, y])
-                        temp_x = np.asarray(data[temp, x])
+                uids = np.unique(data[indexes, unique_id])
+                for j in uids:
+                    sub_indexes = unique_groups[group_key + (j,)]
+                    temp_y = np.asarray(data[sub_indexes, y])
+                    if x is not None:
+                        temp_x = np.asarray(data[sub_indexes, x])
                         x_data.append(get_transform(xtransform)(temp_x))
-                        y_data.append(get_transform(ytransform)(temp_y))
-                        group_labels.append(group_key)
+                    else:
+                        x_data.append(get_transform(xtransform)(np.arange(len(temp_y))))
+                    y_data.append(get_transform(ytransform)(temp_y))
+                    group_labels.append(group_key)
         nones = [None] * len(y_data)
         output = LinePlotData(
             x_data=x_data,

@@ -503,7 +503,11 @@ class LinePlot(BasePlot):
                 "unique_id": unique_id,
             }
         )
-
+        linecolor = _process_colors(
+            linecolor,
+            self._plot_dict["group_order"],
+            self._plot_dict["subgroup_order"],
+        )
         linecolor_dict = create_dict(linecolor, self._plot_dict["unique_groups"])
         linestyle_dict = create_dict(linestyle, self._plot_dict["unique_groups"])
         line_plot = {

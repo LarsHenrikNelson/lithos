@@ -4,13 +4,34 @@ import numpy as np
 from numpy.random import default_rng
 
 
+def timeseries_dict(loc, scale, n):
+    rng = default_rng()
+    x = np.linspace(0, 50, n)
+    y = np.sin(x) + rng.random(n) * scale
+    y += x + loc
+    return y
+
+
+def get_dist(distribution, rng):
+    if distribution == "normal":
+        return lambda scale, loc, n: np.sort(rng.normal(loc, scale, n))
+    elif distribution == "gamma":
+        return lambda scale, loc, n: np.sort(rng.gamma(loc, scale, n))
+    elif distribution == "timeseries":
+        return timeseries_dict
+    elif distribution == "lognormal":
+        return lambda scale, loc, n: np.sort(rng.lognormal(loc, scale, n))
+    else:
+        raise ValueError(f"Unsupported distribution: {distribution}")
+
+
 def create_synthetic_data(
     n_groups: int = 1,
     n_subgroups: int = 0,
     n_unique_ids: int = 0,
     n_points: int = 30,
     seed: int = 42,
-    distribution: Literal["normal", "lognormal", "gamma"] = "normal",
+    distribution: Literal["normal", "lognormal", "gamma", "timeseries"] = "normal",
     loc: float = 1.2,
     scale: float = 1.0,
 ):
@@ -18,12 +39,7 @@ def create_synthetic_data(
 
     rng = default_rng(seed)
 
-    if distribution == "normal":
-        dist = rng.normal
-    elif distribution == "gamma":
-        dist = rng.gamma
-    else:
-        dist = rng.lognormal
+    dist = get_dist(distribution, rng)
 
     additive = []
 
@@ -47,7 +63,7 @@ def create_synthetic_data(
         grouping_2 = []
     for index, i in enumerate(unique_groups):
         if n_unique_ids == 0:
-            y_data.extend(np.sort(dist(loc, scale, n_points) + additive[index]))
+            y_data.extend(dist(loc, scale, n_points) + additive[index])
             x_data.extend(np.arange(n_points))
             grouping_1.extend([i[0]] * n_points)
             if n_subgroups != 0:
@@ -55,9 +71,7 @@ def create_synthetic_data(
         else:
             unique_vals = rng.normal(loc, 0.2, n_unique_ids)
             for j in range(n_unique_ids):
-                y_data.extend(
-                    np.sort(dist(unique_vals[j], scale, n_points) + additive[index])
-                )
+                y_data.extend(dist(unique_vals[j], scale, n_points) + additive[index])
                 x_data.extend(np.arange(n_points))
                 unique_grouping.extend([j] * n_points)
                 grouping_1.extend([i[0]] * n_points)
