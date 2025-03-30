@@ -207,7 +207,7 @@ plot = (
     )
     .jitter(
         marker="o",
-        color="blues:100-200",
+        color="blues-100:200",
         edgecolor="black",
         alpha=0.7,
         width=0.5,
@@ -238,7 +238,7 @@ plot = (
     .jitter(
         unique_id="unique_grouping",
         marker="o",
-        color="blues:100-200",
+        color="blues-100:200",
         edgecolor="black",
         alpha=0.7,
         width=0.5,
@@ -492,7 +492,7 @@ plot = (
     LinePlot(data=df)
     .grouping(group="grouping_1")
     .ecdf(
-        linecolor="rainbow:100-200",
+        linecolor="rainbow-100:200",
         linealpha=0.8,
         agg_func=None,
         err_func=None,
@@ -595,6 +595,45 @@ plot2 = (
     
 
 
+### Line plot
+If you have a simple line that does not need to be aggregated then use the line method. This provides a simple line plot for timeseries data. Here are the few parameters that line can take:
+* You do not have to pass x to plot_data. Lithos will just create an x of increasing numbers.
+* You can pass a unique_id to line plot.
+* You pass a linecolor, either a string or a dictionary.
+
+
+```python
+df1 = create_synthetic_data(n_groups=2, n_points=50, distribution="timeseries")
+fig, ax = plt.subplots(
+    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
+)
+plot = (
+    LinePlot(data=df1)
+    .grouping(group="grouping_1")
+    .line()
+    .plot_data(x="x", y="y")
+    .figure(ncols=2)
+    .plot(figure=fig, axes=ax[0])
+)
+df2 = create_synthetic_data(
+    n_groups=2, n_subgroups=3, n_points=50, distribution="timeseries"
+)
+plot = (
+    LinePlot(data=df2)
+    .grouping(group="grouping_1")
+    .line(unique_id="grouping_2", linecolor={0: "green", 1: "purple"})
+    .plot_data(y="y")
+    .figure(ncols=2)
+    .plot(figure=fig, axes=ax[1])
+)
+```
+
+
+    
+![png](README_files/README_32_0.png)
+    
+
+
 ### Scatter plot
 
 
@@ -623,11 +662,11 @@ plot = (
     LinePlot(data=df)
     .grouping(group="grouping_1")
     .scatter(
-        markercolor=("grouping_2", "kb:10-255"),
+        markercolor=("grouping_2", "kb-100:210"),
         alpha=0.3,
         edgecolor="white",
         linewidth=0.5,
-        markersize=("grouping_2", "30:100"),
+        markersize=("grouping_2", "60:100"),
         marker=".",
     )
     .plot_data(x="y", y="y1")
@@ -639,7 +678,7 @@ plot = (
 
 
     
-![png](README_files/README_32_0.png)
+![png](README_files/README_34_0.png)
     
 
 
@@ -684,38 +723,43 @@ plot1 = (
 
 
     
-![png](README_files/README_34_0.png)
+![png](README_files/README_36_0.png)
     
 
 
 * You can also plot the histogram as a polar plot.
 * Additionally you can use pi values instead of floats if you pass xunits as radian (0, 2pi) or wradian (-pi, pi).
+* You can adjust the figure size by using the figure method.
+* The figure method also accepts gridspec_kw. This is very useful for polar plots as matplotlib does not space multiple polar plots in one figure very well.
 
 
 ```python
-df = create_synthetic_data(n_groups=2, n_unique_ids=5, n_points=60)
+df = create_synthetic_data(n_groups=2, n_subgroups=3, n_unique_ids=5, n_points=60)
 mx = max(df["y"])
 mn = min(df["y"])
 df["y"] = (((df["y"] - mn)) / (mx - mn) * 3.09) + 0.00001
 plot1 = (
     LinePlot(data=df)
-    .grouping(group="grouping_1")
+    .grouping(group="grouping_1", subgroup="grouping_2", facet=True)
     .hist(
-        # unique_id="unique_grouping",
-        # agg_func="mean",
         bin_limits="common",
         linewidth=0,
         fillalpha=0.3,
     )
     .plot_data(x="y")
     .axis(ydecimals=2, xdecimals=2, xunits="radian")
-    .figure(projection="polar")
+    .figure(
+        projection="polar",
+        ncols=2,
+        gridspec_kw={"wspace": 0.1},
+        figsize=(8, 5),
+    )
     .plot()
 )
 ```
 
 
     
-![png](README_files/README_36_0.png)
+![png](README_files/README_38_0.png)
     
 

@@ -77,8 +77,8 @@ def _process_colors(
         return color
     if isinstance(color, str):
         if ":" in color:
-            color, indexes = color.split(":")
-            one, two = indexes.split("-")
+            color, indexes = color.split("-")
+            one, two = indexes.split(":")
             one = max(0, int(one))
             two = min(255, int(two))
             num = (
@@ -322,8 +322,8 @@ def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
             output = arg
     if isinstance(arg_cycle, str):
         if ":" in arg_cycle:
-            arg_cycle, indexes = arg_cycle.split(":")
-            one, two = indexes.split("-")
+            arg_cycle, indexes = arg_cycle.split("-")
+            one, two = indexes.split(":")
             start = max(0, int(one))
             stop = min(255, int(two))
         else:
