@@ -9,6 +9,9 @@ class DataHolder:
             for key, value in data.items():
                 if isinstance(value, list):
                     data[key] = np.array(value)
+        if isinstance(data, np.ndarray):
+            if len(data.shape) == 1:
+                data = data.reshape(-1, 1)
         self._data = data._data if isinstance(data, DataHolder) else data
         self._container_type = self._get_container_type()
         self._groups_cache = {}
