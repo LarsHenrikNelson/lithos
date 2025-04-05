@@ -11,7 +11,6 @@ from ..utils import (
 from .processing import Processor
 from .plot_utils import (
     _process_colors,
-    _process_positions,
     create_dict,
     process_args,
     process_scatter_args,
@@ -349,24 +348,17 @@ class BasePlot:
         if not self.inplace:
             return self
 
-    def _create_groupings(self, group, subgroup, group_order, subgroup_order):
-        if group is None:
-            unique_groups = [("",)]
-            group_order = [""]
-            levels = ()
-        elif subgroup is None:
-            if group_order is None:
-                group_order = np.unique(self.data[group])
-            unique_groups = [(g,) for g in group_order]
-            levels = (group,)
-        else:
-            if group_order is None:
-                group_order = np.unique(self.data[group])
-            if subgroup_order is None:
-                subgroup_order = np.unique(self.data[subgroup])
-            unique_groups = list(set(zip(self.data[group], self.data[subgroup])))
-            levels = (group, subgroup)
-        return group_order, subgroup_order, unique_groups, levels
+    def process_data(self):
+        processor = Processor(mpl.MARKERS, mpl.HATCHES)
+        self.processed_data = processor(
+            data=self.data,
+            plot_list=self.plot_list,
+            levels=self._plot_dict["levels"],
+            y=self._plot_data["y"],
+            x=self._plot_data["x"],
+            facet_dict=self._plot_dict["facet_dict"],
+            transforms=self._plot_transforms,
+        )
 
     def metadata(self):
         output = {
@@ -457,31 +449,7 @@ class LinePlot(BasePlot):
             "facet": facet,
             "facet_title": facet_title,
         }
-        group_order, subgroup_order, unique_groups, levels = self._create_groupings(
-            group, subgroup, group_order, subgroup_order
-        )
-
-        if facet:
-            facet_dict = create_dict(group_order, unique_groups)
-        else:
-            facet_dict = create_dict(0, unique_groups)
-
-        zgroup = group_order if subgroup_order is None else subgroup_order
-        zorder_dict = create_dict(zgroup, unique_groups)
-
-        self._plot_dict = {
-            "group": group,
-            "subgroup": subgroup,
-            "group_order": group_order,
-            "subgroup_order": subgroup_order,
-            "unique_groups": unique_groups,
-            "facet": facet,
-            "facet_dict": facet_dict,
-            "facet_title": facet_title,
-            "levels": levels,
-            "zorder_dict": zorder_dict,
-        }
-
+    
         if not self.inplace:
             return self
 
@@ -995,19 +963,6 @@ class LinePlot(BasePlot):
             }
         )
 
-    def process_data(self):
-        processor = Processor(mpl.MARKERS, mpl.HATCHES)
-        self.processed_data = processor(
-            data=self.data,
-            plot_list=self.plot_list,
-            levels=self._plot_dict["levels"],
-            y=self._plot_data["y"],
-            x=self._plot_data["x"],
-            facet_dict=self._plot_dict["facet_dict"],
-            transforms=self._plot_transforms,
-            plot_type="line",
-        )
-
     def _plot_processed_data(
         self,
         savefig: bool = False,
@@ -1054,39 +1009,6 @@ class CategoricalPlot(BasePlot):
             "group_order": group_order,
             "subgroup_order": subgroup_order,
             "group_spacing": group_spacing,
-        }
-        group_order, subgroup_order, unique_groups, levels = self._create_groupings(
-            group, subgroup, group_order, subgroup_order
-        )
-
-        if group is not None:
-            loc_dict, width = _process_positions(
-                subgroup=subgroup,
-                group_order=group_order,
-                subgroup_order=subgroup_order,
-                group_spacing=group_spacing,
-            )
-        else:
-            group_order = [""]
-            subgroup_order = [""]
-            loc_dict = {("",): 0.0}
-            width = 1.0
-
-        zgroup = group_order if subgroup_order is None else subgroup_order
-        zorder_dict = create_dict(zgroup, unique_groups)
-
-        x_ticks = [index for index, _ in enumerate(group_order)]
-        self._plot_dict = {
-            "group": group,
-            "subgroup": subgroup,
-            "group_order": group_order,
-            "subgroup_order": subgroup_order,
-            "unique_groups": unique_groups,
-            "x_ticks": x_ticks,
-            "loc_dict": loc_dict,
-            "width": width,
-            "levels": levels,
-            "zorder_dict": zorder_dict,
         }
 
         if not self.inplace:
@@ -1649,19 +1571,6 @@ class CategoricalPlot(BasePlot):
 
         if not self.inplace:
             return self
-
-    def process_data(self):
-        processor = Processor(mpl.MARKERS, mpl.HATCHES)
-        self.processed_data = processor(
-            data=self.data,
-            plot_list=self.plot_list,
-            levels=self._plot_dict["levels"],
-            y=self._plot_data["y"],
-            x=self._plot_data["x"],
-            loc_dict=self._plot_dict["loc_dict"],
-            transforms=self._plot_transforms,
-            plot_type="categorical",
-        )
 
     def _plot_processed_data(
         self,

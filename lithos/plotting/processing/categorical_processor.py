@@ -1,0 +1,748 @@
+# TODO: Need to remove all matplotlib functions from this file.
+
+from itertools import cycle
+from typing import Literal
+
+import numpy as np
+from numpy.random import default_rng
+
+from .. import stats
+from ...utils import DataHolder, get_transform
+from ..plot_utils import (
+    _bin_data,
+    process_duplicates,
+    process_jitter,
+    _process_positions,
+    create_dict,
+)
+from ..types import (
+    BW,
+    Agg,
+    AlphaRange,
+    BinType,
+    BoxPlotData,
+    CountPlotTypes,
+    Error,
+    Kernels,
+    Levels,
+    RectanglePlotData,
+    JitterPlotData,
+    SummaryPlotData,
+    Transform,
+    ViolinPlotData,
+    CapStyle,
+)
+
+from .base_processor import BaseProcessor
+
+
+class CategoricalProcessor(BaseProcessor):
+
+    def __init__(self, markers, hatches):
+        super().__init__(markers, hatches)
+        self.PLOTS = {
+            "box": self._box,
+            "jitter": self._jitter,
+            "jitteru": self._jitteru,
+            "poly_hist": self._poly_hist,
+            "summary": self._summary,
+            "summaryu": self._summaryu,
+            "violin": self._violin,
+            "percent": self._percent,
+            "count": self._count,
+        }
+
+    def process_groups(
+        self, group, subgroup, group_order, subgroup_order, group_spacing
+    ):
+        group_order, subgroup_order, unique_groups, levels = self._create_groupings(
+            group, subgroup, group_order, subgroup_order
+        )
+        if group is not None:
+            loc_dict, width = _process_positions(
+                subgroup=subgroup,
+                group_order=group_order,
+                subgroup_order=subgroup_order,
+                group_spacing=group_spacing,
+            )
+        else:
+            group_order = [""]
+            subgroup_order = [""]
+            loc_dict = {("",): 0.0}
+            width = 1.0
+
+        zgroup = group_order if subgroup_order is None else subgroup_order
+        zorder_dict = create_dict(zgroup, unique_groups)
+
+        x_ticks = [index for index, _ in enumerate(group_order)]
+
+        self._plot_dict = {
+            "group_order": group_order,
+            "subgroup_order": subgroup_order,
+            "unique_groups": unique_groups,
+            "loc_dict": loc_dict,
+            "levels": levels,
+            "zorder_dict": zorder_dict,
+            "x_tict": x_ticks,
+            "width": width,
+        }
+
+    def _jitter(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: list[str | int],
+        loc_dict: dict[str, float],
+        width: float,
+        color_dict: dict[str, str],
+        marker_dict: dict[str, str],
+        edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
+        alpha: AlphaRange = 1.0,
+        edge_alpha: AlphaRange = 1.0,
+        seed: int = 42,
+        markersize: float | int = 2,
+        ytransform: Transform = None,
+        unique_id: str | None = None,
+        *args,
+        **kwargs,
+    ) -> JitterPlotData:
+
+        transform = get_transform(ytransform)
+
+        rng = default_rng(seed)
+
+        x_data = []
+        y_data = []
+        markers = []
+        group_labels = []
+
+        groups = data.groups(levels)
+        unique_groups = None
+
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+
+        jitter_values = np.zeros(data.shape[0])
+
+        for group_key, indexes in groups.items():
+            temp_jitter = process_jitter(
+                data[indexes, y], loc_dict[group_key], width, rng=rng
+            )
+            jitter_values[indexes] = temp_jitter
+
+        for group_key, indexes in groups.items():
+            if unique_id is None:
+                x_data.append(jitter_values[indexes])
+                y_data.append(transform(data[indexes, y]))
+                group_labels.append(group_key)
+                markers.append(marker_dict[group_key])
+            else:
+                subgroups = np.unique(data[indexes, unique_id])
+                for ui_group, mrk in zip(subgroups, cycle(self.MARKERS)):
+                    sub_indexes = unique_groups[group_key + (ui_group,)]
+                    x_data.append(jitter_values[sub_indexes])
+                    y_data.append(transform(data[sub_indexes, y]))
+                    group_labels.append(group_key)
+                    markers.append(mrk)
+
+        output = JitterPlotData(
+            x_data=x_data,
+            y_data=y_data,
+            marker=markers,
+            markerfacecolor=self._process_dict(groups, color_dict, unique_groups),
+            markeredgecolor=self._process_dict(groups, edgecolor_dict, unique_groups),
+            markersize=[markersize] * len(y_data),
+            alpha=alpha,
+            edge_alpha=edge_alpha,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups),
+        )
+        return output
+
+    def _jitteru(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: Levels,
+        unique_id: str,
+        loc_dict: dict[str, float],
+        width: float,
+        color_dict: dict[str, str],
+        marker: str,
+        edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
+        alpha: AlphaRange = 1.0,
+        edge_alpha: AlphaRange = 1.0,
+        duplicate_offset: float = 0.0,
+        markersize: int = 2,
+        agg_func: Agg | None = None,
+        ytransform: Transform = None,
+        *args,
+        **kwargs,
+    ) -> JitterPlotData:
+
+        transform = get_transform(ytransform)
+        temp = width / 2
+
+        x_data = []
+        y_data = []
+        group_labels = []
+        unique_groups = None
+
+        groups = data.groups(levels)
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+
+        for group_key in groups.keys():
+            unique_ids_sub = np.unique(data[groups[group_key], unique_id])
+            if len(unique_ids_sub) > 1:
+                dist = np.linspace(-temp, temp, num=len(unique_ids_sub) + 1)
+                dist = np.round((dist[1:] + dist[:-1]) / 2, 10)
+            else:
+                dist = [0]
+            for index, ui_group in enumerate(unique_ids_sub):
+                if group_key == ("",):
+                    temp_group = (ui_group,)
+                else:
+                    temp_group = group_key + (ui_group,)
+                sub_indexes = unique_groups[temp_group]
+                x = np.full(len(sub_indexes), loc_dict[group_key]) + dist[index]
+                if duplicate_offset > 0.0:
+                    output = (
+                        process_duplicates(data[sub_indexes, y])
+                        * duplicate_offset
+                        * temp
+                    )
+                    x += output
+                if agg_func is None:
+                    x = get_transform(agg_func)(x)
+                else:
+                    x = x[0]
+                x_data.append(x)
+                y_data.append(get_transform(agg_func)(transform(data[sub_indexes, y])))
+                group_labels.append(group_key)
+        output = JitterPlotData(
+            x_data=x_data,
+            y_data=y_data,
+            marker=[marker] * len(y_data),
+            markerfacecolor=self._process_dict(
+                groups, color_dict, unique_groups, agg_func
+            ),
+            markeredgecolor=self._process_dict(
+                groups, edgecolor_dict, unique_groups, agg_func
+            ),
+            markersize=[markersize] * len(y_data),
+            alpha=alpha,
+            edge_alpha=edge_alpha,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+        )
+        return output
+
+    def _summary(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: Levels,
+        loc_dict: dict[str, float],
+        func: Agg,
+        capsize: float,
+        capstyle: CapStyle,
+        barwidth: float,
+        linewidth: float | int,
+        zorder_dict: dict[str, int],
+        color_dict: dict[str, str],
+        alpha: AlphaRange,
+        err_func: Error | None = None,
+        ytransform: Transform = None,
+        *args,
+        **kwargs,
+    ) -> SummaryPlotData:
+
+        transform = get_transform(ytransform)
+        y_data = []
+        error_data = []
+        x_data = []
+        group_labels = []
+
+        groups = data.groups(levels)
+        for i, indexes in groups.items():
+            x_data.append(loc_dict[i])
+            y_data.append(get_transform(func)(transform(data[indexes, y])))
+            group_labels.append(i)
+            if err_func is not None:
+                error_data.append(get_transform(err_func)(transform(data[indexes, y])))
+            else:
+                error_data.append(None)
+        output = SummaryPlotData(
+            x_data=x_data,
+            y_data=y_data,
+            error_data=error_data,
+            widths=[barwidth] * len(y_data),
+            colors=self._process_dict(groups, color_dict),
+            linewidth=linewidth,
+            alpha=alpha,
+            capstyle=capstyle,
+            capsize=capsize,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict),
+        )
+        return output
+
+    def _summaryu(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: Levels,
+        unique_id: str,
+        loc_dict: dict[str, float],
+        func: Agg,
+        capsize: float | int,
+        capstyle: CapStyle,
+        barwidth: float,
+        linewidth: float | int,
+        color_dict: dict[str, str],
+        zorder_dict: dict[str, int],
+        alpha: AlphaRange = 1.0,
+        agg_func: Agg | None = None,
+        err_func: Error = None,
+        agg_width: float = 1.0,
+        ytransform: Transform = None,
+        *args,
+        **kwargs,
+    ) -> SummaryPlotData:
+
+        transform = get_transform(ytransform)
+        y_data = []
+        error_data = []
+        x_data = []
+        widths = []
+        group_labels = []
+        unique_groups = None
+
+        groups = data.groups(levels)
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, indexes in groups.items():
+            subgroups = np.unique(data[indexes, unique_id])
+            if agg_func is None:
+                temp = barwidth / 2
+                if len(subgroups) > 1:
+                    dist = np.linspace(-temp, temp, num=len(subgroups) + 1)
+                    centers = np.round((dist[1:] + dist[:-1]) / 2, 10)
+                else:
+                    centers = [0]
+                w = agg_width / len(subgroups)
+                for index, j in enumerate(subgroups):
+                    if group_key == ("",):
+                        temp_group = (j,)
+                    else:
+                        temp_group = group_key + (j,)
+                    widths.append(w)
+                    vals = transform(data[unique_groups[temp_group], y])
+                    x_data.append(loc_dict[group_key] + centers[index])
+
+                    y_data.append(get_transform(func)(vals))
+                    group_labels.append(group_key)
+
+                    if err_func is not None:
+                        error_data.append(get_transform(err_func)(vals))
+                    else:
+                        error_data.append(None)
+            else:
+                temp_vals = []
+                for index, j in enumerate(subgroups):
+                    vals = transform(data[unique_groups[group_key + (j,)], y])
+                    temp_vals.append(get_transform(func)(vals))
+                x_data.append(loc_dict[group_key])
+                widths.append(barwidth)
+                y_data.append(get_transform(func)(np.array(temp_vals)))
+                group_labels.append(group_key)
+                if err_func is not None:
+                    error_data.append(get_transform(err_func)(np.array(temp_vals)))
+                else:
+                    error_data.append(None)
+        output = SummaryPlotData(
+            x_data=x_data,
+            y_data=y_data,
+            error_data=error_data,
+            widths=widths,
+            colors=self._process_dict(groups, color_dict, unique_groups, agg_func),
+            linewidth=linewidth,
+            alpha=alpha,
+            capstyle=capstyle,
+            capsize=capsize,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+        )
+        return output
+
+    def _box(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: Levels,
+        loc_dict: dict[str, float],
+        color_dict: dict[str, str],
+        edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
+        fliers: str = "",
+        width: float = 1.0,
+        linewidth: float | int = 1,
+        showmeans: bool = False,
+        show_ci: bool = False,
+        alpha: AlphaRange = 1.0,
+        linealpha: AlphaRange = 1.0,
+        ytransform: Transform = None,
+        *args,
+        **kwargs,
+    ):
+
+        transform = get_transform(ytransform)
+
+        y_data = []
+        x_data = []
+        group_labels = []
+
+        groups = data.groups(levels)
+        for group_key, value in groups.items():
+            y_data.append(transform(data[value, y]))
+            x_data.append([loc_dict[group_key]])
+            group_labels.append(group_key)
+        output = BoxPlotData(
+            x_data=x_data,
+            y_data=y_data,
+            facecolors=self._process_dict(groups, color_dict),
+            edgecolors=self._process_dict(groups, edgecolor_dict),
+            alpha=alpha,
+            linealpha=linealpha,
+            fliers=fliers,
+            linewidth=linewidth,
+            width=width,
+            show_ci=show_ci,
+            showmeans=showmeans,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict),
+        )
+        return output
+
+    def _violin(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: Levels,
+        loc_dict: dict[str, float],
+        facecolor_dict,
+        edgecolor_dict: dict[str, str],
+        zorder_dict: dict[str, int],
+        alpha: AlphaRange = 1.0,
+        edge_alpha: AlphaRange = 1.0,
+        linewidth: float | int = 1,
+        width: float = 1.0,
+        ytransform: Transform = None,
+        unique_id: str | None = None,
+        kernel: Kernels = "gaussian",
+        bw: BW = "ISJ",
+        kde_length: int | None = None,
+        tol: float | int = 1e-3,
+        KDEType="fft",
+        agg_func: Agg | None = None,
+        unique_style: Literal["split", "overlap"] = "overlap",
+        *args,
+        **kwargs,
+    ):
+
+        transform = get_transform(ytransform)
+
+        groups = data.groups(levels)
+        unique_groups = None
+
+        x_data = []
+        y_data = []
+        loc = []
+        width = width / 2.0
+        group_labels = []
+
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, group_indexes in groups.items():
+            if unique_id is None:
+                y_values = np.asarray(data[group_indexes, y]).flatten()
+                x_kde, y_kde = stats.kde(
+                    get_transform(transform)(y_values),
+                    bw=bw,
+                    kernel=kernel,
+                    tol=tol,
+                    kde_length=kde_length,
+                    KDEType=KDEType,
+                )
+                y_data.append((y_kde / y_kde.max()) * width)
+                x_data.append(x_kde)
+                loc.append(loc_dict[group_key])
+                group_labels.append(group_key)
+            else:
+                subgroups = np.unique(data[group_indexes, unique_id])
+                if agg_func is not None:
+                    temp_data = data[group_indexes, y]
+                    min_data = get_transform(transform)(temp_data.min())
+                    max_data = get_transform(transform)(temp_data.max())
+                    min_data = min_data - np.abs((min_data * tol))
+                    max_data = max_data + np.abs((max_data * tol))
+                    min_data = min_data if min_data != 0 else -1e-10
+                    max_data = max_data if max_data != 0 else 1e-10
+                    x_array = np.linspace(min_data, max_data, num=kde_length)
+                    y_hold = np.zeros((len(subgroups), kde_length))
+                for hi, s in enumerate(subgroups):
+                    if unique_style == "split":
+                        if len(subgroups) > 1:
+                            dist = np.linspace(-width, width, num=len(subgroups) + 1)
+                            uwidth = (dist[1] - dist[0]) / 2.0
+                            dist = (dist[1:] + dist[:-1]) / 2.0
+                            dist += loc_dict[group_key]
+                        else:
+                            dist = [loc_dict[group_key]]
+                    else:
+                        dist = np.full(len(subgroups), loc_dict[group_key])
+                        uwidth = width
+                    s_indexes = unique_groups[group_key + (s,)]
+                    y_values = np.asarray(data[s_indexes, y]).flatten()
+                    if agg_func is None:
+                        x_kde, y_kde = stats.kde(
+                            get_transform(transform)(y_values),
+                            bw=bw,
+                            kernel=kernel,
+                            tol=tol,
+                            KDEType=KDEType,
+                            kde_length=kde_length,
+                        )
+                        y_data.append((y_kde / y_kde.max()) * uwidth)
+                        x_data.append(x_kde)
+                        loc.append(dist[hi])
+                        group_labels.append(group_key)
+                    else:
+                        _, y_kde = stats.kde(
+                            get_transform(transform)(y_values),
+                            bw=bw,
+                            kernel=kernel,
+                            tol=tol,
+                            x=x_array,
+                            KDEType=KDEType,
+                            kde_length=kde_length,
+                        )
+                        y_hold[hi, :] = y_kde
+                if agg_func is not None:
+                    x_kde, y_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
+                    y_data.append((y_kde / y_kde.max()) * width)
+                    x_data.append(x_kde)
+                    loc.append(loc_dict[group_key])
+                    group_labels.append(group_key)
+
+            output = ViolinPlotData(
+                x_data=x_data,
+                y_data=y_data,
+                location=loc,
+                facecolors=self._process_dict(
+                    groups, facecolor_dict, unique_groups, agg_func
+                ),
+                edgecolors=self._process_dict(
+                    groups, edgecolor_dict, unique_groups, agg_func
+                ),
+                alpha=alpha,
+                edge_alpha=edge_alpha,
+                linewidth=linewidth,
+                group_labels=group_labels,
+                zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+            )
+        return output
+
+    def _paired_plot():
+        pass
+
+    def _count(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: list[str],
+        loc_dict: dict,
+        color_dict: dict[str, str],
+        edgecolor_dict: dict[str, str],
+        hatch: str,
+        barwidth: float,
+        linewidth: float | int,
+        alpha: float | int,
+        edge_alpha: float | int,
+        zorder_dict: dict[str, int],
+        axis_type: CountPlotTypes,
+        unique_id: str | None = None,
+        invert: bool = False,
+        agg_func: Agg | None = None,
+        err_func: Error = None,
+        transform: Transform = None,
+        *args,
+        **kwargs,
+    ) -> RectanglePlotData:
+
+        bw = []
+        bottoms = []
+        heights = []
+        fillcolors = []
+        edgecolors = []
+        x_loc = []
+        hatches = []
+
+        multiplier = 100 if axis_type == "percent" else 1
+
+        groups = data.groups(levels)
+        for group_key, indexes in groups.items():
+            unique_groups_sub, counts = np.unique(data[indexes, y], return_counts=True)
+            size = sum(counts)
+            temp_width = barwidth / len(unique_groups_sub)
+            if len(unique_groups_sub) > 1:
+                dist = np.linspace(
+                    -barwidth / 2, barwidth / 2, num=len(unique_groups_sub) + 1
+                )
+                dist = (dist[1:] + dist[:-1]) / 2
+            else:
+                dist = [0]
+            bw.append([temp_width] * len(unique_groups_sub))
+            for index, ui_group, count in enumerate(zip(unique_groups_sub, counts)):
+                if unique_id is None:
+                    bottoms.append(0)
+                    heights.append(
+                        (count / size if axis_type != "count" else count) * multiplier
+                    )
+                    fillcolors.append(color_dict[str(ui_group)])
+                    edgecolors.append(edgecolor_dict[str(ui_group)])
+                    x_loc.append(loc_dict[group_key] + dist[index])
+                    hatches.append(self.HATCHES[index] if hatch else None)
+                else:
+                    pass
+        output = RectanglePlotData(
+            heights=heights,
+            bottoms=bottoms,
+            bins=x_loc,
+            binwidths=bw,
+            fillcolors=fillcolors,
+            edgecolors=edgecolors,
+            fill_alpha=alpha,
+            edge_alpha=edge_alpha,
+            hatches=hatches,
+            linewidth=linewidth,
+            axis="x",
+        )
+        return output
+
+    def _percent(
+        self,
+        data: DataHolder,
+        y: str,
+        levels: Levels,
+        loc_dict: dict[str, float],
+        color_dict: dict[str, str],
+        edgecolor_dict: dict[str, str],
+        cutoff: None | float | int | list[float | int],
+        include_bins: list[bool],
+        zorder_dict: dict[str, int],
+        barwidth: float = 1.0,
+        linewidth: float | int = 1,
+        alpha: AlphaRange = 1.0,
+        linealpha: AlphaRange = 1.0,
+        hatch: str | None = None,
+        unique_id: str | None = None,
+        invert: bool = False,
+        axis_type: BinType = "density",
+        *args,
+        **kwargs,
+    ) -> RectanglePlotData:
+
+        if cutoff is not None:
+            bins = np.zeros(len(cutoff) + 2)
+            bins[-1] = data[y].max() + 1e-6
+            bins[0] = data[y].min() - 1e-6
+            for i in range(len(cutoff)):
+                bins[i + 1] = cutoff[i]
+
+            if include_bins is None:
+                include_bins = [True] * (len(bins) - 1)
+            if len(include_bins) < (len(bins) - 1):
+                include_bins.extend([True] * ((len(bins) - 1) - len(include_bins)))
+        else:
+            bins = np.unique(data[y])
+            if include_bins is None:
+                include_bins = [True] * len(bins)
+
+            if len(include_bins) < len(bins):
+                include_bins.extend([True] * (len(bins) - len(include_bins)))
+
+        plot_bins = sum(include_bins)
+
+        if hatch is True:
+            hs = self.HATCHES[:plot_bins]
+        else:
+            hs = [None] * plot_bins
+
+        heights = []
+        bottoms = []
+        x_loc = []
+        hatches = []
+        bw = []
+        group_labels = []
+        unique_groups = None
+
+        groups = data.groups(levels)
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, indexes in groups.items():
+            if unique_id is None:
+                bw.append([barwidth] * plot_bins)
+                top, bottom = _bin_data(
+                    data[indexes, y], bins, axis_type, invert, cutoff
+                )
+                heights.append(top[include_bins])
+                bottoms.append(bottom[include_bins])
+                x_s = [loc_dict[group_key]] * plot_bins
+                x_loc.append(x_s)
+                hatches.append(hs)
+                group_labels.append(group_key)
+            else:
+                unique_ids_sub = np.unique(data[groups[group_key], unique_id])
+                temp_width = barwidth / len(unique_ids_sub)
+                bw.append([temp_width] * plot_bins * len(unique_ids_sub))
+                if len(unique_ids_sub) > 1:
+                    dist = np.linspace(
+                        -barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1
+                    )
+                    dist = (dist[1:] + dist[:-1]) / 2
+                else:
+                    dist = [0]
+                for index, ui_group in enumerate(unique_ids_sub):
+                    top, bottom = _bin_data(
+                        data[unique_groups[group_key + (ui_group,)], y],
+                        bins,
+                        axis_type,
+                        invert,
+                        cutoff,
+                    )
+                    heights.append(top[include_bins])
+                    bottoms.append(bottom[include_bins])
+                    x_s = [loc_dict[group_key] + dist[index]] * plot_bins
+                    x_loc.append(x_s)
+                    hatches.append(hs)
+                    group_labels.append(group_key)
+        output = RectanglePlotData(
+            heights=heights,
+            bottoms=bottoms,
+            bins=x_loc,
+            binwidths=bw,
+            fillcolors=self._process_dict(groups, color_dict, unique_groups),
+            edgecolors=self._process_dict(groups, edgecolor_dict, unique_groups),
+            fill_alpha=alpha,
+            edge_alpha=linealpha,
+            hatches=hatches,
+            linewidth=linewidth,
+            axis="x",
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups),
+        )
+        return output
