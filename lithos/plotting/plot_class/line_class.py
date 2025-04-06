@@ -18,7 +18,7 @@ from ..types import (
     KDEType,
     SavePath,
 )
-from . import matplotlib_plotter as mpl
+from .. import matplotlib_plotter as mpl
 from .base_class import BasePlot
 from ..processing import LineProcessor
 
@@ -86,7 +86,7 @@ class LinePlot(BasePlot):
         linecolor_dict = create_dict(linecolor, self._plot_dict["unique_groups"])
         linestyle_dict = create_dict(linestyle, self._plot_dict["unique_groups"])
         line_plot = {
-            "color_dict": linecolor_dict,
+            "linecolor_dict": linecolor_dict,
             "linestyle_dict": linestyle_dict,
             "linewidth": linewidth,
             "alpha": alpha,

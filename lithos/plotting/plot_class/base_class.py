@@ -14,7 +14,6 @@ from ..types import (
     SavePath,
     Transform,
 )
-from . import matplotlib_plotter as mpl
 
 
 class BasePlot:

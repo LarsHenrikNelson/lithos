@@ -6,7 +6,7 @@ from typing import Literal
 import numpy as np
 from numpy.random import default_rng
 
-from .. import stats
+from ... import stats
 from ...utils import DataHolder, get_transform
 from ..plot_utils import (
     _bin_data,

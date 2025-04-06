@@ -4,7 +4,7 @@ import numpy as np
 
 from ... import stats
 from ...utils import DataHolder, get_transform
-from ..plot_utils import _calc_hist, create_dict, _process_colors
+from ..plot_utils import _calc_hist, create_dict
 from ..types import (
     BW,
     Agg,
@@ -762,9 +762,9 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        linecolor: dict[str, str],
+        linecolor_dict: dict[str, str],
         loc_dict: dict[str, int],
-        linestyle: dict[str, str],
+        linestyle_dict: dict[str, str],
         zorder_dict: dict[str, int],
         linewidth: float | int = 2,
         unique_id: str | None = None,
@@ -779,14 +779,6 @@ class LineProcessor(BaseProcessor):
         y_data = []
         group_labels = []
         unique_groups = None
-
-        linecolor = _process_colors(
-            linecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        color_dict = create_dict(linecolor, self._plot_dict["unique_groups"])
-        linestyle_dict = create_dict(linestyle, self._plot_dict["unique_groups"])
 
         groups = data.groups(levels)
         if unique_id is not None:
@@ -820,7 +812,7 @@ class LineProcessor(BaseProcessor):
             error_data=nones,
             facet_index=self._process_dict(groups, loc_dict, unique_groups),
             marker=nones,
-            linecolor=self._process_dict(groups, color_dict, unique_groups),
+            linecolor=self._process_dict(groups, linecolor_dict, unique_groups),
             linewidth=linewidth,
             linestyle=self._process_dict(groups, linestyle_dict, unique_groups),
             markerfacecolor=nones,
