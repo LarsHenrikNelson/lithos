@@ -3,6 +3,8 @@ import shutil
 
 from lithos.utils import metadata_utils, create_synthetic_data
 
+pytest_plugins = "pytester"
+
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup(request):

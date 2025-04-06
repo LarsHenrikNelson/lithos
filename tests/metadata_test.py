@@ -1,4 +1,13 @@
+import pytest
+import os
+import glob
 from lithos.utils import metadata_utils
+
+
+@pytest.fixture(scope="session")
+def clean_directory(directory):
+    for file in glob.glob(directory, recursive=True):
+        os.remove(file)
 
 
 def test_home_dir():

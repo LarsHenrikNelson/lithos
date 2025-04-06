@@ -1,1 +1,1 @@
-from lithos.plotting.processing import Processor
+from lithos.plotting.processing import CategoricalProcessor, LineProcessor

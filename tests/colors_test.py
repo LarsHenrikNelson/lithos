@@ -10,15 +10,27 @@ def test_process_colors_string_input(color):
 
 
 @pytest.mark.parametrize(
-    "color, group, subgroup",
+    "input, group, subgroup, output",
     [
-        ({0: "black", 1: "red"}, [0, 1], None),
-        ({2: "black", 3: "red"}, [0, 1], [2, 3]),
+        (
+            {0: "black", 1: "red"},
+            [0, 1],
+            None,
+            {0: "black", 1: "red"},
+        ),
+        (
+            {2: "black", 3: "red"},
+            [0, 1],
+            [2, 3],
+            {2: "black", 3: "red"},
+        ),
+        (None, [0, 1], None, {0: "#1f77b3", 1: "#ff7e0e"}),
+        (None, [0, 1], [2, 3], {2: "#1f77b3", 3: "#ff7e0e"}),
     ],
 )
-def test_process_colors_dict_input(color, group, subgroup):
-    output = _process_colors(color, group, subgroup)
-    assert output == color
+def test_process_colors_dict_input(input, group, subgroup, output):
+    output = _process_colors(input, group, subgroup)
+    assert output == output
 
 
 @pytest.mark.parametrize(
@@ -27,13 +39,13 @@ def test_process_colors_dict_input(color, group, subgroup):
         ("glasbey_category10", [0, 1], None, {0: "#1f77b3", 1: "#ff7e0e"}),
         ("glasbey_category10", [0, 1], [2, 3], {2: "#1f77b3", 3: "#ff7e0e"}),
         (
-            "blues:100-255",
+            "blues-100:255",
             [0, 1],
             [2, 3, 4],
             {2: "#a4c1e5", 3: "#789dc6", 4: "#3a7bb1"},
         ),
         (
-            "blues:100-256",
+            "blues-100:256",
             [0, 1],
             [2, 3, 4],
             {2: "#a4c1e5", 3: "#789dc6", 4: "#3a7bb1"},
