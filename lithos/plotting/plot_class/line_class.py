@@ -62,7 +62,7 @@ class LinePlot(BasePlot):
 
     def line(
         self,
-        linecolor: ColorParameters = None,
+        linecolor: ColorParameters = "glasbey_category10",
         linestyle: str = "-",
         linewidth: int = 2,
         alpha: AlphaRange = 1.0,
@@ -104,7 +104,7 @@ class LinePlot(BasePlot):
         markerfacecolor: ColorParameters | tuple[str, str] = None,
         markeredgecolor: ColorParameters | tuple[str, str] = None,
         markersize: float | str = 1,
-        linecolor: ColorParameters = None,
+        linecolor: ColorParameters = "glasbey_category10",
         linewidth: float = 1.0,
         linestyle: str = "-",
         linealpha: float = 1.0,
@@ -186,7 +186,7 @@ class LinePlot(BasePlot):
         bw: BW = "silverman",
         tol: float | int = 1e-3,
         common_norm: bool = False,
-        linecolor: ColorParameters = None,
+        linecolor: ColorParameters = "glasbey_category10",
         linestyle: str = "-",
         linewidth: int = 2,
         fill_between: bool = False,
@@ -324,7 +324,7 @@ class LinePlot(BasePlot):
     def hist(
         self,
         hist_type: Literal["bar", "step", "stepfilled"] = "bar",
-        color: ColorParameters = None,
+        color: ColorParameters = "glasbey_category10",
         linecolor: ColorParameters = None,
         linewidth: float | int = 2,
         hatch=None,
@@ -396,7 +396,7 @@ class LinePlot(BasePlot):
 
     def ecdf(
         self,
-        linecolor: ColorParameters = None,
+        linecolor: ColorParameters = "glasbey_category10",
         linestyle: str = "-",
         linewidth: int = 2,
         linealpha: AlphaRange = 1.0,
@@ -462,8 +462,8 @@ class LinePlot(BasePlot):
     def scatter(
         self,
         marker: str = ".",
-        markercolor: ColorParameters | tuple[str, str] = "black",
-        edgecolor: ColorParameters = "black",
+        markercolor: ColorParameters | tuple[str, str] = "glasbey_category10",
+        edgecolor: ColorParameters = "white",
         markersize: float | str = 36,
         linewidth: float = 1.5,
         alpha: AlphaRange = 1.0,
@@ -548,7 +548,7 @@ class LinePlot(BasePlot):
     def fit(
         self,
         fit_func: Callable,
-        linecolor: ColorParameters = "black",
+        linecolor: ColorParameters = "glasbey_category10",
         linestyle: str = "-",
         linewidth: int = 2,
         alpha: AlphaRange = 1.0,

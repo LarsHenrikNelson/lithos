@@ -53,7 +53,7 @@ class CategoricalPlot(BasePlot):
 
     def jitter(
         self,
-        color: ColorParameters = None,
+        color: ColorParameters = "glasbey_category10",
         marker: str | dict[str, str] = "o",
         edgecolor: ColorParameters = "none",
         alpha: AlphaRange = 1.0,
@@ -120,7 +120,7 @@ class CategoricalPlot(BasePlot):
     def jitteru(
         self,
         unique_id: str | int | float,
-        color: ColorParameters = None,
+        color: ColorParameters = "glasbey_category10",
         marker: str | dict[str, str] = "o",
         edgecolor: ColorParameters = "none",
         alpha: AlphaRange = 1.0,
@@ -307,12 +307,12 @@ class CategoricalPlot(BasePlot):
 
     def box(
         self,
-        facecolor: ColorParameters = None,
-        edgecolor: ColorParameters = None,
+        facecolor: ColorParameters = "glasbey_category10",
+        edgecolor: ColorParameters = "glasbey_category10",
         fliers="",
         width: float = 1.0,
         linewidth=1,
-        alpha: AlphaRange = 1.0,
+        alpha: AlphaRange = 0.5,
         linealpha: AlphaRange = 1.0,
         showmeans: bool = False,
         show_ci: bool = False,
@@ -333,21 +333,19 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        if facecolor != "edgecolor":
-            color = _process_colors(
-                facecolor,
-                self._plot_dict["group_order"],
-                self._plot_dict["subgroup_order"],
-            )
-            color_dict = create_dict(color, self._plot_dict["unique_groups"])
+        color = _process_colors(
+            facecolor,
+            self._plot_dict["group_order"],
+            self._plot_dict["subgroup_order"],
+        )
+        color_dict = create_dict(color, self._plot_dict["unique_groups"])
 
-        if edgecolor != "facecolor":
-            edgecolor = _process_colors(
-                edgecolor,
-                self._plot_dict["group_order"],
-                self._plot_dict["subgroup_order"],
-            )
-            edgecolor_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
+        edgecolor = _process_colors(
+            edgecolor,
+            self._plot_dict["group_order"],
+            self._plot_dict["subgroup_order"],
+        )
+        edgecolor_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
 
         if facecolor == "edgecolor":
             color_dict = edgecolor_dict
@@ -385,10 +383,10 @@ class CategoricalPlot(BasePlot):
 
     def violin(
         self,
-        facecolor: ColorParameters = None,
-        edgecolor: ColorParameters = None,
+        facecolor: ColorParameters = "glasbey_category10",
+        edgecolor: ColorParameters = "glasbey_category10",
         linewidth=1,
-        alpha: AlphaRange = 1.0,
+        alpha: AlphaRange = 0.5,
         edge_alpha: AlphaRange = 1.0,
         width: float = 1.0,
         kde_length: int = 128,
