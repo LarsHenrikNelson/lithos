@@ -96,7 +96,7 @@ class BaseProcessor:
         plot_metadata,
         **kwargs,
     ):
-        self._create_groupings(plot_metadata["data"], **plot_metadata["grouping"])
+        self.process_groups(data, **plot_metadata["grouping"])
 
         processed_data = []
         transforms = plot_metadata["transforms"]

@@ -34,9 +34,9 @@ class LineProcessor(BaseProcessor):
             "aggline": self._aggline,
         }
 
-    def process_groups(self, group, subgroup, group_order, subgroup_order, facet):
+    def process_groups(self, data, group, subgroup, group_order, subgroup_order, facet):
         group_order, subgroup_order, unique_groups, levels = self._create_groupings(
-            group, subgroup, group_order, subgroup_order
+            data, group, subgroup, group_order, subgroup_order
         )
 
         if facet:

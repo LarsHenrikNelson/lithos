@@ -43,7 +43,6 @@ class CategoricalProcessor(BaseProcessor):
             "box": self._box,
             "jitter": self._jitter,
             "jitteru": self._jitteru,
-            "poly_hist": self._poly_hist,
             "summary": self._summary,
             "summaryu": self._summaryu,
             "violin": self._violin,
@@ -52,10 +51,10 @@ class CategoricalProcessor(BaseProcessor):
         }
 
     def process_groups(
-        self, group, subgroup, group_order, subgroup_order, group_spacing
+        self, data, group, subgroup, group_order, subgroup_order, group_spacing
     ):
         group_order, subgroup_order, unique_groups, levels = self._create_groupings(
-            group, subgroup, group_order, subgroup_order
+            data, group, subgroup, group_order, subgroup_order
         )
         if group is not None:
             loc_dict, width = _process_positions(
