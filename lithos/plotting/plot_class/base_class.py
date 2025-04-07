@@ -52,13 +52,6 @@ class BasePlot:
             self.grid()
             self.transform()
 
-    def _set_zorder(self):
-        adder = len(self.plot_list) * len(self._plot_dict["zorder_dict"]) + 1
-        zorder_dict = {
-            key: value + adder for key, value in self._plot_dict["zorder_dict"].items()
-        }
-        return zorder_dict
-
     def add_axline(
         self,
         linetype: Literal["hline", "vline"],
@@ -131,8 +124,8 @@ class BasePlot:
         xdecimals: int = None,
         xformat: Literal["f", "e"] = "f",
         yformat: Literal["f", "e"] = "f",
-        yunits: Literal["degree", "radian" "wradian"] | None = None,
-        xunits: Literal["degree", "radian" "wradian"] | None = None,
+        yunits: Literal["degree", "radianwradian"] | None = None,
+        xunits: Literal["degree", "radianwradian"] | None = None,
     ):
         if ylim is None:
             ylim = (None, None)
@@ -215,7 +208,6 @@ class BasePlot:
         ncols: int = None,
         projection: Literal["rectilinear", "polar"] = "rectilinear",
     ):
-
         figure = {
             "gridspec_kw": gridspec_kw,
             "margins": margins,
@@ -240,7 +232,6 @@ class BasePlot:
         linestyle: str | tuple = "solid",
         minor_linestyle: str | tuple = "solid",
     ):
-
         grid = {
             "ygrid": ygrid,
             "xgrid": xgrid,
@@ -255,7 +246,6 @@ class BasePlot:
             return self
 
     def clear_plots(self):
-        self.plot_list = []
         self._plot_methods = []
         self._plot_prefs = []
 
@@ -393,7 +383,6 @@ class BasePlot:
 
 
 class GraphPlot:
-
     def __init__(self, graph):
         self._plot_dict = {}
         self._plot_dict["graph"] = graph

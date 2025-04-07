@@ -22,7 +22,6 @@ from .base_processor import BaseProcessor
 
 
 class LineProcessor(BaseProcessor):
-
     def __init__(self, markers, hatches):
         super().__init__(markers, hatches)
         self.PLOTS = {
@@ -129,7 +128,6 @@ class LineProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> RectanglePlotData:
-
         y = y if x is None else x
         transform = ytransform if xtransfrom is None else xtransfrom
         axis = "y" if x is None else "x"
@@ -302,7 +300,6 @@ class LineProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> LinePlotData:
-
         x_data = []
         y_data = []
         error_data = []
@@ -557,7 +554,6 @@ class LineProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> LinePlotData:
-
         column = y if x is None else x
         transform = ytransform if xtransform is None else xtransform
 
@@ -774,7 +770,6 @@ class LineProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> LinePlotData:
-
         x_data = []
         y_data = []
         group_labels = []

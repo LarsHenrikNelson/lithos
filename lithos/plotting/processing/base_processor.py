@@ -1,5 +1,7 @@
 import numpy as np
 
+from ..plot_utils import _process_colors, create_dict, process_scatter_args
+
 
 class BaseProcessor:
     def __init__(self, markers, hatches):
@@ -35,25 +37,85 @@ class BaseProcessor:
         self.zorder += 1
         return zorder_dict
 
+    def preprocess_args(self, args: dict):
+        check_args = {"marker", "linestyle"}
+        for key, value in args:
+            if "color" in key:
+                color = _process_colors(
+                    value,
+                    self._plot_dict["group_order"],
+                    self._plot_dict["subgroup_order"],
+                )
+                args[key] = create_dict(color, self._plot_dict["unique_groups"])
+            elif key in check_args:
+                args[key] = create_dict(value, self._plot_dict["unique_groups"])
+            elif key == "width":
+                args[key] = value * self._plot_dict["width"]
+
+    def process_scatter(self, args):
+        for key, value in args.items():
+            if "color" in key:
+                if isinstance(value, tuple):
+                    markercolor0 = value[0]
+                    markercolor1 = value[1]
+                else:
+                    markercolor0 = value
+                    markercolor1 = None
+
+                args[key] = process_scatter_args(
+                    markercolor0,
+                    self.data,
+                    self._plot_dict["levels"],
+                    self._plot_dict["unique_groups"],
+                    markercolor1,
+                )
+            elif key == "markersize":
+                if isinstance(key, tuple):
+                    column = key[0]
+                    start, stop = key[1].split(":")
+                    start, stop = int(start) * 4, int(stop) * 4
+                    vmin = self.data.min(column)
+                    vmax = self.data.max(column)
+                    vals = self.data[column]
+                    args[key] = (np.array(vals) - vmin) * (stop - start) / (
+                        vmax - vmin
+                    ) + start
+                else:
+                    args[key] = [value * 4] * self.data.shape[0]
+
+        args["facetgroup"] = process_scatter_args(
+            self._plot_dict["facet"],
+            self.data,
+            self._plot_dict["levels"],
+            self._plot_dict["unique_groups"],
+        )
+
     def __call__(
         self,
         data,
-        plot_list,
-        levels: list[str],
-        y: str,
-        transforms: dict,
-        x: str | None = None,
+        plot_metadata,
         **kwargs,
     ):
+        self._create_groupings(plot_metadata["data"], **plot_metadata["grouping"])
+
         processed_data = []
-        for p, pdict in plot_list:
+        transforms = plot_metadata["transforms"]
+        y = plot_metadata["data"]["y"]
+        x = plot_metadata["data"]["x"]
+        levels = self._plot_dict["levels"]
+
+        for p, pdict in zip(plot_metadata["plot_methods"], plot_metadata["plot_prefs"]):
+            if p != "scatter":
+                args = self.preprocess_args(pdict)
+            else:
+                args = self.process_scatter(pdict)
             temp = self.PLOTS[p](
                 data=data,
                 y=y,
                 x=x,
                 loc_dict=kwargs["loc_dict"],
                 levels=levels,
-                **pdict,
+                **args,
                 **transforms,
             )
             processed_data.append(temp)

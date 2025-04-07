@@ -53,9 +53,9 @@ class CategoricalPlot(BasePlot):
 
     def jitter(
         self,
-        color: ColorParameters = "glasbey_category10",
+        markercolor: ColorParameters = "glasbey_category10",
         marker: str | dict[str, str] = "o",
-        edgecolor: ColorParameters = "none",
+        edgecolor: ColorParameters = "white",
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
         width: float | int = 1.0,
@@ -67,7 +67,7 @@ class CategoricalPlot(BasePlot):
         self._plot_methods.append("jitter")
         self._plot_prefs.append(
             {
-                "color": color,
+                "markercolor": markercolor,
                 "marker": marker,
                 "edgecolor": edgecolor,
                 "alpha": alpha,
@@ -79,40 +79,6 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        marker_dict = create_dict(marker, self._plot_dict["unique_groups"])
-        color = _process_colors(
-            color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        color_dict = create_dict(color, self._plot_dict["unique_groups"])
-
-        if edgecolor == "color":
-            edgecolor_dict = color_dict
-        else:
-            edgecolor_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
-
-        jitter_plot = {
-            "color_dict": color_dict,
-            "marker_dict": marker_dict,
-            "edgecolor_dict": edgecolor_dict,
-            "alpha": alpha,
-            "edge_alpha": edge_alpha,
-            "width": width * self._plot_dict["width"],
-            "seed": seed,
-            "markersize": markersize,
-            "unique_id": unique_id,
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("jitter", jitter_plot))
-
-        if legend:
-            if color is not None or edgecolor == "none":
-                d = color
-            else:
-                d = edgecolor
-            d = _process_colors(
-                d, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
@@ -120,7 +86,7 @@ class CategoricalPlot(BasePlot):
     def jitteru(
         self,
         unique_id: str | int | float,
-        color: ColorParameters = "glasbey_category10",
+        markercolor: ColorParameters = "glasbey_category10",
         marker: str | dict[str, str] = "o",
         edgecolor: ColorParameters = "none",
         alpha: AlphaRange = 1.0,
@@ -135,7 +101,7 @@ class CategoricalPlot(BasePlot):
         self._plot_prefs.append(
             {
                 "unique_id": unique_id,
-                "color": color,
+                "markercolor": markercolor,
                 "marker": marker,
                 "edgecolor": edgecolor,
                 "alpha": alpha,
@@ -147,43 +113,6 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        color = _process_colors(
-            color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        color_dict = create_dict(color, self._plot_dict["unique_groups"])
-
-        if edgecolor is None:
-            edgecolor_dict = color_dict
-        else:
-            edgecolor_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
-
-        if edge_alpha is None:
-            edge_alpha = alpha
-
-        jitteru_plot = {
-            "color_dict": color_dict,
-            "marker": marker,
-            "edgecolor_dict": edgecolor_dict,
-            "alpha": alpha,
-            "edge_alpha": edge_alpha,
-            "width": width * self._plot_dict["width"],
-            "markersize": markersize,
-            "unique_id": unique_id,
-            "duplicate_offset": duplicate_offset,
-            "agg_func": agg_func,
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("jitteru", jitteru_plot))
-
-        if legend:
-            if color is not None or edgecolor == "none":
-                d = color
-            else:
-                d = edgecolor
-            d = _process_colors(
-                d, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
@@ -214,30 +143,6 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        color = _process_colors(
-            color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        color_dict = create_dict(color, self._plot_dict["unique_groups"])
-
-        summary_plot = {
-            "func": func,
-            "capsize": capsize,
-            "capstyle": capstyle,
-            "barwidth": barwidth * self._plot_dict["width"],
-            "err_func": err_func,
-            "linewidth": linewidth,
-            "color_dict": color_dict,
-            "alpha": alpha,
-            "zorder_dict": self._set_zorder(),
-        }
-
-        self.plot_list.append(("summary", summary_plot))
-
-        if legend:
-            d = _process_colors(
-                color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
@@ -274,33 +179,6 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        color = _process_colors(
-            color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        color_dict = create_dict(color, self._plot_dict["unique_groups"])
-
-        summary_plot = {
-            "func": func,
-            "unique_id": unique_id,
-            "agg_func": agg_func,
-            "capsize": capsize,
-            "capstyle": capstyle,
-            "barwidth": barwidth * self._plot_dict["width"],
-            "err_func": err_func,
-            "linewidth": linewidth,
-            "color_dict": color_dict,
-            "alpha": alpha,
-            "agg_width": agg_width,
-            "zorder_dict": self._set_zorder(),
-        }
-
-        self.plot_list.append(("summaryu", summary_plot))
-
-        if legend:
-            d = _process_colors(
-                color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
@@ -333,50 +211,6 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        color = _process_colors(
-            facecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        color_dict = create_dict(color, self._plot_dict["unique_groups"])
-
-        edgecolor = _process_colors(
-            edgecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        edgecolor_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
-
-        if facecolor == "edgecolor":
-            color_dict = edgecolor_dict
-
-        if edgecolor == "facecolor":
-            edgecolor_dict = color_dict
-
-        box = {
-            "color_dict": color_dict,
-            "edgecolor_dict": edgecolor_dict,
-            "fliers": fliers,
-            "width": width * self._plot_dict["width"],
-            "showmeans": showmeans,
-            "show_ci": show_ci,
-            "linewidth": linewidth,
-            "alpha": alpha,
-            "linealpha": linealpha,
-            "zorder_dict": self._set_zorder(),
-        }
-
-        self.plot_list.append(("box", box))
-
-        if legend:
-            if facecolor is not None or edgecolor == "black":
-                d = facecolor
-            else:
-                d = edgecolor
-            d = _process_colors(
-                d, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
@@ -419,43 +253,6 @@ class CategoricalPlot(BasePlot):
                 "unique_style": unique_style,
             }
         )
-        color = _process_colors(
-            facecolor, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        color_dict = create_dict(color, self._plot_dict["unique_groups"])
-        edgecolor = _process_colors(
-            edgecolor, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        edge_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
-        violin = {
-            "facecolor_dict": color_dict,
-            "edgecolor_dict": edge_dict,
-            "alpha": alpha,
-            "edge_alpha": edge_alpha,
-            "width": width * self._plot_dict["width"],
-            "linewidth": linewidth,
-            "kde_length": kde_length,
-            "unique_id": unique_id,
-            "agg_func": agg_func,
-            "KDEType": KDEType,
-            "kernel": kernel,
-            "bw": bw,
-            "tol": tol,
-            "unique_style": unique_style,
-            "zorder_dict": self._set_zorder(),
-        }
-
-        self.plot_list.append(("violin", violin))
-
-        if legend:
-            if facecolor is not None or edgecolor == "black":
-                d = facecolor
-            else:
-                d = edgecolor
-            d = _process_colors(
-                d, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
@@ -464,12 +261,12 @@ class CategoricalPlot(BasePlot):
         self,
         cutoff: None | float | int | list[float | int] = None,
         unique_id=None,
-        facecolor=None,
-        edgecolor: ColorParameters = "black",
+        facecolor="glaseby_category10",
+        edgecolor: ColorParameters = "glaseby_category10",
         hatch=None,
         barwidth: float = 1.0,
         linewidth=1,
-        alpha: float = 1.0,
+        alpha: float = 0.5,
         linealpha=1.0,
         axis_type: BinType = "density",
         include_bins: list[bool] | None = None,
@@ -477,6 +274,8 @@ class CategoricalPlot(BasePlot):
         legend: bool = False,
     ):
         self._plot_methods.append("percent")
+        if isinstance(cutoff, (float, int)):
+            cutoff = [cutoff]
         self._plot_prefs.append(
             {
                 "cutoff": cutoff,
@@ -490,69 +289,22 @@ class CategoricalPlot(BasePlot):
                 "axis_type": axis_type,
                 "invert": invert,
                 "include_bins": include_bins,
+                "unique_id": unique_id,
                 "legend": legend,
             }
         )
-        if isinstance(cutoff, (float, int)):
-            cutoff = [cutoff]
-        facecolor = _process_colors(
-            facecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        color_dict = create_dict(facecolor, self._plot_dict["unique_groups"])
-
-        edgecolor = _process_colors(
-            edgecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        edgecolor_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
-
-        percent_plot = {
-            "color_dict": color_dict,
-            "edgecolor_dict": edgecolor_dict,
-            "cutoff": cutoff,
-            "hatch": hatch,
-            "barwidth": barwidth * self._plot_dict["width"],
-            "linewidth": linewidth,
-            "alpha": alpha,
-            "linealpha": linealpha,
-            "include_bins": include_bins,
-            "unique_id": unique_id,
-            "invert": invert,
-            "axis_type": axis_type,
-            "zorder_dict": self._set_zorder(),
-        }
-
-        self.plot_list.append(("percent", percent_plot))
-
-        if axis_type == "density":
-            self.plot_format["axis"]["ylim"] = [0.0, 1.0]
-        else:
-            self.plot_format["axis"]["ylim"] = [0, 100]
-
-        if legend:
-            if facecolor is not None or edgecolor == "black":
-                d = facecolor
-            else:
-                d = edgecolor
-            d = _process_colors(
-                d, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
 
     def count(
         self,
-        facecolor: ColorParameters = None,
-        edgecolor: ColorParameters = "black",
+        facecolor: ColorParameters = "glaseby_category10",
+        edgecolor: ColorParameters = "glaseby_category10",
         hatch=None,
         barwidth: float = 1.0,
         linewidth=1,
-        alpha: float = 1.0,
+        alpha: float = 0.5,
         edge_alpha=1.0,
         axis_type: CountPlotTypes = "count",
         legend: bool = False,
@@ -571,53 +323,13 @@ class CategoricalPlot(BasePlot):
                 "legend": legend,
             }
         )
-        facecolor = _process_colors(
-            facecolor, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        color_dict = create_dict(facecolor, self._plot_dict["unique_groups"])
-
-        edgecolor = _process_colors(
-            edgecolor, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-        edgecolor_dict = create_dict(edgecolor, self._plot_dict["unique_groups"])
-
-        count_plot = {
-            "color_dict": color_dict,
-            "edgecolor_dict": edgecolor_dict,
-            "hatch": hatch,
-            "barwidth": barwidth * self._plot_dict["width"],
-            "linewidth": linewidth,
-            "alpha": alpha,
-            "edge_alpha": edge_alpha,
-            "axis_type": axis_type,
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("count", count_plot))
-
-        if legend:
-            if facecolor is not None or edgecolor == "black":
-                d = facecolor
-            else:
-                d = edgecolor
-            d = _process_colors(
-                d, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            )
-            self._plot_dict["legend_dict"] = (d, alpha)
 
         if not self.inplace:
             return self
 
     def process_data(self):
         processor = CategoricalProcessor(mpl.MARKERS, mpl.HATCHES)
-        self.processed_data = processor(
-            data=self.data,
-            plot_list=self.plot_list,
-            levels=self._plot_dict["levels"],
-            y=self._plot_data["y"],
-            x=self._plot_data["x"],
-            facet_dict=self._plot_dict["facet_dict"],
-            transforms=self._plot_transforms,
-        )
+        self.processed_data = processor(data=self.data, plot_metadata=self.metadata())
 
     def _plot_processed_data(
         self,

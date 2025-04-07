@@ -1,14 +1,7 @@
 from typing import Callable, Literal
 
-import numpy as np
 import pandas as pd
 
-from ..plot_utils import (
-    _process_colors,
-    create_dict,
-    process_args,
-    process_scatter_args,
-)
 from ..types import (
     BW,
     Agg,
@@ -78,22 +71,6 @@ class LinePlot(BasePlot):
                 "unique_id": unique_id,
             }
         )
-        linecolor = _process_colors(
-            linecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        linecolor_dict = create_dict(linecolor, self._plot_dict["unique_groups"])
-        linestyle_dict = create_dict(linestyle, self._plot_dict["unique_groups"])
-        line_plot = {
-            "linecolor_dict": linecolor_dict,
-            "linestyle_dict": linestyle_dict,
-            "linewidth": linewidth,
-            "alpha": alpha,
-            "unique_id": unique_id,
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("line", line_plot))
 
         if not self.inplace:
             return self
@@ -136,46 +113,6 @@ class LinePlot(BasePlot):
                 "unique_id": None,
             }
         )
-        linecolor = _process_colors(
-            linecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        linecolor_dict = create_dict(
-            linecolor,
-            self._plot_dict["unique_groups"],
-        )
-        markerfacecolor_dict = create_dict(
-            markerfacecolor,
-            self._plot_dict["unique_groups"],
-        )
-        markeredgecolor_dict = create_dict(
-            markeredgecolor,
-            self._plot_dict["unique_groups"],
-        )
-
-        marker_dict = create_dict(marker, self._plot_dict["unique_groups"])
-        linestyle_dict = create_dict(linestyle, self._plot_dict["unique_groups"])
-
-        line_plot = {
-            "linecolor": linecolor_dict,
-            "linestyle": linestyle_dict,
-            "linewidth": linewidth,
-            "func": func,
-            "err_func": err_func,
-            "linealpha": linealpha,
-            "fill_between": fill_between,
-            "fillalpha": fillalpha,
-            "sort": sort,
-            "marker": marker_dict,
-            "markerfacecolor": markerfacecolor_dict,
-            "markeredgecolor": markeredgecolor_dict,
-            "markersize": markersize,
-            "unique_id": unique_id,
-            "agg_func": agg_func,
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("aggline", line_plot))
 
         if not self.inplace:
             return self
@@ -215,46 +152,10 @@ class LinePlot(BasePlot):
                 "kde_length": kde_length,
                 "unique_id": unique_id,
                 "agg_func": agg_func,
+                "err_func": err_func,
                 "KDEType": KDEType,
             }
         )
-
-        linecolor = _process_colors(
-            linecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        linecolor = create_dict(
-            linecolor,
-            self._plot_dict["unique_groups"],
-        )
-
-        linestyle = create_dict(
-            linestyle,
-            self._plot_dict["unique_groups"],
-        )
-
-        kde_plot = {
-            "linecolor": linecolor,
-            "linestyle": linestyle,
-            "linewidth": linewidth,
-            "linealpha": alpha,
-            "fill_between": fill_between,
-            "fill_under": False,
-            "kernel": kernel,
-            "bw": bw,
-            "tol": tol,
-            "common_norm": common_norm,
-            "unique_id": unique_id,
-            "agg_func": agg_func,
-            "err_func": err_func,
-            "kde_length": kde_length,
-            "KDEType": KDEType,
-            "fillalpha": fillalpha,
-            "zorder_dict": self._set_zorder(),
-        }
-
-        self.plot_list.append(("kde", kde_plot))
 
         if not self.inplace:
             return self
@@ -273,6 +174,8 @@ class LinePlot(BasePlot):
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
     ):
+        if bin_limits is not None and len(bin_limits) != 2:
+            raise AttributeError("bin_limits must be length 2")
         self._plot_methods.append("polyhist")
         self._plot_pref.append(
             {
@@ -288,35 +191,6 @@ class LinePlot(BasePlot):
                 "unique_id": unique_id,
             }
         )
-        color_dict = process_args(
-            _process_colors(
-                color, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-            ),
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        linestyle_dict = process_args(
-            linestyle, self._plot_dict["group_order"], self._plot_dict["subgroup_order"]
-        )
-
-        if bin_limits is not None and len(bin_limits) != 2:
-            raise AttributeError("bin_limits must be length 2")
-
-        poly_hist = {
-            "color_dict": color_dict,
-            "linestyle_dict": linestyle_dict,
-            "linewidth": linewidth,
-            "density": density,
-            "bin_limits": bin_limits,
-            "nbins": nbins,
-            "func": func,
-            "err_func": err_func,
-            "fit_func": fit_func,
-            "unique_id": unique_id,
-            "alpha": alpha,
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("poly_hist", poly_hist))
 
         if not self.inplace:
             return self
@@ -355,37 +229,6 @@ class LinePlot(BasePlot):
                 "unique_id": unique_id,
             }
         )
-        color = _process_colors(
-            color,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        color_dict = create_dict(color, self._plot_dict["unique_groups"])
-        hatch_dict = create_dict(hatch, self._plot_dict["unique_groups"])
-        linecolor = _process_colors(
-            linecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        linecolor_dict = create_dict(linecolor, self._plot_dict["unique_groups"])
-
-        hist = {
-            "color_dict": color_dict,
-            "linecolor_dict": linecolor_dict,
-            "linewidth": linewidth,
-            "hatch_dict": hatch_dict,
-            "stat": stat,
-            "bin_limits": bin_limits,
-            "nbins": nbins,
-            "agg_func": agg_func,
-            "err_func": err_func,
-            "unique_id": unique_id,
-            "fillalpha": fillalpha,
-            "linealpha": linealpha,
-            "projection": self.plot_format["figure"]["projection"],
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("hist", hist))
 
         if self.plot_format["figure"]["projection"] == "polar":
             self.plot_format["grid"]["ygrid"] = True
@@ -426,33 +269,6 @@ class LinePlot(BasePlot):
                 "ecdf_args": ecdf_args,
             }
         )
-        linecolor = _process_colors(
-            linecolor,
-            self._plot_dict["group_order"],
-            self._plot_dict["subgroup_order"],
-        )
-        linecolor_dict = create_dict(
-            linecolor,
-            self._plot_dict["unique_groups"],
-        )
-
-        linestyle_dict = create_dict(linestyle, self._plot_dict["unique_groups"])
-
-        ecdf = {
-            "linecolor": linecolor_dict,
-            "linestyle": linestyle_dict,
-            "linewidth": linewidth,
-            "linealpha": linealpha,
-            "unique_id": unique_id,
-            "ecdf_type": ecdf_type,
-            "ecdf_args": ecdf_args if ecdf_args is not None else {},
-            "agg_func": agg_func,
-            "err_func": err_func,
-            "fillalpha": fillalpha,
-            "fill_between": fill_between,
-            "zorder_dict": self._set_zorder(),
-        }
-        self.plot_list.append(("ecdf", ecdf))
 
         self.plot_format["axis"]["ylim"] = [0.0, 1.0]
 
@@ -481,66 +297,6 @@ class LinePlot(BasePlot):
                 "linewidth": linewidth,
             }
         )
-
-        if isinstance(markercolor, tuple):
-            markercolor0 = markercolor[0]
-            markercolor1 = markercolor[1]
-        else:
-            markercolor0 = markercolor
-            markercolor1 = None
-
-        if isinstance(edgecolor, tuple):
-            edgecolor0 = edgecolor[0]
-            edgecolor1 = edgecolor[1]
-        else:
-            edgecolor0 = edgecolor
-            edgecolor1 = None
-
-        colors = process_scatter_args(
-            markercolor0,
-            self.data,
-            self._plot_dict["levels"],
-            self._plot_dict["unique_groups"],
-            markercolor1,
-        )
-        edgecolors = process_scatter_args(
-            edgecolor0,
-            self.data,
-            self._plot_dict["levels"],
-            self._plot_dict["unique_groups"],
-            edgecolor1,
-        )
-        if isinstance(markersize, tuple):
-            column = markersize[0]
-            start, stop = markersize[1].split(":")
-            start, stop = int(start) * 4, int(stop) * 4
-            vmin = self.data.min(column)
-            vmax = self.data.max(column)
-            vals = self.data[column]
-            markersize = (np.array(vals) - vmin) * (stop - start) / (
-                vmax - vmin
-            ) + start
-        else:
-            markersize = [markersize * 4] * self.data.shape[0]
-        facetgroup = process_scatter_args(
-            self._plot_dict["facet"],
-            self.data,
-            self._plot_dict["levels"],
-            self._plot_dict["unique_groups"],
-        )
-        scatter = {
-            "markers": marker,
-            "markercolors": colors,
-            "edgecolors": edgecolors,
-            "markersizes": markersize,
-            "facetgroup": facetgroup,
-            "alpha": alpha,
-            "edge_alpha": edge_alpha,
-            "linewidth": linewidth,
-            "zorder_dict": self._set_zorder(),
-        }
-
-        self.plot_list.append(("scatter", scatter))
 
         if not self.inplace:
             return self
@@ -572,15 +328,7 @@ class LinePlot(BasePlot):
 
     def process_data(self):
         processor = LineProcessor(mpl.MARKERS, mpl.HATCHES)
-        self.processed_data = processor(
-            data=self.data,
-            plot_list=self.plot_list,
-            levels=self._plot_dict["levels"],
-            y=self._plot_data["y"],
-            x=self._plot_data["x"],
-            facet_dict=self._plot_dict["facet_dict"],
-            transforms=self._plot_transforms,
-        )
+        self.processed_data = processor(data=self.data, plot_metadata=self.metadata())
 
     def _plot_processed_data(
         self,

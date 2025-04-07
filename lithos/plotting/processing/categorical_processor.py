@@ -37,7 +37,6 @@ from .base_processor import BaseProcessor
 
 
 class CategoricalProcessor(BaseProcessor):
-
     def __init__(self, markers, hatches):
         super().__init__(markers, hatches)
         self.PLOTS = {
@@ -94,9 +93,9 @@ class CategoricalProcessor(BaseProcessor):
         levels: list[str | int],
         loc_dict: dict[str, float],
         width: float,
-        color_dict: dict[str, str],
+        markercolor: dict[str, str],
         marker_dict: dict[str, str],
-        edgecolor_dict: dict[str, str],
+        edgecolor: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
@@ -107,7 +106,6 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> JitterPlotData:
-
         transform = get_transform(ytransform)
 
         rng = default_rng(seed)
@@ -150,8 +148,8 @@ class CategoricalProcessor(BaseProcessor):
             x_data=x_data,
             y_data=y_data,
             marker=markers,
-            markerfacecolor=self._process_dict(groups, color_dict, unique_groups),
-            markeredgecolor=self._process_dict(groups, edgecolor_dict, unique_groups),
+            markerfacecolor=self._process_dict(groups, markercolor, unique_groups),
+            markeredgecolor=self._process_dict(groups, edgecolor, unique_groups),
             markersize=[markersize] * len(y_data),
             alpha=alpha,
             edge_alpha=edge_alpha,
@@ -168,9 +166,9 @@ class CategoricalProcessor(BaseProcessor):
         unique_id: str,
         loc_dict: dict[str, float],
         width: float,
-        color_dict: dict[str, str],
+        markercolor: dict[str, str],
         marker: str,
-        edgecolor_dict: dict[str, str],
+        edgecolor: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
@@ -181,7 +179,6 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> JitterPlotData:
-
         transform = get_transform(ytransform)
         temp = width / 2
 
@@ -227,10 +224,10 @@ class CategoricalProcessor(BaseProcessor):
             y_data=y_data,
             marker=[marker] * len(y_data),
             markerfacecolor=self._process_dict(
-                groups, color_dict, unique_groups, agg_func
+                groups, markercolor, unique_groups, agg_func
             ),
             markeredgecolor=self._process_dict(
-                groups, edgecolor_dict, unique_groups, agg_func
+                groups, edgecolor, unique_groups, agg_func
             ),
             markersize=[markersize] * len(y_data),
             alpha=alpha,
@@ -252,14 +249,13 @@ class CategoricalProcessor(BaseProcessor):
         barwidth: float,
         linewidth: float | int,
         zorder_dict: dict[str, int],
-        color_dict: dict[str, str],
+        color: dict[str, str],
         alpha: AlphaRange,
         err_func: Error | None = None,
         ytransform: Transform = None,
         *args,
         **kwargs,
     ) -> SummaryPlotData:
-
         transform = get_transform(ytransform)
         y_data = []
         error_data = []
@@ -280,7 +276,7 @@ class CategoricalProcessor(BaseProcessor):
             y_data=y_data,
             error_data=error_data,
             widths=[barwidth] * len(y_data),
-            colors=self._process_dict(groups, color_dict),
+            colors=self._process_dict(groups, color),
             linewidth=linewidth,
             alpha=alpha,
             capstyle=capstyle,
@@ -302,7 +298,7 @@ class CategoricalProcessor(BaseProcessor):
         capstyle: CapStyle,
         barwidth: float,
         linewidth: float | int,
-        color_dict: dict[str, str],
+        color: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         agg_func: Agg | None = None,
@@ -312,7 +308,6 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> SummaryPlotData:
-
         transform = get_transform(ytransform)
         y_data = []
         error_data = []
@@ -368,7 +363,7 @@ class CategoricalProcessor(BaseProcessor):
             y_data=y_data,
             error_data=error_data,
             widths=widths,
-            colors=self._process_dict(groups, color_dict, unique_groups, agg_func),
+            colors=self._process_dict(groups, color, unique_groups, agg_func),
             linewidth=linewidth,
             alpha=alpha,
             capstyle=capstyle,
@@ -384,8 +379,8 @@ class CategoricalProcessor(BaseProcessor):
         y: str,
         levels: Levels,
         loc_dict: dict[str, float],
-        color_dict: dict[str, str],
-        edgecolor_dict: dict[str, str],
+        facecolor: dict[str, str],
+        edgecolor: dict[str, str],
         zorder_dict: dict[str, int],
         fliers: str = "",
         width: float = 1.0,
@@ -398,7 +393,6 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ):
-
         transform = get_transform(ytransform)
 
         y_data = []
@@ -413,8 +407,8 @@ class CategoricalProcessor(BaseProcessor):
         output = BoxPlotData(
             x_data=x_data,
             y_data=y_data,
-            facecolors=self._process_dict(groups, color_dict),
-            edgecolors=self._process_dict(groups, edgecolor_dict),
+            facecolors=self._process_dict(groups, facecolor),
+            edgecolors=self._process_dict(groups, edgecolor),
             alpha=alpha,
             linealpha=linealpha,
             fliers=fliers,
@@ -433,8 +427,8 @@ class CategoricalProcessor(BaseProcessor):
         y: str,
         levels: Levels,
         loc_dict: dict[str, float],
-        facecolor_dict,
-        edgecolor_dict: dict[str, str],
+        facecolor,
+        edgecolor: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
@@ -452,7 +446,6 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ):
-
         transform = get_transform(ytransform)
 
         groups = data.groups(levels)
@@ -543,10 +536,10 @@ class CategoricalProcessor(BaseProcessor):
                 y_data=y_data,
                 location=loc,
                 facecolors=self._process_dict(
-                    groups, facecolor_dict, unique_groups, agg_func
+                    groups, facecolor, unique_groups, agg_func
                 ),
                 edgecolors=self._process_dict(
-                    groups, edgecolor_dict, unique_groups, agg_func
+                    groups, edgecolor, unique_groups, agg_func
                 ),
                 alpha=alpha,
                 edge_alpha=edge_alpha,
@@ -565,8 +558,8 @@ class CategoricalProcessor(BaseProcessor):
         y: str,
         levels: list[str],
         loc_dict: dict,
-        color_dict: dict[str, str],
-        edgecolor_dict: dict[str, str],
+        facecolor: dict[str, str],
+        edgecolor: dict[str, str],
         hatch: str,
         barwidth: float,
         linewidth: float | int,
@@ -582,7 +575,6 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> RectanglePlotData:
-
         bw = []
         bottoms = []
         heights = []
@@ -612,8 +604,8 @@ class CategoricalProcessor(BaseProcessor):
                     heights.append(
                         (count / size if axis_type != "count" else count) * multiplier
                     )
-                    fillcolors.append(color_dict[str(ui_group)])
-                    edgecolors.append(edgecolor_dict[str(ui_group)])
+                    fillcolors.append(facecolor[str(ui_group)])
+                    edgecolors.append(edgecolor[str(ui_group)])
                     x_loc.append(loc_dict[group_key] + dist[index])
                     hatches.append(self.HATCHES[index] if hatch else None)
                 else:
@@ -639,8 +631,8 @@ class CategoricalProcessor(BaseProcessor):
         y: str,
         levels: Levels,
         loc_dict: dict[str, float],
-        color_dict: dict[str, str],
-        edgecolor_dict: dict[str, str],
+        facecolor: dict[str, str],
+        edgecolor: dict[str, str],
         cutoff: None | float | int | list[float | int],
         include_bins: list[bool],
         zorder_dict: dict[str, int],
@@ -655,7 +647,6 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> RectanglePlotData:
-
         if cutoff is not None:
             bins = np.zeros(len(cutoff) + 2)
             bins[-1] = data[y].max() + 1e-6
@@ -735,8 +726,8 @@ class CategoricalProcessor(BaseProcessor):
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
-            fillcolors=self._process_dict(groups, color_dict, unique_groups),
-            edgecolors=self._process_dict(groups, edgecolor_dict, unique_groups),
+            fillcolors=self._process_dict(groups, facecolor, unique_groups),
+            edgecolors=self._process_dict(groups, edgecolor, unique_groups),
             fill_alpha=alpha,
             edge_alpha=linealpha,
             hatches=hatches,
