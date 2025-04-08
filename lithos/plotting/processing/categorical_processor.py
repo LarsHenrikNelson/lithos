@@ -563,11 +563,10 @@ class CategoricalProcessor(BaseProcessor):
         barwidth: float,
         linewidth: float | int,
         alpha: float | int,
-        edge_alpha: float | int,
+        linealpha: float | int,
         zorder_dict: dict[str, int],
         axis_type: CountPlotTypes,
         unique_id: str | None = None,
-        invert: bool = False,
         agg_func: Agg | None = None,
         err_func: Error = None,
         transform: Transform = None,
@@ -577,50 +576,56 @@ class CategoricalProcessor(BaseProcessor):
         bw = []
         bottoms = []
         heights = []
-        fillcolors = []
-        edgecolors = []
         x_loc = []
         hatches = []
-
-        multiplier = 100 if axis_type == "percent" else 1
+        group_labels = []
 
         groups = data.groups(levels)
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+        else:
+            unique_groups = None
         for group_key, indexes in groups.items():
-            unique_groups_sub, counts = np.unique(data[indexes, y], return_counts=True)
-            size = sum(counts)
-            temp_width = barwidth / len(unique_groups_sub)
-            if len(unique_groups_sub) > 1:
-                dist = np.linspace(
-                    -barwidth / 2, barwidth / 2, num=len(unique_groups_sub) + 1
-                )
-                dist = (dist[1:] + dist[:-1]) / 2
+            if unique_id is None:
+                bw.append(barwidth)
+                heights.append(len(indexes))
+                bottoms.append(0)
+                x_loc.append(loc_dict[group_key])
+                hatches.append(hatch[group_key])
+                group_labels.append(group_key)
             else:
-                dist = [0]
-            bw.append([temp_width] * len(unique_groups_sub))
-            for index, ui_group, count in enumerate(zip(unique_groups_sub, counts)):
-                if unique_id is None:
-                    bottoms.append(0)
-                    heights.append(
-                        (count / size if axis_type != "count" else count) * multiplier
+                unique_ids_sub, unique_counts = np.unique(
+                    data[indexes, unique_id], return_counts=True
+                )
+                temp_width = barwidth / len(unique_ids_sub)
+                if len(unique_ids_sub) > 1:
+                    dist = np.linspace(
+                        -barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1
                     )
-                    fillcolors.append(facecolor[str(ui_group)])
-                    edgecolors.append(edgecolor[str(ui_group)])
-                    x_loc.append(loc_dict[group_key] + dist[index])
-                    hatches.append(self.HATCHES[index] if hatch else None)
+                    dist = (dist[1:] + dist[:-1]) / 2
                 else:
-                    pass
+                    dist = [0]
+                for index, ui_group in enumerate(unique_ids_sub):
+                    bw.append(temp_width)
+                    heights.append(unique_counts[index])
+                    bottoms.append(0)
+                    x_loc.append(loc_dict[group_key] + dist[index])
+                    hatches.append(hatch[group_key])
+                    group_labels.append(group_key)
         output = RectanglePlotData(
             heights=heights,
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
-            fillcolors=fillcolors,
-            edgecolors=edgecolors,
+            fillcolors=self._process_dict(groups, facecolor, unique_groups),
+            edgecolors=self._process_dict(groups, edgecolor, unique_groups),
             fill_alpha=alpha,
-            edge_alpha=edge_alpha,
+            edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
             axis="x",
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups),
         )
         return output
 
@@ -667,7 +672,7 @@ class CategoricalProcessor(BaseProcessor):
 
         plot_bins = sum(include_bins)
 
-        if hatch is True:
+        if list(hatch.values())[0] is True:
             hs = self.HATCHES[:plot_bins]
         else:
             hs = [None] * plot_bins

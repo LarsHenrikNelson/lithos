@@ -263,7 +263,7 @@ class CategoricalPlot(BasePlot):
         unique_id=None,
         facecolor="glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
-        hatch=None,
+        hatch: bool = False,
         barwidth: float = 1.0,
         linewidth=1,
         alpha: float = 0.5,
@@ -310,8 +310,9 @@ class CategoricalPlot(BasePlot):
         barwidth: float = 1.0,
         linewidth=1,
         alpha: float = 0.5,
-        edge_alpha=1.0,
+        linealpha=1.0,
         axis_type: CountPlotTypes = "count",
+        unique_id: str | None = None,
         legend: bool = False,
     ):
         self._plot_methods.append("count")
@@ -323,9 +324,10 @@ class CategoricalPlot(BasePlot):
                 "barwidth": barwidth,
                 "linewidth": linewidth,
                 "alpha": alpha,
-                "edge_alpha": edge_alpha,
+                "linealpha": linealpha,
                 "axis_type": axis_type,
                 "legend": legend,
+                "unique_id": unique_id,
             }
         )
 
