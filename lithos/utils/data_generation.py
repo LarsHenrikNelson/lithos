@@ -6,9 +6,11 @@ from numpy.random import default_rng
 
 def timeseries_dict(loc, scale, n):
     rng = default_rng()
-    x = np.linspace(0, 50, n)
-    y = np.sin(x) + rng.random(n) * scale
-    y += x + loc
+    x1 = np.linspace(0, 50, n)
+    x2 = np.linspace(0, 25, n)
+    y = np.sin(x1) + rng.random(n) + np.cos(x2)
+    y += loc
+    y *= scale
     return y
 
 
