@@ -147,7 +147,6 @@ def process_duplicates(values, output=None):
         else:
             track_counts[key] = [0, [0]]
     for index, val in enumerate(values):
-
         output[index] += track_counts[val][1][track_counts[val][0]]
         track_counts[val][0] += 1
     return output
@@ -312,6 +311,10 @@ def process_args(arg, group, subgroup):
 
 
 def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
+    if isinstance(arg, dict):
+        output = create_dict(arg, unique_groups)
+        output = [output[j] for j in zip(*[data[i] for i in levels])]
+        return output
     if isinstance(arg_cycle, (np.ndarray, list)):
         if arg in data:
             if arg_cycle is not None:

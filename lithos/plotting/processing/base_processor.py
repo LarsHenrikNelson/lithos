@@ -1,6 +1,7 @@
 import numpy as np
 
 from ..plot_utils import _process_colors, create_dict, process_scatter_args
+from ...utils import DataHolder
 
 
 class BaseProcessor:
@@ -38,21 +39,27 @@ class BaseProcessor:
         return zorder_dict
 
     def preprocess_args(self, args: dict):
-        check_args = {"marker", "linestyle"}
-        for key, value in args:
+        output_args = {}
+        style_args = {"marker", "linestyle", "hatch"}
+        width_args = {"width", "barwidth"}
+        for key, value in args.items():
             if "color" in key:
                 color = _process_colors(
                     value,
                     self._plot_dict["group_order"],
                     self._plot_dict["subgroup_order"],
                 )
-                args[key] = create_dict(color, self._plot_dict["unique_groups"])
-            elif key in check_args:
-                args[key] = create_dict(value, self._plot_dict["unique_groups"])
-            elif key == "width":
-                args[key] = value * self._plot_dict["width"]
+                output_args[key] = create_dict(color, self._plot_dict["unique_groups"])
+            elif key in style_args:
+                output_args[key] = create_dict(value, self._plot_dict["unique_groups"])
+            elif key in width_args:
+                output_args[key] = value * self._plot_dict["width"]
+            else:
+                output_args[key] = value
+        return output_args
 
-    def process_scatter(self, args):
+    def process_scatter(self, args: dict, data: DataHolder):
+        output_args = {}
         for key, value in args.items():
             if "color" in key:
                 if isinstance(value, tuple):
@@ -62,39 +69,41 @@ class BaseProcessor:
                     markercolor0 = value
                     markercolor1 = None
 
-                args[key] = process_scatter_args(
+                output_args[key] = process_scatter_args(
                     markercolor0,
-                    self.data,
+                    data,
                     self._plot_dict["levels"],
                     self._plot_dict["unique_groups"],
                     markercolor1,
                 )
             elif key == "markersize":
-                if isinstance(key, tuple):
-                    column = key[0]
-                    start, stop = key[1].split(":")
+                if isinstance(value, tuple):
+                    column = value[0]
+                    start, stop = value[1].split(":")
                     start, stop = int(start) * 4, int(stop) * 4
-                    vmin = self.data.min(column)
-                    vmax = self.data.max(column)
-                    vals = self.data[column]
-                    args[key] = (np.array(vals) - vmin) * (stop - start) / (
+                    vmin = data.min(column)
+                    vmax = data.max(column)
+                    vals = data[column]
+                    output_args[key] = (np.array(vals) - vmin) * (stop - start) / (
                         vmax - vmin
                     ) + start
                 else:
-                    args[key] = [value * 4] * self.data.shape[0]
+                    output_args[key] = [value * 4] * data.shape[0]
+            else:
+                output_args[key] = value
 
-        args["facetgroup"] = process_scatter_args(
+        output_args["facetgroup"] = process_scatter_args(
             self._plot_dict["facet"],
-            self.data,
+            data,
             self._plot_dict["levels"],
             self._plot_dict["unique_groups"],
         )
+        return output_args
 
     def __call__(
         self,
         data,
         plot_metadata,
-        **kwargs,
     ):
         self.process_groups(data, **plot_metadata["grouping"])
 
@@ -108,18 +117,19 @@ class BaseProcessor:
             if p != "scatter":
                 args = self.preprocess_args(pdict)
             else:
-                args = self.process_scatter(pdict)
+                args = self.process_scatter(pdict, data)
             temp = self.PLOTS[p](
                 data=data,
                 y=y,
                 x=x,
-                loc_dict=kwargs["loc_dict"],
+                loc_dict=self._plot_dict["loc_dict"],
                 levels=levels,
-                **args,
+                zorder_dict=self._set_zorder(),
                 **transforms,
+                **args,
             )
             processed_data.append(temp)
-        return processed_data
+        return processed_data, self._plot_dict
 
     def _process_dict(self, groups, dict, subgroups=None, agg: str | None = None):
         if subgroups is None or agg is not None:

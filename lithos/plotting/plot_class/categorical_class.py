@@ -261,8 +261,8 @@ class CategoricalPlot(BasePlot):
         self,
         cutoff: None | float | int | list[float | int] = None,
         unique_id=None,
-        facecolor="glaseby_category10",
-        edgecolor: ColorParameters = "glaseby_category10",
+        facecolor="glasbey_category10",
+        edgecolor: ColorParameters = "glasbey_category10",
         hatch=None,
         barwidth: float = 1.0,
         linewidth=1,
@@ -294,13 +294,18 @@ class CategoricalPlot(BasePlot):
             }
         )
 
+        if axis_type == "density":
+            self.plot_format["axis"]["ylim"] = [0.0, 1.0]
+        else:
+            self.plot_format["axis"]["ylim"] = [0, 100]
+
         if not self.inplace:
             return self
 
     def count(
         self,
-        facecolor: ColorParameters = "glaseby_category10",
-        edgecolor: ColorParameters = "glaseby_category10",
+        facecolor: ColorParameters = "glasbey_category10",
+        edgecolor: ColorParameters = "glasbey_category10",
         hatch=None,
         barwidth: float = 1.0,
         linewidth=1,
@@ -329,7 +334,7 @@ class CategoricalPlot(BasePlot):
 
     def process_data(self):
         processor = CategoricalProcessor(mpl.MARKERS, mpl.HATCHES)
-        self.processed_data = processor(data=self.data, plot_metadata=self.metadata())
+        return processor(data=self.data, plot_metadata=self.metadata())
 
     def _plot_processed_data(
         self,
@@ -339,9 +344,10 @@ class CategoricalPlot(BasePlot):
         filetype: str = "svg",
         **kwargs,
     ):
+        self.processed_data, plot_dict = self.process_data()
         self.plotter = mpl.CategoricalPlotter(
             plot_data=self.processed_data,
-            plot_dict=self._plot_dict,
+            plot_dict=plot_dict,
             metadata=self.metadata(),
             savefig=savefig,
             path=path,

@@ -38,7 +38,6 @@ def ci(a, axis=None):
 
 def ci_bca(a):
     res = stats.bootstrap(a, np.mean)
-    print(res.confidence_interval)
     return np.array([[res.confidence_interval.high], [res.confidence_interval.low]])
 
 

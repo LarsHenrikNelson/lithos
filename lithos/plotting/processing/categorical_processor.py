@@ -81,7 +81,7 @@ class CategoricalProcessor(BaseProcessor):
             "loc_dict": loc_dict,
             "levels": levels,
             "zorder_dict": zorder_dict,
-            "x_tict": x_ticks,
+            "x_ticks": x_ticks,
             "width": width,
         }
 
@@ -93,7 +93,7 @@ class CategoricalProcessor(BaseProcessor):
         loc_dict: dict[str, float],
         width: float,
         markercolor: dict[str, str],
-        marker_dict: dict[str, str],
+        marker: dict[str, str],
         edgecolor: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
@@ -133,7 +133,7 @@ class CategoricalProcessor(BaseProcessor):
                 x_data.append(jitter_values[indexes])
                 y_data.append(transform(data[indexes, y]))
                 group_labels.append(group_key)
-                markers.append(marker_dict[group_key])
+                markers.append(marker[group_key])
             else:
                 subgroups = np.unique(data[indexes, unique_id])
                 for ui_group, mrk in zip(subgroups, cycle(self.MARKERS)):
@@ -221,7 +221,7 @@ class CategoricalProcessor(BaseProcessor):
         output = JitterPlotData(
             x_data=x_data,
             y_data=y_data,
-            marker=[marker] * len(y_data),
+            marker=self._process_dict(groups, marker, unique_groups, agg_func),
             markerfacecolor=self._process_dict(
                 groups, markercolor, unique_groups, agg_func
             ),

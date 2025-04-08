@@ -110,7 +110,7 @@ class LinePlot(BasePlot):
                 "fill_between": fill_between,
                 "fillalpha": fillalpha,
                 "sort": sort,
-                "unique_id": None,
+                "unique_id": unique_id,
             }
         )
 
@@ -127,7 +127,7 @@ class LinePlot(BasePlot):
         linestyle: str = "-",
         linewidth: int = 2,
         fill_between: bool = False,
-        alpha: AlphaRange = 1.0,
+        linealpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 1.0,
         kde_length: int | None = None,
         unique_id: str | None = None,
@@ -147,7 +147,7 @@ class LinePlot(BasePlot):
                 "linewidth": linewidth,
                 "fill_between": fill_between,
                 "fill_under": False,
-                "alpha": alpha,
+                "linealpha": linealpha,
                 "fillalpha": fillalpha,
                 "kde_length": kde_length,
                 "unique_id": unique_id,
@@ -254,6 +254,8 @@ class LinePlot(BasePlot):
         if ecdf_args is None and agg_func is not None:
             ecdf_args = {"size": 1000, "repititions": 1000, "seed": 42}
             ecdf_type = "bootstrap"
+        else:
+            ecdf_args
         self._plot_methods.append("ecdf")
         self._plot_prefs.append(
             {
@@ -267,6 +269,7 @@ class LinePlot(BasePlot):
                 "agg_func": agg_func,
                 "err_func": err_func,
                 "ecdf_args": ecdf_args,
+                "unique_id": unique_id,
             }
         )
 
@@ -328,7 +331,7 @@ class LinePlot(BasePlot):
 
     def process_data(self):
         processor = LineProcessor(mpl.MARKERS, mpl.HATCHES)
-        self.processed_data = processor(data=self.data, plot_metadata=self.metadata())
+        return processor(data=self.data, plot_metadata=self.metadata())
 
     def _plot_processed_data(
         self,
@@ -338,9 +341,10 @@ class LinePlot(BasePlot):
         filetype: str = "svg",
         **kwargs,
     ):
+        self.processed_data, plot_dict = self.process_data()
         self.plotter = mpl.LinePlotter(
             plot_data=self.processed_data,
-            plot_dict=self._plot_dict,
+            plot_dict=plot_dict,
             metadata=self.metadata(),
             savefig=savefig,
             path=path,

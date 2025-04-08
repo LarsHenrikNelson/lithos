@@ -34,15 +34,17 @@ class LineProcessor(BaseProcessor):
             "aggline": self._aggline,
         }
 
-    def process_groups(self, data, group, subgroup, group_order, subgroup_order, facet):
+    def process_groups(
+        self, data, group, subgroup, group_order, subgroup_order, facet, facet_title
+    ):
         group_order, subgroup_order, unique_groups, levels = self._create_groupings(
             data, group, subgroup, group_order, subgroup_order
         )
 
         if facet:
-            facet_dict = create_dict(group_order, unique_groups)
+            loc_dict = create_dict(group_order, unique_groups)
         else:
-            facet_dict = create_dict(0, unique_groups)
+            loc_dict = create_dict(0, unique_groups)
 
         zgroup = group_order if subgroup_order is None else subgroup_order
         zorder_dict = create_dict(zgroup, unique_groups)
@@ -51,9 +53,11 @@ class LineProcessor(BaseProcessor):
             "group_order": group_order,
             "subgroup_order": subgroup_order,
             "unique_groups": unique_groups,
-            "facet_dict": facet_dict,
+            "loc_dict": loc_dict,
             "levels": levels,
             "zorder_dict": zorder_dict,
+            "facet_title": facet_title,
+            "facet": facet,
         }
 
     def _hist(
@@ -62,10 +66,10 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        color_dict: dict[str, str],
+        linecolor: dict[str, str],
         loc_dict: dict[str, int],
         zorder_dict: dict[str, int],
-        hatch_dict: dict[str, str],
+        hatch: dict[str, str],
         hist_type: Literal["bar", "step", "stepfilled"] = "bar",
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
@@ -86,10 +90,10 @@ class LineProcessor(BaseProcessor):
                 y=y,
                 x=x,
                 levels=levels,
-                color_dict=color_dict,
+                linecolor=linecolor,
                 loc_dict=loc_dict,
                 zorder_dict=zorder_dict,
-                hatch_dict=hatch_dict,
+                hatch=hatch,
                 fillalpha=fillalpha,
                 linealpha=linealpha,
                 bin_limits=bin_limits,
@@ -111,10 +115,10 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        color_dict: dict[str, str],
+        linecolor: dict[str, str],
         loc_dict: dict[str, int],
         zorder_dict: dict[str, int],
-        hatch_dict: dict[str, str],
+        hatch: dict[str, str],
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
         linewidth: float | int = 2,
@@ -200,11 +204,11 @@ class LineProcessor(BaseProcessor):
             bottoms=bottoms,
             bins=plot_bins,
             binwidths=bw,
-            fillcolors=self._process_dict(groups, color_dict, unique_groups, agg_func),
-            edgecolors=self._process_dict(groups, color_dict, unique_groups, agg_func),
+            fillcolors=self._process_dict(groups, linecolor, unique_groups, agg_func),
+            edgecolors=self._process_dict(groups, linecolor, unique_groups, agg_func),
             fill_alpha=fillalpha,
             edge_alpha=linealpha,
-            hatches=self._process_dict(groups, hatch_dict, unique_groups, agg_func),
+            hatches=self._process_dict(groups, hatch, unique_groups, agg_func),
             linewidth=linewidth,
             facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
             axis=axis,
@@ -218,10 +222,10 @@ class LineProcessor(BaseProcessor):
         data,
         y,
         x,
-        markers,
-        markercolors,
-        edgecolors,
-        markersizes,
+        marker,
+        markercolor,
+        edgecolor,
+        markersize,
         alpha,
         edge_alpha,
         linewidth,
@@ -249,10 +253,10 @@ class LineProcessor(BaseProcessor):
             )
             x_data.append(get_transform(xtransform)(data[indexes, x]))
             y_data.append(get_transform(ytransform)(data[indexes, y]))
-            mks.append(markers)
-            mfcs.append([markercolors[i] for i in indexes])
-            mecs.append([edgecolors[i] for i in indexes])
-            mksizes.append([markersizes[i] for i in indexes])
+            mks.append(marker)
+            mfcs.append([markercolor[i] for i in indexes])
+            mecs.append([edgecolor[i] for i in indexes])
+            mksizes.append([markersize[i] for i in indexes])
             facet.append(loc_dict[key])
             group_labels.append(key)
             zorder.append(zorder_dict[key])
@@ -557,6 +561,8 @@ class LineProcessor(BaseProcessor):
         column = y if x is None else x
         transform = ytransform if xtransform is None else xtransform
 
+        if ecdf_args is None:
+            ecdf_args = {}
         x_data = []
         y_data = []
         error_data = []
@@ -758,9 +764,9 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        linecolor_dict: dict[str, str],
+        linecolor: dict[str, str],
         loc_dict: dict[str, int],
-        linestyle_dict: dict[str, str],
+        linestyle: dict[str, str],
         zorder_dict: dict[str, int],
         linewidth: float | int = 2,
         unique_id: str | None = None,
@@ -807,9 +813,9 @@ class LineProcessor(BaseProcessor):
             error_data=nones,
             facet_index=self._process_dict(groups, loc_dict, unique_groups),
             marker=nones,
-            linecolor=self._process_dict(groups, linecolor_dict, unique_groups),
+            linecolor=self._process_dict(groups, linecolor, unique_groups),
             linewidth=linewidth,
-            linestyle=self._process_dict(groups, linestyle_dict, unique_groups),
+            linestyle=self._process_dict(groups, linestyle, unique_groups),
             markerfacecolor=nones,
             markeredgecolor=nones,
             markersize=None,
