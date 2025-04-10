@@ -60,7 +60,7 @@ plot = (
 
 
     
-![png](README_files/README_8_0.png)
+![png](README_files/default_format.png)
     
 
 
@@ -94,7 +94,7 @@ plot = (
 
 
     
-![png](README_files/README_10_0.png)
+![png](README_files/formatted_plot.png)
     
 
 
@@ -114,7 +114,7 @@ plot = CategoricalPlot(data=df).load_metadata("my_plot").plot()
 
 
     
-![png](README_files/README_14_0.png)
+![png](README_files/loading_plot_metadata.png)
     
 
 
@@ -262,102 +262,8 @@ plot = (
 
 
     
-![png](README_files/README_18_0.png)
+![png](README_files/jitter_summary.png)
     
-
-
-
-```python
-plot.metadata()
-```
-
-
-
-
-    {'grouping': {'group': 'grouping_1',
-      'subgroup': 'grouping_2',
-      'group_order': None,
-      'subgroup_order': None,
-      'group_spacing': 0.9},
-     'data': {'y': 'y',
-      'x': None,
-      'ylabel': 'test',
-      'xlabel': '',
-      'title': '',
-      'figure_title': ''},
-     'format': {'labels': {'labelsize': 22,
-       'titlesize': 22,
-       'font': 'DejaVu Sans',
-       'ticklabel_size': 20,
-       'title_fontweight': 'bold',
-       'label_fontweight': 'normal',
-       'tick_fontweight': 'light',
-       'xlabel_rotation': 'vertical',
-       'ylabel_rotation': 'vertical',
-       'xtick_rotation': 'horizontal',
-       'ytick_rotation': 'horizontal'},
-      'axis': {'yscale': 'linear',
-       'xscale': 'linear',
-       'ylim': (None, None),
-       'xlim': (None, None),
-       'yaxis_lim': None,
-       'xaxis_lim': None,
-       'ydecimals': 2,
-       'xdecimals': None,
-       'xunits': None,
-       'yunits': None,
-       'xformat': 'f',
-       'yformat': 'f'},
-      'axis_format': {'tickwidth': 2,
-       'ticklength': 5.0,
-       'linewidth': {'left': 2, 'bottom': 2, 'top': 0, 'right': 0},
-       'minor_tickwidth': 1.5,
-       'minor_ticklength': 2.5,
-       'yminorticks': 0,
-       'xminorticks': 0,
-       'xsteps': (5, 0, 5),
-       'ysteps': (7, 0, 7),
-       'style': 'lithos',
-       'truncate_xaxis': False,
-       'truncate_yaxis': False},
-      'figure': {'gridspec_kw': None,
-       'margins': 0.05,
-       'aspect': 1.0,
-       'figsize': None,
-       'nrows': None,
-       'ncols': None,
-       'projection': 'rectilinear'},
-      'grid': {'ygrid': 0,
-       'xgrid': 0,
-       'yminor_grid': 0,
-       'xminor_grid': 0,
-       'linestyle': 'solid',
-       'minor_linestyle': 'solid'}},
-     'transforms': {'ytransform': None,
-      'back_transform_yticks': False,
-      'xtransform': None,
-      'back_transform_xticks': False},
-     'plot_methods': ['jitter', 'summary'],
-     'plot_prefs': [{'markercolor': 'blues-100:200',
-       'marker': 'o',
-       'edgecolor': 'black',
-       'alpha': 0.7,
-       'edge_alpha': None,
-       'width': 0.5,
-       'markersize': 8,
-       'seed': 30,
-       'unique_id': 'unique_grouping',
-       'legend': False},
-      {'func': 'mean',
-       'capsize': 0,
-       'capstyle': 'round',
-       'barwidth': 0.8,
-       'err_func': 'sem',
-       'linewidth': 3,
-       'color': 'black',
-       'alpha': 1.0,
-       'legend': False}]}
-
 
 
 ### Jitteru + Violinplot
@@ -437,7 +343,7 @@ plot2 = (
 
 
     
-![png](README_files/README_21_0.png)
+![png](README_files/jitter_summary.png)
     
 
 
@@ -469,7 +375,7 @@ plot = (
 
 
     
-![png](README_files/README_23_0.png)
+![png](README_files/box.png)
     
 
 
@@ -533,7 +439,7 @@ plot = (
 
 
     
-![png](README_files/README_25_0.png)
+![png](README_files/percent.png)
     
 
 
@@ -555,7 +461,7 @@ plot = (
 
 
     
-![png](README_files/README_27_0.png)
+![png](README_files/count.png)
     
 
 
@@ -588,7 +494,7 @@ plot = (
 
 
     
-![png](README_files/README_29_0.png)
+![png](README_files/kde.png)
     
 
 
@@ -639,7 +545,7 @@ plot = (
 
 
     
-![png](README_files/README_31_0.png)
+![png](README_files/ecdf.png)
     
 
 
@@ -707,7 +613,7 @@ plot2 = (
 
 
     
-![png](README_files/README_33_0.png)
+![png](README_files/aggline.png)
     
 
 
@@ -746,7 +652,7 @@ plot = (
 
 
     
-![png](README_files/README_35_0.png)
+![png](README_files/line.png)
     
 
 
@@ -794,7 +700,7 @@ plot = (
 
 
     
-![png](README_files/README_37_0.png)
+![png](README_files/scatter.png)
     
 
 
@@ -839,7 +745,7 @@ plot1 = (
 
 
     
-![png](README_files/README_39_0.png)
+![png](README_files/hist.png)
     
 
 
@@ -876,6 +782,6 @@ plot1 = (
 
 
     
-![png](README_files/README_41_0.png)
+![png](README_files/circular_hist.png)
     
 
