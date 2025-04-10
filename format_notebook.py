@@ -69,7 +69,6 @@ notebook = nbformat.read(notebook_path, as_version=4)
 # Configure and run the exporter
 exporter = CustomMarkdownExporter()
 output, resources = exporter.from_notebook_node(notebook)
-print(output)
 
 # Write the markdown file
 with open("README.md", "w") as f:

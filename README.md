@@ -343,7 +343,7 @@ plot2 = (
 
 
     
-![png](README_files/jitter_summary.png)
+![png](README_files/jitter_violin.png)
     
 
 
