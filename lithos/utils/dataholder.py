@@ -32,7 +32,7 @@ class DataHolder:
             return "dict"
         else:
             raise ValueError(
-                "Only numpy arrays or pandas dataframes/series are accepted."
+                "Only numpy arrays, dict, or pandas dataframes/series are accepted."
             )
 
     def _numpy_index(self, index):

@@ -1,6 +1,11 @@
 import numpy as np
 
-from ..plot_utils import _process_colors, create_dict, process_scatter_args
+from ..plot_utils import (
+    _process_colors,
+    create_dict,
+    process_scatter_args,
+    _create_groupings,
+)
 from ...utils import DataHolder
 
 
@@ -10,25 +15,6 @@ class BaseProcessor:
         self.HATCHES = hatches
         self._plot_dict = {}
         self.zorder = 0
-
-    def _create_groupings(self, data, group, subgroup, group_order, subgroup_order):
-        if group is None:
-            unique_groups = [("",)]
-            group_order = [""]
-            levels = ()
-        elif subgroup is None:
-            if group_order is None:
-                group_order = np.unique(data[group])
-            unique_groups = [(g,) for g in group_order]
-            levels = (group,)
-        else:
-            if group_order is None:
-                group_order = np.unique(data[group])
-            if subgroup_order is None:
-                subgroup_order = np.unique(data[subgroup])
-            unique_groups = list(set(zip(data[group], data[subgroup])))
-            levels = (group, subgroup)
-        return group_order, subgroup_order, unique_groups, levels
 
     def _set_zorder(self):
         adder = self.zorder * len(self._plot_dict["zorder_dict"]) + 1

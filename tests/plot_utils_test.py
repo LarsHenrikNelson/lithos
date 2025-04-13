@@ -1,7 +1,8 @@
 import pytest
 import numpy as np
 
-from lithos.plotting.plot_utils import create_dict, radian_ticks
+from lithos.plotting.plot_utils import create_dict, radian_ticks, _create_groupings
+from lithos.utils import DataHolder
 
 
 @pytest.mark.parametrize(
@@ -73,3 +74,52 @@ def test_radian_ticks(values, rotate, correct_values):
     values = [np.pi * deg / 180 for deg in values]
     output = radian_ticks(values, rotate)
     assert output == correct_values
+
+
+@pytest.mark.parametrize(
+    "group, subgroup, group_order, subgroup_order",
+    [
+        ("grouping_1", None, None, None),
+        ("grouping_1", None, [0, 1], None),
+    ],
+)
+def test_create_groupings_1_group(
+    two_grouping_with_unique_ids, group, subgroup, group_order, subgroup_order
+) -> tuple[dict, tuple[int, int, int, int]]:
+    data, groups = two_grouping_with_unique_ids
+    data = DataHolder(two_grouping_with_unique_ids[0])
+    gorder, sorder, unique_groups, levels = _create_groupings(
+        data, group, subgroup, group_order, subgroup_order
+    )
+    assert len(gorder) == groups[0]
+    if group_order is not None:
+        assert len(gorder) == len(group_order)
+        assert gorder == group_order
+    assert len(levels) == 1
+    assert sorder == subgroup_order
+    assert len(unique_groups) == groups[0]
+
+
+@pytest.mark.parametrize(
+    "group, subgroup, group_order, subgroup_order",
+    [
+        ("grouping_1", "grouping_2", [0, 1], [0, 1, 2]),
+        ("grouping_1", "grouping_2", [0, 1], None),
+    ],
+)
+def test_create_groupings_2_groups(
+    two_grouping_with_unique_ids, group, subgroup, group_order, subgroup_order
+) -> tuple[dict, tuple[int, int, int, int]]:
+    data, groups = two_grouping_with_unique_ids
+    data = DataHolder(two_grouping_with_unique_ids[0])
+    gorder, sorder, unique_groups, levels = _create_groupings(
+        data, group, subgroup, group_order, subgroup_order
+    )
+
+    if subgroup_order is not None:
+        assert len(sorder) == len(subgroup_order)
+        assert sorder == subgroup_order
+
+    assert len(sorder) == groups[1]
+    assert len(levels) == 2
+    assert len(unique_groups) == groups[0] * groups[1]

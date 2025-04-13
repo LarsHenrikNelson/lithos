@@ -38,5 +38,6 @@ def two_grouping():
 
 @pytest.fixture(scope="session")
 def two_grouping_with_unique_ids():
-    data = create_synthetic_data(2, 2, 3, 30)
-    return data, (2, 2, 3, 30)
+    output = (2, 3, 3, 30)
+    data = create_synthetic_data(*output)
+    return data, output
