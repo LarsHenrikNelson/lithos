@@ -3,7 +3,6 @@ from itertools import cycle
 
 import colorcet as cc
 import numpy as np
-import pandas as pd
 from numpy.random import default_rng
 
 
@@ -326,12 +325,9 @@ def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
     if isinstance(arg_cycle, str):
         if ":" in arg_cycle:
             arg_cycle, indexes = arg_cycle.split("-")
-            one, two = indexes.split(":")
-            start = max(0, int(one))
-            stop = min(255, int(two))
+            start, stop = indexes.split(":")
         else:
-            start = 0
-            stop = 255
+            start, stop = 0, 255
     if arg_cycle in cc.palette:
         if arg not in data:
             raise AttributeError("arg[0] of arg must be in data passed to LinePlot")
@@ -356,17 +352,17 @@ def _discrete_cycler(arg, data, arg_cycle):
 
 def _continuous_cycler(arg, data, arg_cycle, start=0, stop=255):
     cmap = cc.palette[arg_cycle]
-    if pd.api.types.is_string_dtype(data[arg]) or pd.api.types.is_object_dtype(
-        data[arg]
-    ):
-        uvals = set(data[arg])
+    start = max(0, int(start))
+    stop = min(len(cmap), int(stop))
+    uvals = set(data[arg])
+    if len(uvals) != len(data[arg]):
         vmax = len(uvals)
-        cvals = np.linspace(start, stop - 1, num=vmax)
+        cvals = np.linspace(start, stop - 1, num=vmax, dtype=int)
         mapping = {key: cmap[c] for c, key in zip(cvals, uvals)}
         colors = [mapping[key] for key in data[arg]]
     else:
-        vmin = data.min(arg)
-        vmax = data.max(arg)
+        vmin = min(data[arg])
+        vmax = max(data[arg])
         vals = data[arg]
         color_normal = (np.array(vals) - vmin) * ((stop - 1) - start) / (
             vmax - vmin
@@ -374,14 +370,6 @@ def _continuous_cycler(arg, data, arg_cycle, start=0, stop=255):
         color_normal = color_normal.astype(int)
         colors = [cmap[e] for e in color_normal]
     return colors
-
-
-def get_valid_kwargs(args_list, **kwargs):
-    output_args = {}
-    for i in args_list:
-        if i in kwargs:
-            output_args[i] = kwargs[i]
-    return output_args
 
 
 def _process_positions(group_spacing, group_order, subgroup_order=None):
