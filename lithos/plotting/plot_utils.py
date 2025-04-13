@@ -384,9 +384,9 @@ def get_valid_kwargs(args_list, **kwargs):
     return output_args
 
 
-def _process_positions(group_spacing, group_order, subgroup=None, subgroup_order=None):
+def _process_positions(group_spacing, group_order, subgroup_order=None):
     group_loc = {key: float(index) for index, key in enumerate(group_order)}
-    if subgroup is not None:
+    if subgroup_order is not None:
         width = group_spacing / len(subgroup_order)
         start = (group_spacing / 2) - (width / 2)
         sub_loc = np.linspace(-start, start, len(subgroup_order))

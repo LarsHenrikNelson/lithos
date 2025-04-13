@@ -58,7 +58,6 @@ class CategoricalProcessor(BaseProcessor):
         )
         if group is not None:
             loc_dict, width = _process_positions(
-                subgroup=subgroup,
                 group_order=group_order,
                 subgroup_order=subgroup_order,
                 group_spacing=group_spacing,
