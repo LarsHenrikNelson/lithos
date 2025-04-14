@@ -515,8 +515,17 @@ plot = (
     .grouping(group="grouping_1")
     .ecdf(
         linecolor="rainbow-100:200",
-        linealpha=0.8,
+        linealpha=0.3,
         agg_func=None,
+        err_func=None,
+        unique_id="unique_grouping",
+        fill_between=True,
+    )
+    .ecdf(
+        linecolor="rainbow-100:200",
+        linealpha=1.0,
+        linestyle="dashdot",
+        agg_func="mean",
         err_func=None,
         unique_id="unique_grouping",
         fill_between=True,

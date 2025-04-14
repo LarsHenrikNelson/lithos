@@ -4,7 +4,7 @@ import numpy as np
 
 from ... import stats
 from ...utils import DataHolder, get_transform
-from ..plot_utils import _calc_hist, create_dict
+from ..plot_utils import _calc_hist, create_dict, _create_groupings
 from ..types import (
     BW,
     Agg,
@@ -37,7 +37,7 @@ class LineProcessor(BaseProcessor):
     def process_groups(
         self, data, group, subgroup, group_order, subgroup_order, facet, facet_title
     ):
-        group_order, subgroup_order, unique_groups, levels = self._create_groupings(
+        group_order, subgroup_order, unique_groups, levels = _create_groupings(
             data, group, subgroup, group_order, subgroup_order
         )
 

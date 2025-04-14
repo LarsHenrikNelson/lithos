@@ -14,6 +14,7 @@ from ..plot_utils import (
     process_jitter,
     _process_positions,
     create_dict,
+    _create_groupings,
 )
 from ..types import (
     BW,
@@ -53,7 +54,7 @@ class CategoricalProcessor(BaseProcessor):
     def process_groups(
         self, data, group, subgroup, group_order, subgroup_order, group_spacing
     ):
-        group_order, subgroup_order, unique_groups, levels = self._create_groupings(
+        group_order, subgroup_order, unique_groups, levels = _create_groupings(
             data, group, subgroup, group_order, subgroup_order
         )
         if group is not None:
@@ -220,18 +221,16 @@ class CategoricalProcessor(BaseProcessor):
         output = JitterPlotData(
             x_data=x_data,
             y_data=y_data,
-            marker=self._process_dict(groups, marker, unique_groups, agg_func),
+            marker=self._process_dict(groups, marker, unique_groups, None),
             markerfacecolor=self._process_dict(
-                groups, markercolor, unique_groups, agg_func
+                groups, markercolor, unique_groups, None
             ),
-            markeredgecolor=self._process_dict(
-                groups, edgecolor, unique_groups, agg_func
-            ),
+            markeredgecolor=self._process_dict(groups, edgecolor, unique_groups, None),
             markersize=[markersize] * len(y_data),
             alpha=alpha,
             edge_alpha=edge_alpha,
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, None),
         )
         return output
 
