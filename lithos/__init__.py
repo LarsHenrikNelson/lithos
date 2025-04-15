@@ -1,6 +1,4 @@
-from . import (
-    plotting,  # noqa: F401
-)
-from .stats import *  # noqa F403
+from .plotting import CategoricalPlot, LinePlot
+from .stats import *
 
 __version__ = "0.0.1"

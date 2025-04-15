@@ -44,7 +44,7 @@ class BaseProcessor:
                 output_args[key] = value
         return output_args
 
-    def process_scatter(self, args: dict, data: DataHolder):
+    def preprocess_scatter(self, args: dict, data: DataHolder):
         output_args = {}
         for key, value in args.items():
             if "color" in key:
@@ -103,7 +103,7 @@ class BaseProcessor:
             if p != "scatter":
                 args = self.preprocess_args(pdict)
             else:
-                args = self.process_scatter(pdict, data)
+                args = self.preprocess_scatter(pdict, data)
             temp = self.PLOTS[p](
                 data=data,
                 y=y,
