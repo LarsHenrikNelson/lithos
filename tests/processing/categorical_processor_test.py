@@ -21,7 +21,6 @@ class TestCategoricalProcessor:
         for i in vals[:end]:
             if i != 0:
                 output *= i
-        print(output)
         return output
 
     @pytest.mark.parametrize(
