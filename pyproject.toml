@@ -41,7 +41,7 @@ addopts = "-ra -q"
 testpaths = ["tests"]
 
 [project.optional-dependencies]
-testing = ["pytest"]
+testing = ["pytest", "pytest-cov"]
 docs = ["nbconvert"]
 
 [project.urls]
