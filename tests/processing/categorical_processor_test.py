@@ -126,3 +126,104 @@ class TestCategoricalProcessor:
         assert len(output[0].x_data) == self.get_n_groups(
             _fixt[1], uid="unique_grouping", agg_func=agg_func
         )
+
+    @pytest.mark.parametrize(
+        "data, subgroup, uid",
+        [
+            ("one_grouping", None, None),
+            ("two_grouping", "grouping_2", None),
+        ],
+    )
+    def test_summary(self, data, subgroup, uid, request) -> None:
+        _fixt = request.getfixturevalue(data)
+        processor = CategoricalProcessor(
+            markers=("o", "X", "^", "s", "d"),
+            hatches=("/", "o", "-", "*", "+"),
+        )
+
+        plot = (
+            CategoricalPlot(_fixt[0])
+            .grouping(group="grouping_1", subgroup=subgroup)
+            .summary()
+            .plot_data(y="y")
+        )
+        output, _ = processor(plot.data, plot.metadata())
+        assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid)
+
+    @pytest.mark.parametrize(
+        "data, subgroup, uid",
+        [
+            ("one_grouping", None, None),
+            ("two_grouping", "grouping_2", None),
+        ],
+    )
+    def test_box(self, data, subgroup, uid, request) -> None:
+        _fixt = request.getfixturevalue(data)
+        processor = CategoricalProcessor(
+            markers=("o", "X", "^", "s", "d"),
+            hatches=("/", "o", "-", "*", "+"),
+        )
+
+        plot = (
+            CategoricalPlot(_fixt[0])
+            .grouping(group="grouping_1", subgroup=subgroup)
+            .box()
+            .plot_data(y="y")
+        )
+        metadata = plot.metadata()
+        output, _ = processor(plot.data, metadata)
+        assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid)
+
+    @pytest.mark.parametrize(
+        "data, subgroup",
+        [
+            ("one_grouping_with_unique_ids", None),
+            ("one_grouping_with_unique_ids", None),
+            ("two_grouping_with_unique_ids", "grouping_2"),
+            ("two_grouping_with_unique_ids", "grouping_2"),
+        ],
+    )
+    def test_percent(self, data, subgroup, request) -> None:
+        _fixt = request.getfixturevalue(data)
+        processor = CategoricalProcessor(
+            markers=("o", "X", "^", "s", "d"),
+            hatches=("/", "o", "-", "*", "+"),
+        )
+
+        plot = (
+            CategoricalPlot(_fixt[0])
+            .grouping(group="grouping_1", subgroup=subgroup)
+            .percent(unique_id="unique_grouping")
+            .plot_data(y="y")
+        )
+        output, _ = processor(plot.data, plot.metadata())
+        assert len(output[0].heights) == self.get_n_groups(
+            _fixt[1], uid="unique_grouping"
+        )
+
+    @pytest.mark.parametrize(
+        "data, subgroup",
+        [
+            ("one_grouping_with_unique_ids", None),
+            ("one_grouping_with_unique_ids", None),
+            ("two_grouping_with_unique_ids", "grouping_2"),
+            ("two_grouping_with_unique_ids", "grouping_2"),
+        ],
+    )
+    def test_count(self, data, subgroup, request) -> None:
+        _fixt = request.getfixturevalue(data)
+        processor = CategoricalProcessor(
+            markers=("o", "X", "^", "s", "d"),
+            hatches=("/", "o", "-", "*", "+"),
+        )
+
+        plot = (
+            CategoricalPlot(_fixt[0])
+            .grouping(group="grouping_1", subgroup=subgroup)
+            .count(unique_id="unique_grouping")
+            .plot_data(y="y")
+        )
+        output, _ = processor(plot.data, plot.metadata())
+        assert len(output[0].heights) == self.get_n_groups(
+            _fixt[1], uid="unique_grouping"
+        )
