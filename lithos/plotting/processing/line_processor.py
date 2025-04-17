@@ -320,13 +320,13 @@ class LineProcessor(BaseProcessor):
         new_levels = (levels + (x,)) if unique_id is None else (levels + (x, unique_id))
         ytransform = get_transform(ytransform)
         func = get_transform(func)
-        new_data = data.groupby(y, new_levels, sort=sort).agg(
-            y=(y, lambda x: func(ytransform(x)))
-        )
+        agg_dict = {col: (y, lambda x: func(ytransform(x))) for col in [y]}
+        new_data = data.groupby(y, new_levels, sort=sort).agg(**agg_dict)
         if unique_id is None:
             if err_func is not None:
+                agg_dict = {col: (y, lambda x: func(ytransform(x))) for col in [y]}
                 err_data = DataHolder(
-                    data.groupby(y, new_levels, sort=sort).agg(get_transform(err_func))
+                    data.groupby(y, new_levels, sort=sort).agg(**agg_dict)
                 )
         else:
             if agg_func is not None:
