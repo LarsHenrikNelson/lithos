@@ -302,7 +302,6 @@ class Plotter:
         axis: Literal["x", "y"] = "x",
         style: Literal["default", "lithos"] = "lithos",
     ):
-
         if axis == "y":
             ticks = ax.get_yticks()
             if style == "lithos":
@@ -681,32 +680,35 @@ class Plotter:
         zorder: list[int],
         marker: list[str | None] | None = None,
         linecolor: list[str | None] | None = None,
+        fillcolor: list[str | None] | None = None,
         linewidth: list[float | None] | None = None,
         linestyle: list[str | None] | None = None,
         markerfacecolor: list[str | None] | None = None,
         markeredgecolor: list[str | None] | None = None,
         fill_between: bool = False,
+        fill_under: bool = False,
         fb_direction: Literal["x", "y"] = "y",
         markersize: float | None = None,
         fillalpha: float | None = None,
         linealpha: float | None = None,
         **kwargs,
     ):
-        for x, y, err, ls, lc, mf, me, mk, fc, z in zip(
+        for x, y, err, ls, lc, fc, mf, me, mk, fi, z in zip(
             x_data,
             y_data,
             error_data,
             linestyle,
             linecolor,
+            fillcolor,
             markerfacecolor,
             markeredgecolor,
             marker,
             facet_index,
             zorder,
         ):
-            if not fill_between:
+            if not fill_between and not fill_under:
                 if fb_direction == "x":
-                    ax[fc].errorbar(
+                    ax[fi].errorbar(
                         x,
                         y,
                         xerr=err,
@@ -722,7 +724,7 @@ class Plotter:
                         zorder=z,
                     )
                 else:
-                    ax[fc].errorbar(
+                    ax[fi].errorbar(
                         x,
                         y,
                         yerr=err,
@@ -737,29 +739,59 @@ class Plotter:
                         alpha=linealpha,
                         zorder=z,
                     )
-            else:
+            elif fill_between:
                 if err is not None:
                     if fb_direction == "y":
-                        ax[fc].fill_between(
+                        ax[fi].fill_between(
                             x,
                             y - err,
                             y + err,
-                            color=self._process_color(lc, fillalpha),
+                            color=self._process_color(fc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
                             zorder=z,
                         )
                     else:
-                        ax[fc].fill_betweenx(
+                        ax[fi].fill_betweenx(
                             y,
                             x - err,
                             x + err,
-                            color=self._process_color(lc, fillalpha),
+                            color=self._process_color(fc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
                             zorder=z,
                         )
-                ax[fc].plot(
+                ax[fi].plot(
+                    x,
+                    y,
+                    linestyle=ls,
+                    linewidth=linewidth,
+                    color=lc,
+                    alpha=linealpha,
+                    zorder=z,
+                )
+            else:
+                if fb_direction == "y":
+                    ax[fi].fill_between(
+                        x,
+                        0,
+                        y,
+                        color=self._process_color(fc, fillalpha),
+                        linewidth=0,
+                        edgecolor="none",
+                        zorder=z,
+                    )
+                else:
+                    ax[fi].fill_betweenx(
+                        y,
+                        0,
+                        x,
+                        color=self._process_color(fc, fillalpha),
+                        linewidth=0,
+                        edgecolor="none",
+                        zorder=z,
+                    )
+                ax[fi].plot(
                     x,
                     y,
                     linestyle=ls,
@@ -791,7 +823,6 @@ class Plotter:
             plot_func(**p_dict, ax=self.axes)
 
     def plot(self):
-
         self._plot()
         self.format_plot()
 

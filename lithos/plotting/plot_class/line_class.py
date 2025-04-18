@@ -82,6 +82,7 @@ class LinePlot(BasePlot):
         markeredgecolor: ColorParameters | tuple[str, str] = None,
         markersize: float | str = 1,
         linecolor: ColorParameters = "glasbey_category10",
+        fillcolor: ColorParameters | None = None,
         linewidth: float = 1.0,
         linestyle: str = "-",
         linealpha: float = 1.0,
@@ -93,6 +94,8 @@ class LinePlot(BasePlot):
         sort=True,
         unique_id=None,
     ):
+        if fillcolor is None:
+            fillcolor = linecolor
         self._plot_methods.append("aggline")
         self._plot_prefs.append(
             {
@@ -101,6 +104,7 @@ class LinePlot(BasePlot):
                 "markeredgecolor": markeredgecolor,
                 "markersize": markersize,
                 "linecolor": linecolor,
+                "fillcolor": fillcolor,
                 "linewidth": linewidth,
                 "linestyle": linestyle,
                 "linealpha": linealpha,
@@ -124,17 +128,23 @@ class LinePlot(BasePlot):
         tol: float | int = 1e-3,
         common_norm: bool = False,
         linecolor: ColorParameters = "glasbey_category10",
+        fillcolor: ColorParameters | None = None,
         linestyle: str = "-",
         linewidth: int = 2,
         fill_between: bool = False,
         linealpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 1.0,
+        fill_under: bool = False,
         kde_length: int | None = None,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
         err_func: Error = None,
         KDEType: Literal["tree", "fft"] = "fft",
     ):
+        if fill_under and fill_between:
+            raise AttributeError("Cannot fill under and between at the same time")
+        if fillcolor is None:
+            fillcolor = linecolor
         self._plot_methods.append("kde")
         self._plot_prefs.append(
             {
@@ -143,10 +153,11 @@ class LinePlot(BasePlot):
                 "tol": tol,
                 "common_norm": common_norm,
                 "linecolor": linecolor,
+                "fillcolor": fillcolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
                 "fill_between": fill_between,
-                "fill_under": False,
+                "fill_under": fill_under,
                 "linealpha": linealpha,
                 "fillalpha": fillalpha,
                 "kde_length": kde_length,
@@ -240,6 +251,7 @@ class LinePlot(BasePlot):
     def ecdf(
         self,
         linecolor: ColorParameters = "glasbey_category10",
+        fillcolor: ColorParameters | None = None,
         linestyle: str = "-",
         linewidth: int = 2,
         linealpha: AlphaRange = 1.0,
@@ -256,10 +268,13 @@ class LinePlot(BasePlot):
             ecdf_type = "bootstrap"
         else:
             ecdf_args
+        if fillcolor is None:
+            fillcolor = linecolor
         self._plot_methods.append("ecdf")
         self._plot_prefs.append(
             {
                 "linecolor": linecolor,
+                "fillcolor": fillcolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
                 "linealpha": linealpha,

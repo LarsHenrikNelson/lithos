@@ -289,6 +289,7 @@ class LineProcessor(BaseProcessor):
         linestyle: str | dict[str, str],
         linewidth: float | int,
         linecolor: str | dict[str, str],
+        fillcolor: str | dict[str, str],
         linealpha: float | int,
         loc_dict: dict[str, int],
         zorder_dict: dict[str, int],
@@ -310,6 +311,7 @@ class LineProcessor(BaseProcessor):
         facet_index = []
         mks = []
         lcs = []
+        fcs = []
         lss = []
         mfcs = []
         mecs = []
@@ -360,6 +362,7 @@ class LineProcessor(BaseProcessor):
             facet_index.append(loc_dict[u])
             mks.append(marker[u])
             lcs.append(linecolor[u])
+            fcs.append(fillcolor[u])
             lss.append(linestyle[u])
             mfcs.append(markerfacecolor[u])
             mecs.append(markeredgecolor[u])
@@ -372,6 +375,7 @@ class LineProcessor(BaseProcessor):
             facet_index=facet_index,
             marker=mks,
             linecolor=lcs,
+            fillcolor=fcs,
             linewidth=linewidth,
             linestyle=lss,
             markerfacecolor=mfcs,
@@ -394,6 +398,7 @@ class LineProcessor(BaseProcessor):
         x: str,
         levels: Levels,
         linecolor: str | dict[str, str],
+        fillcolor: str | dict[str, str],
         loc_dict: dict[str, int],
         linestyle: str | dict[str, str],
         linewidth: float | int,
@@ -523,6 +528,7 @@ class LineProcessor(BaseProcessor):
             facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
             marker=nones,
             linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
+            fillcolor=self._process_dict(groups, fillcolor, unique_groups, agg_func),
             linewidth=linewidth,
             linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
             markerfacecolor=nones,
@@ -531,6 +537,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
+            fill_under=fill_under,
             fb_direction=direction,
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
@@ -545,6 +552,7 @@ class LineProcessor(BaseProcessor):
         levels: Levels,
         linewidth: float | int,
         linecolor: str | dict[str, str],
+        fillcolor: str | dict[str, str],
         loc_dict: dict[str, int],
         linestyle: str | dict[str, str],
         linealpha: float | int,
@@ -634,6 +642,7 @@ class LineProcessor(BaseProcessor):
             facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
             marker=nones,
             linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
+            fillcolor=self._process_dict(groups, fillcolor, unique_groups, agg_func),
             linewidth=linewidth,
             linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
             markerfacecolor=nones,
@@ -817,6 +826,7 @@ class LineProcessor(BaseProcessor):
             facet_index=self._process_dict(groups, loc_dict, unique_groups),
             marker=nones,
             linecolor=self._process_dict(groups, linecolor, unique_groups),
+            fillcolor=nones,
             linewidth=linewidth,
             linestyle=self._process_dict(groups, linestyle, unique_groups),
             markerfacecolor=nones,

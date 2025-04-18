@@ -37,15 +37,17 @@ class LinePlotData(PlotData):
     facet_index: list[int]
     marker: list[str | None] | None = None
     linecolor: list[str | None] | None = None
+    fillcolor: list[str | None] | None = None
     linewidth: list[float | None] | None = None
     linestyle: list[str | None] | None = None
     markerfacecolor: list[str | None] | None = None
     markeredgecolor: list[str | None] | None = None
     fill_between: bool = False
-    fb_direction: Literal["x" "y"] = "y"
+    fb_direction: Literal["xy"] = "y"
     markersize: float | None = None
     fillalpha: float | None = None
     linealpha: float | None = None
+    fill_under: bool = False
     plot_type: str = "line"
 
 

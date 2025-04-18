@@ -472,6 +472,10 @@ Additionally, you will notice that you can truncate the axis limits by passing a
 
 ```python
 df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
+fig, ax = plt.subplots(
+    ncols=2, nrows=2, figsize=(6.4 * 2, 4.8 * 2), layout="constrained"
+)
+ax = ax.flatten()
 plot = (
     LinePlot(data=df)
     .grouping(group="grouping_1", subgroup="grouping_2", facet=True)
@@ -488,7 +492,26 @@ plot = (
     .axis_format(ysteps=(8, 1, 7))
     .axis(ydecimals=2)
     .figure(ncols=2)
-    .plot()
+    .plot(figure=fig, axes=ax[:2])
+)
+plot = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1", subgroup="grouping_2", facet=True)
+    .kde(
+        unique_id="unique_grouping",
+        agg_func="mean",
+        fill_under=True,
+        linecolor="white",
+        fillcolor="glasbey_category10",
+        linewidth=2,
+        fillalpha=0.3,
+        kde_length=1028,
+    )
+    .plot_data(x="y")
+    .axis_format(ysteps=(8, 1, 7))
+    .axis(ydecimals=2)
+    .figure(ncols=2)
+    .plot(figure=fig, axes=ax[2:])
 )
 ```
 
