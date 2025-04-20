@@ -1,6 +1,8 @@
-# Lithos
+<img src="doc/_static/logo_name.svg" width="300" title="lithos"><br>
 
-### ***The develop branch is undergoing a lot of change. There may be breaking changes.***
+--------------------------------------
+
+# Lithos
 
 Lithos is a simple plotting package written in Python and intended for scientific publications. There is a strong focus on plotting clustered data within groups. This is particularly useful for studies where many neurons are measured per mouse or subjects per location or repeated measures per subject. Data can be transformed (log10, inverse, etc) easily and/or aggregated (mean, median, circular mean, etc) within Lithos. You can also design plots, save the metadata and load the metadata for us in other plots making this comparable to GraphPad "magic" function.
 
@@ -456,7 +458,6 @@ plot = (
     .plot_data(y="y1")
     .plot()
 )
-
 ```
 
 
