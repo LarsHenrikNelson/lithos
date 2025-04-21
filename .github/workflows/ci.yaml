@@ -34,5 +34,4 @@ jobs:
           pip install .[testing]
 
       - name: Run tests
-        run: |
-          pytest tests
+        run: pytest tests -vv --cov-report=term --cov-report=xml tests
