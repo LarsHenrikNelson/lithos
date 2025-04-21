@@ -47,9 +47,8 @@ docs = ["nbconvert"]
 [project.urls]
 Downloads = "https://github.com/LarsHenrikNelson/lithos"
 
-[tool.setuptools]
-packages=["lithos"]
-
+[tool.setuptools.packages]
+find = {}
 
 [tool.ruff.lint]
 ignore = ["F401", "F403"]
