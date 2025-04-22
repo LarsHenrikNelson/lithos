@@ -1,4 +1,9 @@
+from importlib.metadata import version, PackageNotFoundError
+
 from .plotting import CategoricalPlot, LinePlot
 from .stats import *
 
-__version__ = "0.1.2"
+try:
+    __version__ = version("lithos")
+except PackageNotFoundError:
+    pass
