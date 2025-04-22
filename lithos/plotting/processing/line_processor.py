@@ -782,16 +782,24 @@ class LineProcessor(BaseProcessor):
         zorder_dict: dict[str, int],
         linewidth: float | int = 2,
         unique_id: str | None = None,
-        alpha: AlphaRange = 1.0,
+        linealpha: AlphaRange = 1.0,
+        fillalpha: AlphaRange = 0.5,
         xtransform: Transform = None,
         ytransform: Transform = None,
+        func: Agg = "mean",
+        err_func: Error = "sem",
+        index: str | None = None,
         *args,
         **kwargs,
     ) -> LinePlotData:
         x_data = []
         y_data = []
         group_labels = []
+        err_data = []
         unique_groups = None
+
+        if index is None and x is not None:
+            index = x
 
         groups = data.groups(levels)
         if unique_id is not None:
@@ -806,37 +814,67 @@ class LineProcessor(BaseProcessor):
                     x_data.append(get_transform(xtransform)(np.arange(len(temp_y))))
                 y_data.append(get_transform(ytransform)(temp_y))
                 group_labels.append(group_key)
+                err_data.append(None)
             else:
                 uids = np.unique(data[indexes, unique_id])
-                for j in uids:
+                if func is not None:
+                    seen = set()
+                    seq = data[indexes, x]
+                    if x is None:
+                        raise ValueError("x must be passed if you want to aggregate y")
+                    x_temp = [x for x in seq if not (x in seen or seen.add(x))]
+                    x_output = np.zeros((len(uids), len(x_temp)))
+                    y_output = np.zeros((len(uids), len(x_temp)))
+                for index, j in enumerate(uids):
                     sub_indexes = unique_groups[group_key + (j,)]
                     temp_y = np.asarray(data[sub_indexes, y])
-                    if x is not None:
-                        temp_x = np.asarray(data[sub_indexes, x])
-                        x_data.append(get_transform(xtransform)(temp_x))
+                    if func is None:
+                        y_data.append(get_transform(ytransform)(temp_y))
+                        group_labels.append(group_key)
+                        if x is not None:
+                            temp_x = np.asarray(data[sub_indexes, x])
+                            x_data.append(get_transform(xtransform)(temp_x))
+                        else:
+                            x_data.append(
+                                get_transform(xtransform)(np.arange(len(temp_y)))
+                            )
                     else:
-                        x_data.append(get_transform(xtransform)(np.arange(len(temp_y))))
-                    y_data.append(get_transform(ytransform)(temp_y))
+                        temp_x = np.asarray(data[sub_indexes, x])
+                        y_output[index, :] = get_transform(ytransform)(temp_y)
+                        x_output[index, :] = get_transform(ytransform)(temp_x)
+                if func is not None:
+                    y_data.append(get_transform(func)(y_output, axis=0))
+                    x_data.append(get_transform(func)(x_output, axis=0))
                     group_labels.append(group_key)
+                if err_func is not None:
+                    err_data.append(get_transform(err_func)(y_output, axis=0))
+                else:
+                    err_data.append(None)
         nones = [None] * len(y_data)
+        if err_func is not None:
+            fillcolor = self._process_dict(groups, linecolor, unique_groups, func)
+            fill_between = True
+        else:
+            fillcolor = nones
+            fill_between = False
         output = LinePlotData(
             x_data=x_data,
             y_data=y_data,
-            error_data=nones,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups),
+            error_data=err_data,
+            facet_index=self._process_dict(groups, loc_dict, unique_groups, func),
             marker=nones,
-            linecolor=self._process_dict(groups, linecolor, unique_groups),
-            fillcolor=nones,
+            linecolor=self._process_dict(groups, linecolor, unique_groups, func),
+            fillcolor=fillcolor,
             linewidth=linewidth,
-            linestyle=self._process_dict(groups, linestyle, unique_groups),
+            linestyle=self._process_dict(groups, linestyle, unique_groups, func),
             markerfacecolor=nones,
             markeredgecolor=nones,
             markersize=None,
-            fill_between=False,
-            linealpha=alpha,
-            fillalpha=alpha,
+            fill_between=fill_between,
+            linealpha=linealpha,
+            fillalpha=fillalpha,
             fb_direction="y",
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups),
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
         )
         return output

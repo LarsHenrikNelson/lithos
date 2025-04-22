@@ -1,9 +1,18 @@
+import os
+import re
+import subprocess
+
+import nbformat
 from nbconvert import MarkdownExporter
 from nbconvert.preprocessors import Preprocessor, TagRemovePreprocessor
 from traitlets import Unicode
-import nbformat
-import re
-import os
+
+
+def get_current_branch():
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True
+    )
+    return result.stdout.strip()
 
 
 class ImageNamePreprocessor(Preprocessor):
@@ -44,8 +53,11 @@ class CustomMarkdownExporter(MarkdownExporter):
             for idx, name in resources["image_names"].items():
                 # Replace standard output_X_Y.ext pattern with custom name
                 pattern = rf"README_files/output_{idx}_\d+\.([a-zA-Z]+)"
-                replacement = rf"README_files/{name}.\1"
+                current_branch = get_current_branch()
+                file = f"https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/{current_branch}/doc/_static/README_files"
+                replacement = rf"{file}/{name}.\1"
                 output = re.sub(pattern, replacement, output)
+                print(output)
 
                 # Also rename the actual files
                 if "outputs" in resources:
@@ -53,7 +65,8 @@ class CustomMarkdownExporter(MarkdownExporter):
                     for key, val in resources["outputs"].items():
                         if f"output_{idx}_" in key:
                             ext = key.split(".")[-1]
-                            new_key = f"README_files/{name}.{ext}"
+                            new_key = f"doc/_static/README_files/{name}.{ext}"
+                            print(new_key)
                             new_outputs[new_key] = val
                         else:
                             new_outputs[key] = val
@@ -76,7 +89,7 @@ with open("README.md", "w") as f:
 
 # Write the image files
 if "outputs" in resources:
-    os.makedirs("README_files", exist_ok=True)
+    os.makedirs("doc/_static/README_files", exist_ok=True)
     for filename, data in resources["outputs"].items():
         with open(filename, "wb") as f:
             f.write(data)

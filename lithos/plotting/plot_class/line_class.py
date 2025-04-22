@@ -55,20 +55,40 @@ class LinePlot(BasePlot):
 
     def line(
         self,
+        marker: str = "none",
+        markerfacecolor: ColorParameters | tuple[str, str] = None,
+        markeredgecolor: ColorParameters | tuple[str, str] = None,
+        markersize: float | str = 1,
         linecolor: ColorParameters = "glasbey_category10",
+        fillcolor: ColorParameters | None = None,
+        fill_between: bool = False,
         linestyle: str = "-",
         linewidth: int = 2,
-        alpha: AlphaRange = 1.0,
+        linealpha: AlphaRange = 1.0,
+        fillalpha: AlphaRange = 0.5,
         unique_id: str | None = None,
+        func: Agg | None = None,
+        err_func: Error | None = None,
+        index: str | None = None,
     ):
         self._plot_methods.append("line")
         self._plot_prefs.append(
             {
+                "marker": marker,
+                "markerfacecolor": markerfacecolor,
+                "markeredgecolor": markeredgecolor,
+                "markersize": markersize,
                 "linecolor": linecolor,
+                "fillcolor": fillcolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
-                "alpha": alpha,
+                "linealpha": linealpha,
                 "unique_id": unique_id,
+                "fill_between": fill_between,
+                "fillalpha": fillalpha,
+                "func": func,
+                "err_func": err_func,
+                "index": index,
             }
         )
 
@@ -90,7 +110,7 @@ class LinePlot(BasePlot):
         err_func: Error = "sem",
         agg_func: Agg | None = None,
         fill_between: bool = False,
-        fillalpha: AlphaRange = 1.0,
+        fillalpha: AlphaRange = 0.5,
         sort=True,
         unique_id=None,
     ):

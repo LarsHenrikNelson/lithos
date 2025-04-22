@@ -65,7 +65,7 @@ plot = (
 
 
     
-![png](README_files/default_format.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/default_format.png)
     
 
 
@@ -99,7 +99,7 @@ plot = (
 
 
     
-![png](README_files/formatted_plot.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/formatted_plot.png)
     
 
 
@@ -119,7 +119,7 @@ plot = CategoricalPlot(data=df).load_metadata("my_plot").plot()
 
 
     
-![png](README_files/loading_plot_metadata.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/loading_plot_metadata.png)
     
 
 
@@ -267,7 +267,7 @@ plot = (
 
 
     
-![png](README_files/jitter_summary.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/jitter_summary.png)
     
 
 
@@ -348,7 +348,7 @@ plot2 = (
 
 
     
-![png](README_files/jitter_violin.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/jitter_violin.png)
     
 
 
@@ -380,7 +380,7 @@ plot = (
 
 
     
-![png](README_files/box.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/box.png)
     
 
 
@@ -444,7 +444,7 @@ plot = (
 
 
     
-![png](README_files/percent.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/percent.png)
     
 
 
@@ -465,7 +465,7 @@ plot = (
 
 
     
-![png](README_files/count.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/count.png)
     
 
 
@@ -521,7 +521,7 @@ plot = (
 
 
     
-![png](README_files/kde.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/kde.png)
     
 
 
@@ -581,7 +581,7 @@ plot = (
 
 
     
-![png](README_files/ecdf.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/ecdf.png)
     
 
 
@@ -649,7 +649,7 @@ plot2 = (
 
 
     
-![png](README_files/aggline.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/aggline.png)
     
 
 
@@ -657,7 +657,10 @@ plot2 = (
 If you have a simple line that does not need to be aggregated then use the line method. This provides a simple line plot for timeseries data. Here are the few parameters that line can take:
 * You do not have to pass x to plot_data. Lithos will just create an x of increasing numbers.
 * You can pass a unique_id to line plot.
+* Similar to aggline you can aggregate the lines however, line expects that you have the same number of x-values per unique_id but not the same x-values per unique_id. The data also must be pre-sorted since the data is just pulled out by index order. The data is also not aggregated at the unique_id level but at the group or subgroup level. Line is intended for time series data whereas aggline is intended for many y per x (distribution per x).
+* Line will be more performant than aggline when you have many x-values you want to aggregate over.
 * You pass a linecolor, either a string or a dictionary.
+* Error is currently only plotted for the y value.
 
 
 ```python
@@ -688,7 +691,7 @@ plot = (
 
 
     
-![png](README_files/line.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/line.png)
     
 
 
@@ -736,7 +739,7 @@ plot = (
 
 
     
-![png](README_files/scatter.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/scatter.png)
     
 
 
@@ -781,7 +784,7 @@ plot1 = (
 
 
     
-![png](README_files/hist.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/hist.png)
     
 
 
@@ -818,6 +821,6 @@ plot1 = (
 
 
     
-![png](README_files/circular_hist.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/circular_hist.png)
     
 
