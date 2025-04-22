@@ -65,7 +65,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/default_format.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/default_format.png)
     
 
 
@@ -99,7 +99,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/formatted_plot.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/formatted_plot.png)
     
 
 
@@ -119,7 +119,7 @@ plot = CategoricalPlot(data=df).load_metadata("my_plot").plot()
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/loading_plot_metadata.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/loading_plot_metadata.png)
     
 
 
@@ -267,7 +267,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/jitter_summary.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/jitter_summary.png)
     
 
 
@@ -348,7 +348,7 @@ plot2 = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/jitter_violin.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/jitter_violin.png)
     
 
 
@@ -380,7 +380,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/box.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/box.png)
     
 
 
@@ -444,7 +444,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/percent.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/percent.png)
     
 
 
@@ -465,7 +465,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/count.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/count.png)
     
 
 
@@ -521,7 +521,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/kde.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/kde.png)
     
 
 
@@ -581,7 +581,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/ecdf.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/ecdf.png)
     
 
 
@@ -649,7 +649,7 @@ plot2 = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/aggline.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/aggline.png)
     
 
 
@@ -691,7 +691,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/line.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/line.png)
     
 
 
@@ -739,7 +739,7 @@ plot = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/scatter.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/scatter.png)
     
 
 
@@ -784,7 +784,7 @@ plot1 = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/hist.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/hist.png)
     
 
 
@@ -821,6 +821,6 @@ plot1 = (
 
 
     
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/develop/doc/_static/README_files/circular_hist.png)
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/circular_hist.png)
     
 
