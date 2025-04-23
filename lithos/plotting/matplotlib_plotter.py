@@ -708,6 +708,8 @@ class Plotter:
         ):
             if not fill_between and not fill_under:
                 if fb_direction == "x":
+                    if err is None:
+                        err = 0
                     ax[fi].errorbar(
                         x,
                         y,
@@ -770,7 +772,7 @@ class Plotter:
                     alpha=linealpha,
                     zorder=z,
                 )
-            else:
+            elif fill_under:
                 if fb_direction == "y":
                     ax[fi].fill_between(
                         x,
@@ -791,6 +793,16 @@ class Plotter:
                         edgecolor="none",
                         zorder=z,
                     )
+                ax[fi].plot(
+                    x,
+                    y,
+                    linestyle=ls,
+                    linewidth=linewidth,
+                    color=lc,
+                    alpha=linealpha,
+                    zorder=z,
+                )
+            else:
                 ax[fi].plot(
                     x,
                     y,

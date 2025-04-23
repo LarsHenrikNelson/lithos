@@ -683,7 +683,7 @@ df2 = create_synthetic_data(
 plot = (
     LinePlot(data=df2)
     .grouping(group="grouping_1")
-    .line(unique_id="grouping_2", linecolor={0: "green", 1: "purple"})
+    .line(unique_id="grouping_2", linecolor={0: "green", 1: "purple"}, linewidth=1)
     .plot_data(y="y")
     .figure(ncols=2)
     .plot(figure=fig, axes=ax[1])

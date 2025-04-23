@@ -838,6 +838,7 @@ class LineProcessor(BaseProcessor):
                             x_data.append(
                                 get_transform(xtransform)(np.arange(len(temp_y)))
                             )
+                        err_data.append(None)
                     else:
                         temp_x = np.asarray(data[sub_indexes, x])
                         y_output[index, :] = get_transform(ytransform)(temp_y)

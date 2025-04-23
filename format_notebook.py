@@ -57,7 +57,6 @@ class CustomMarkdownExporter(MarkdownExporter):
                 file = f"https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/{current_branch}/doc/_static/README_files"
                 replacement = rf"{file}/{name}.\1"
                 output = re.sub(pattern, replacement, output)
-                print(output)
 
                 # Also rename the actual files
                 if "outputs" in resources:
@@ -66,7 +65,6 @@ class CustomMarkdownExporter(MarkdownExporter):
                         if f"output_{idx}_" in key:
                             ext = key.split(".")[-1]
                             new_key = f"doc/_static/README_files/{name}.{ext}"
-                            print(new_key)
                             new_outputs[new_key] = val
                         else:
                             new_outputs[key] = val
