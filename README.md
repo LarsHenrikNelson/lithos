@@ -1,6 +1,7 @@
 <img src="doc/_static/logo_name.svg" width="300" title="lithos"><br>
 
-[![PyPI version](https://badge.fury.io/py/lithos.svg)](https://badge.fury.io/py/lithos)
+[![PyPI Version](https://img.shields.io/pypi/v/lithos.svg)](https://pypi.org/project/lithos/)
+[![License](https://img.shields.io/pypi/l/lithos.svg)](https://github.com/LarsHenrikNelson/lithos/blob/master/LICENSE.md)
 [![CI](https://github.com/LarsHenrikNelson/lithos/actions/workflows/ci.yaml/badge.svg)](https://github.com/LarsHenrikNelson/lithos/actions/workflows/ci.yaml)
 
 --------------------------------------
