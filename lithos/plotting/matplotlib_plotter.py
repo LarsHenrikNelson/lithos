@@ -1,3 +1,4 @@
+import io
 from pathlib import Path
 from typing import Literal
 from dataclasses import asdict
@@ -857,10 +858,11 @@ class Plotter:
     ):
         if isinstance(path, str):
             path = Path(path)
-        if path.suffix[1:] not in self.filetypes:
-            path = path / f"{filename}.{filetype}"
-        else:
-            filetype = path.suffix[1:]
+        if isinstance(path, Path):
+            if path.suffix[1:] not in self.filetypes:
+                path = path / f"{filename}.{filetype}"
+            else:
+                filetype = path.suffix[1:]
         fig.savefig(
             path,
             format=filetype,
