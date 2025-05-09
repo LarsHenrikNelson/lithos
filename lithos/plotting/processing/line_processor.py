@@ -16,6 +16,7 @@ from ..types import (
     ScatterPlotData,
     LinePlotData,
     Transform,
+    FitFunc,
 )
 
 from .base_processor import BaseProcessor
@@ -32,6 +33,7 @@ class LineProcessor(BaseProcessor):
             "ecdf": self._ecdf,
             "scatter": self._scatter,
             "aggline": self._aggline,
+            "fit": self._fit,
         }
 
     def process_groups(
@@ -384,7 +386,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
-            fb_direction="y",
+            direction="y",
             group_labels=group_labels,
             zorder=zorder,
         )
@@ -538,7 +540,7 @@ class LineProcessor(BaseProcessor):
             linealpha=linealpha,
             fillalpha=fillalpha,
             fill_under=fill_under,
-            fb_direction=direction,
+            direction=direction,
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
@@ -651,7 +653,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
-            fb_direction="x",
+            direction="x",
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
@@ -766,7 +768,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=alpha,
             fillalpha=alpha,
-            fb_direction="y",
+            direction="y",
         )
         return output
 
@@ -874,7 +876,83 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
-            fb_direction="y",
+            direction="y",
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
+        )
+        return output
+
+    def _fit(
+        self,
+        data: DataHolder,
+        y: str,
+        x: str,
+        fit_func: FitFunc,
+        levels: Levels,
+        linecolor: dict[str, str],
+        loc_dict: dict[str, int],
+        linestyle: dict[str, str],
+        zorder_dict: dict[str, int],
+        linewidth: float | int = 2,
+        unique_id: str | None = None,
+        linealpha: AlphaRange = 1.0,
+        xtransform: Transform = None,
+        ytransform: Transform = None,
+        fit_args: dict | None = None,
+        func: Agg = None,
+        **kwargs,
+    ):
+        x_data = []
+        y_data = []
+        group_labels = []
+        unique_groups = None
+
+        if fit_args is None:
+            fit_args = {}
+
+        groups = data.groups(levels)
+        if unique_id is not None:
+            unique_groups = data.groups(levels + (unique_id,))
+        for group_key, indexes in groups.items():
+            if unique_id is None:
+                temp_y = get_transform(ytransform)(np.asarray(data[indexes, y]))
+                temp_x = get_transform(xtransform)(np.asarray(data[indexes, x]))
+                fit_output = stats.fit(
+                    fit_func=fit_func, x=temp_x, y=temp_y, **fit_args
+                )
+                y_data.append(fit_output[1])
+                x_data.append(temp_x)
+                group_labels.append(group_key)
+            else:
+                uids = np.unique(data[indexes, unique_id])
+                for j in uids:
+                    sub_indexes = unique_groups[group_key + (j,)]
+                    temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
+                    temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
+                    fit_output = stats.fit(
+                        fit_func=fit_func, x=temp_x, y=temp_y, **fit_args
+                    )
+                    y_data.append(fit_output[1])
+                    x_data.append(temp_x)
+                    group_labels.append(group_key)
+        nones = [None] * len(y_data)
+        output = LinePlotData(
+            x_data=x_data,
+            y_data=y_data,
+            error_data=nones,
+            facet_index=self._process_dict(groups, loc_dict, unique_groups, func),
+            marker=nones,
+            linecolor=self._process_dict(groups, linecolor, unique_groups, func),
+            fillcolor=nones,
+            linewidth=linewidth,
+            linestyle=self._process_dict(groups, linestyle, unique_groups, func),
+            markerfacecolor=nones,
+            markeredgecolor=nones,
+            markersize=None,
+            fill_between=False,
+            linealpha=linealpha,
+            fillalpha=None,
+            direction="y",
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
         )

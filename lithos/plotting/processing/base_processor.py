@@ -59,6 +59,8 @@ class BaseProcessor:
                     markercolor0,
                     data,
                     self._plot_dict["levels"],
+                    self._plot_dict["group_order"],
+                    self._plot_dict["subgroup_order"],
                     self._plot_dict["unique_groups"],
                     markercolor1,
                 )
@@ -82,6 +84,8 @@ class BaseProcessor:
             self._plot_dict["facet"],
             data,
             self._plot_dict["levels"],
+            self._plot_dict["group_order"],
+            self._plot_dict["subgroup_order"],
             self._plot_dict["unique_groups"],
         )
         return output_args

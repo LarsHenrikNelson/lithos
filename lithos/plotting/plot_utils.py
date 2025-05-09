@@ -309,7 +309,9 @@ def process_args(arg, group, subgroup):
     return output_dict
 
 
-def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
+def process_scatter_args(
+    arg, data, levels, group_order, subgroup_order, unique_groups, arg_cycle=None
+):
     if isinstance(arg, dict):
         output = create_dict(arg, unique_groups)
         output = [output[j] for j in zip(*[data[i] for i in levels])]
@@ -322,7 +324,7 @@ def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
                 output = data[arg]
         elif len(arg) < len(unique_groups):
             output = arg
-    if isinstance(arg_cycle, str):
+    elif isinstance(arg_cycle, str):
         if ":" in arg_cycle:
             arg_cycle, indexes = arg_cycle.split("-")
             start, stop = indexes.split(":")
@@ -333,6 +335,8 @@ def process_scatter_args(arg, data, levels, unique_groups, arg_cycle=None):
             raise AttributeError("arg[0] of arg must be in data passed to LinePlot")
         output = _continuous_cycler(arg, data, arg_cycle, start, stop)
     else:
+        if arg in cc.palette:
+            arg = _process_colors(arg, group_order, subgroup_order)
         output = create_dict(arg, unique_groups)
         output = [output[j] for j in zip(*[data[i] for i in levels])]
     return output

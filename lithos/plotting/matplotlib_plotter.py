@@ -688,7 +688,7 @@ class Plotter:
         markeredgecolor: list[str | None] | None = None,
         fill_between: bool = False,
         fill_under: bool = False,
-        fb_direction: Literal["x", "y"] = "y",
+        direction: Literal["x", "y"] = "y",
         markersize: float | None = None,
         fillalpha: float | None = None,
         linealpha: float | None = None,
@@ -708,7 +708,7 @@ class Plotter:
             zorder,
         ):
             if not fill_between and not fill_under:
-                if fb_direction == "x":
+                if direction == "x":
                     if err is None:
                         err = 0
                     ax[fi].errorbar(
@@ -744,7 +744,7 @@ class Plotter:
                     )
             elif fill_between:
                 if err is not None:
-                    if fb_direction == "y":
+                    if direction == "y":
                         ax[fi].fill_between(
                             x,
                             y - err,
@@ -774,7 +774,7 @@ class Plotter:
                     zorder=z,
                 )
             elif fill_under:
-                if fb_direction == "y":
+                if direction == "y":
                     ax[fi].fill_between(
                         x,
                         0,
@@ -813,6 +813,90 @@ class Plotter:
                     alpha=linealpha,
                     zorder=z,
                 )
+
+    def _plot_marker_line(
+        self,
+        ax: plt.Axes,
+        x_data: list,
+        y_data: list,
+        error_data: list,
+        facet_index: list[int],
+        zorder: list[int],
+        marker: list[str | None] | None = None,
+        linecolor: list[str | None] | None = None,
+        linewidth: list[float | None] | None = None,
+        linestyle: list[str | None] | None = None,
+        linealpha: float | None = None,
+        markerfacecolor: list[str | None] | None = None,
+        markeredgecolor: list[str | None] | None = None,
+        markersize: float | None = None,
+        direction: Literal["x", "y"] = "y",
+        **kwargs,
+    ):
+        for x, y, err, ls, lc, mf, me, mk, fi, z in zip(
+            x_data,
+            y_data,
+            error_data,
+            linestyle,
+            linecolor,
+            markerfacecolor,
+            markeredgecolor,
+            marker,
+            facet_index,
+            zorder,
+        ):
+            if err is None:
+                err = 0
+            if direction == "x":
+                plot_err = {"xerr": err}
+            else:
+                plot_err = {"yerr": err}
+            ax[fi].errorbar(
+                x,
+                y,
+                marker=mk,
+                color=lc,
+                elinewidth=linewidth,
+                linewidth=linewidth,
+                linestyle=ls,
+                markerfacecolor=mf,
+                markeredgecolor=me,
+                markersize=markersize,
+                alpha=linealpha,
+                zorder=z,
+                **plot_err,
+            )
+
+    def _plot_simple_line(
+        self,
+        ax: plt.Axes,
+        x_data: list,
+        y_data: list,
+        facet_index: list[int],
+        zorder: list[int],
+        linecolor: list[str | None] | None = None,
+        linewidth: list[float | None] | None = None,
+        linestyle: list[str | None] | None = None,
+        linealpha: float | None = 1,
+        **kwargs,
+    ):
+        for x, y, ls, lc, fi, z in zip(
+            x_data,
+            y_data,
+            linestyle,
+            linecolor,
+            facet_index,
+            zorder,
+        ):
+            ax[fi].plot(
+                x,
+                y,
+                linestyle=ls,
+                linewidth=linewidth,
+                color=lc,
+                alpha=linealpha,
+                zorder=z,
+            )
 
     def plot_legend(self):
         fig, ax = plt.subplots()

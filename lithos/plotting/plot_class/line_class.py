@@ -10,6 +10,7 @@ from ..types import (
     Error,
     KDEType,
     SavePath,
+    FitFunc,
 )
 from .. import matplotlib_plotter as mpl
 from .base_class import BasePlot
@@ -341,12 +342,13 @@ class LinePlot(BasePlot):
 
     def fit(
         self,
-        fit_func: Callable,
+        fit_func: FitFunc,
         linecolor: ColorParameters = "glasbey_category10",
         linestyle: str = "-",
         linewidth: int = 2,
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
+        fit_args: dict = None,
         agg_func: Agg = None,
         err_func: Error = None,
     ):
@@ -358,11 +360,15 @@ class LinePlot(BasePlot):
                 "linewidth": linewidth,
                 "alpha": alpha,
                 "unique_id": unique_id,
+                "fit_func": fit_func,
+                "fit_args": fit_args,
                 "agg_func": agg_func,
                 "err_func": err_func,
-                "fit_func": fit_func,
             }
         )
+
+        if not self.inplace:
+            return self
 
     def process_data(self):
         processor = LineProcessor(mpl.MARKERS, mpl.HATCHES)
