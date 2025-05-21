@@ -2,8 +2,25 @@ from fractions import Fraction
 from itertools import cycle
 
 import colorcet as cc
+import matplotlib as mpl
 import numpy as np
 from numpy.random import default_rng
+
+
+def _get_colormap(colormap: str | None):
+    if colormap is None:
+        colormap = "glasbey_category10"
+    if colormap in cc.palette:
+        return cc.palette[colormap]
+    elif colormap in mpl.colormaps:
+        if isinstance(mpl.colormaps[colormap], mpl.colors.LinearSegmentedColormap):
+            return [mpl.colormaps[colormap](i) for i in np.linspace(0, 1, 255)]
+        else:
+            return mpl.colormaps[colormap].colors
+    else:
+        raise ValueError(
+            f"Colormap '{colormap}' not found in colorcet or matplotlib colormaps."
+        )
 
 
 def _calc_hist(data, bins, stat):
@@ -86,12 +103,22 @@ def _process_colors(
             indexes = np.linspace(one, two, num=num, dtype=int)
         else:
             indexes = None
-    if color in cc.palette:
-        color = cc.palette[color]
+    if color in mpl.colors.CSS4_COLORS:
+        return mpl.colors.CSS4_COLORS[color]
+    if color in mpl.colors.BASE_COLORS:
+        return mpl.colors.BASE_COLORS[color]
+    if color in mpl.colors.TABLEAU_COLORS:
+        return mpl.colors.TABLEAU_COLORS[color]
+    if color in mpl.colors.XKCD_COLORS:
+        return mpl.colors.XKCD_COLORS[color]
+    if color == "none":
+        return color
+    if color in cc.palette or color in mpl.colormaps:
+        color = _get_colormap(color)
         if indexes is not None:
             color = [color[i] for i in indexes]
     elif color is None:
-        color = cc.palette["glasbey_category10"]
+        color = _get_colormap(color)
     else:
         return color
     if group_order is not None:
@@ -330,12 +357,12 @@ def process_scatter_args(
             start, stop = indexes.split(":")
         else:
             start, stop = 0, 255
-    if arg_cycle in cc.palette:
+    if arg_cycle in cc.palette or arg_cycle in mpl.colormaps:
         if arg not in data:
             raise AttributeError("arg[0] of arg must be in data passed to LinePlot")
         output = _continuous_cycler(arg, data, arg_cycle, start, stop)
     else:
-        if arg in cc.palette:
+        if arg in cc.palette or arg_cycle in mpl.colormaps:
             arg = _process_colors(arg, group_order, subgroup_order)
         output = create_dict(arg, unique_groups)
         output = [output[j] for j in zip(*[data[i] for i in levels])]
@@ -355,7 +382,7 @@ def _discrete_cycler(arg, data, arg_cycle):
 
 
 def _continuous_cycler(arg, data, arg_cycle, start=0, stop=255):
-    cmap = cc.palette[arg_cycle]
+    cmap = _get_colormap(arg_cycle)
     start = max(0, int(start))
     stop = min(len(cmap), int(stop))
     uvals = set(data[arg])
