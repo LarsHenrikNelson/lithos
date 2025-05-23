@@ -6,21 +6,7 @@ import matplotlib as mpl
 import numpy as np
 from numpy.random import default_rng
 
-
-def _get_colormap(colormap: str | None):
-    if colormap is None:
-        colormap = "glasbey_category10"
-    if colormap in cc.palette:
-        return cc.palette[colormap]
-    elif colormap in mpl.colormaps:
-        if isinstance(mpl.colormaps[colormap], mpl.colors.LinearSegmentedColormap):
-            return [mpl.colormaps[colormap](i) for i in np.linspace(0, 1, 255)]
-        else:
-            return mpl.colormaps[colormap].colors
-    else:
-        raise ValueError(
-            f"Colormap '{colormap}' not found in colorcet or matplotlib colormaps."
-        )
+from .types import Group, Subgroup, UniqueGroups
 
 
 def _calc_hist(data, bins, stat):
@@ -67,6 +53,59 @@ def create_dict(grouping: str | int | dict, unique_groups: list) -> dict:
     return output_dict
 
 
+def _get_colormap(colormap: str | None):
+    if colormap is None:
+        colormap = "glasbey_category10"
+    if colormap in cc.palette:
+        return cc.palette[colormap]
+    elif colormap in mpl.colormaps:
+        if isinstance(mpl.colormaps[colormap], mpl.colors.LinearSegmentedColormap):
+            return [mpl.colormaps[colormap](i) for i in np.linspace(0, 1, 255)]
+        else:
+            return mpl.colormaps[colormap].colors
+    else:
+        raise ValueError(
+            f"Colormap '{colormap}' not found in colorcet or matplotlib colormaps."
+        )
+
+
+def _process_colormap(color: str, groups: list):
+    color = color.split("-")
+    if color[0] in cc.palette or color in mpl.colormaps:
+        color_palette = _get_colormap(color[0])
+    else:
+        raise ValueError("Colormap not recognized")
+    if len(color) == 2:
+        one, two = color[1].split(":")
+        one = max(0, int(one))
+        two = min(255, int(two))
+        num = len(groups)
+        indexes = np.linspace(one, two, num=num, dtype=int)
+    else:
+        indexes = np.arange(len(groups))
+    output_color = {key: color_palette[index] for key, index in zip(groups, indexes)}
+    return output_color
+
+
+def _process_string_color(color: str, group_order: list, subgroup_order: list):
+    if color in mpl.colors.CSS4_COLORS:
+        return color
+    elif color in mpl.colors.BASE_COLORS:
+        return color
+    elif color in mpl.colors.TABLEAU_COLORS:
+        return color
+    elif color in mpl.colors.XKCD_COLORS:
+        return mpl.colors.XKCD_COLORS[color]
+    elif color == "none":
+        return color
+    elif color is None or color in cc.palette or color in mpl.colormaps or ":" in color:
+        group = subgroup_order if subgroup_order is not None else group_order
+        color = _process_colormap(color, group)
+        return color
+    else:
+        raise ValueError("Color not recognized, must be str, 'none', or None")
+
+
 def _process_colors(
     color: str | list | dict | None,
     group_order: list | None = None,
@@ -82,58 +121,45 @@ def _process_colors(
     group_order are None.
 
     Args:
-        color (str | list | None): _description_
+        color (str | list | dict | None): _description_
         group_order (list | None, optional): _description_. Defaults to None.
         subgroup_order (list | None, optional): _description_. Defaults to None.
 
     Returns:
         str | dict: Color output that can be a string or dictionary
     """
+    if isinstance(color, str):
+        color = _process_string_color(
+            color, group_order=group_order, subgroup_order=subgroup_order
+        )
+        return color
     if isinstance(color, dict):
         return color
-    if isinstance(color, str):
-        if ":" in color:
-            color, indexes = color.split("-")
-            one, two = indexes.split(":")
-            one = max(0, int(one))
-            two = min(255, int(two))
-            num = (
-                len(subgroup_order) if subgroup_order is not None else len(group_order)
-            )
-            indexes = np.linspace(one, two, num=num, dtype=int)
-        else:
-            indexes = None
-    if color in mpl.colors.CSS4_COLORS:
-        return mpl.colors.CSS4_COLORS[color]
-    if color in mpl.colors.BASE_COLORS:
-        return mpl.colors.BASE_COLORS[color]
-    if color in mpl.colors.TABLEAU_COLORS:
-        return mpl.colors.TABLEAU_COLORS[color]
-    if color in mpl.colors.XKCD_COLORS:
-        return mpl.colors.XKCD_COLORS[color]
-    if color == "none":
-        return color
-    if color in cc.palette or color in mpl.colormaps:
-        color = _get_colormap(color)
-        if indexes is not None:
-            color = [color[i] for i in indexes]
-    elif color is None:
-        color = _get_colormap(color)
-    else:
-        return color
-    if group_order is not None:
-        color_output = {}
-        if subgroup_order is None:
-            color_output = {key: value for key, value in zip(group_order, cycle(color))}
-        elif subgroup_order[0] != "":
-            color_output = {
-                key: value for key, value in zip(subgroup_order, cycle(color))
-            }
-        else:
-            color_output = {key: value for key, value in zip(group_order, cycle(color))}
-    else:
-        color_output = color[0]
-    return color_output
+    if isinstance(color, Group):
+        return {key: value for key, value in zip(group_order, color.color)}
+    if isinstance(color, Subgroup):
+        return {key: value for key, value in zip(subgroup_order, color.color)}
+    if isinstance(color, UniqueGroups):
+        output = {}
+        index = 0
+        for g in group_order:
+            for s in subgroup_order:
+                output[(g, s)] = color.color[index]
+                index += 1
+        return output
+    # if group_order is not None:
+    #     color_output = {}
+    #     if subgroup_order is None:
+    #         color_output = {key: value for key, value in zip(group_order, cycle(color))}
+    #     elif subgroup_order[0] != "":
+    #         color_output = {
+    #             key: value for key, value in zip(subgroup_order, cycle(color))
+    #         }
+    #     else:
+    #         color_output = {key: value for key, value in zip(group_order, cycle(color))}
+    # else:
+    #     color_output = color[0]
+    # return color_output
 
 
 def radian_ticks(ticks, rotate=False):

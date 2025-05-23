@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Literal, TypeAlias, NamedTuple
 
 import numpy as np
 
@@ -185,6 +185,18 @@ Levels: TypeAlias = str | int | float
 class ValueRange:
     lo: float
     hi: float
+
+
+class Group(NamedTuple):
+    color: list
+
+
+class Subgroup(NamedTuple):
+    color: list
+
+
+class UniqueGroups(NamedTuple):
+    color: list
 
 
 AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]

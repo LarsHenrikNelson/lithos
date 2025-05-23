@@ -230,11 +230,11 @@ class LinePlot(BasePlot):
     def hist(
         self,
         hist_type: Literal["bar", "step", "stepfilled"] = "bar",
-        color: ColorParameters = "glasbey_category10",
-        linecolor: ColorParameters = None,
+        facecolor: ColorParameters = "glasbey_category10",
+        edgecolor: ColorParameters = "glasbey_category10",
         linewidth: float | int = 2,
         hatch=None,
-        fillalpha: AlphaRange = 1.0,
+        fillalpha: AlphaRange = 0.5,
         linealpha: float = 1.0,
         bin_limits=None,
         stat: Literal["density", "probability", "count"] = "density",
@@ -247,8 +247,8 @@ class LinePlot(BasePlot):
         self._plot_prefs.append(
             {
                 "hist_type": hist_type,
-                "color": color,
-                "linecolor": linecolor,
+                "facecolor": facecolor,
+                "edgecolor": edgecolor,
                 "linewidth": linewidth,
                 "hatch": hatch,
                 "bin_limits": bin_limits,
