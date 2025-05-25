@@ -188,15 +188,15 @@ class ValueRange:
 
 
 class Group(NamedTuple):
-    color: list
+    group: list
 
 
 class Subgroup(NamedTuple):
-    color: list
+    subgroup: list
 
 
 class UniqueGroups(NamedTuple):
-    color: list
+    unique_groups: list
 
 
 AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]

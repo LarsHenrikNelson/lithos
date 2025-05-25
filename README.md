@@ -1,4 +1,4 @@
-<img src="doc/_static/logo_name.svg" width="300" title="lithos"><br>
+<img src="https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/logo_name.svg" width="300" title="lithos"><br>
 
 [![PyPI Version](https://img.shields.io/pypi/v/lithos.svg)](https://pypi.org/project/lithos/)
 [![License](https://img.shields.io/pypi/l/lithos.svg)](https://github.com/LarsHenrikNelson/lithos/blob/master/LICENSE.md)
@@ -33,7 +33,7 @@ Import the plots and data generator (or use your own data).
 
 
 ```python
-from lithos.plotting import CategoricalPlot, LinePlot
+from lithos import CategoricalPlot, LinePlot, Group, Subgroup, UniqueGroups
 from lithos.utils import create_synthetic_data
 import matplotlib.pyplot as plt
 ```
@@ -189,7 +189,7 @@ plot.plot_format
 Below is jitter plot with several custom settings. 
 * The metadata previously saved is loaded first.
 * Plots elements can be layered by just adding a plot method call. The order the plot methods are called matters. The ealiers plot methods will have a lower zorder and will be plot underneath any plot methods that are called after that plot method.
-* Colors can set using a string color, None,a dictionary of colors with values in either the subgroup or group as the keys and colors as the values or as a colormap provided by colorcet with optionally restricting the number of values use in the 255 value colormap by adding an integer start and end as :start-end to the name of the color map. 
+* Colors can set using a string color, None, a dictionary of colors with values in either the subgroup or group as the keys and colors as the values, a Group, Subgroup, or UniqueGroups or as a colormap provided by colorcet or Matplotlib. Colormaps can be passed with an index, restricting the number of values use in the 255 value colormap by adding an integer start and end as `-10:250` to the name of the color map. Currently you can pass a Matplotlib color map or colorcet colormap in this manner. 
 * The number of steps in the yaxis and the number of decimals to use set. Unlike matplotlib, Lithos always plots ticks at the end. This makes for more uniform plots and is visually appealing with the potential problem of too much white space. I generally do not have issues with too much white space.
 * The optional unique_id is passed to jitter plot to plot nested data with individual marker types.
 * Edgecolor defaults to "none" which means no edge color is used around the points. You can also pass the same types of arguments as color or you can  pass "color" to use the same colors as the color argument.
@@ -244,7 +244,7 @@ plot = (
     .jitter(
         unique_id="unique_grouping",
         marker="o",
-        markercolor="blues-100:200",
+        markercolor="Oranges-100:200",
         edgecolor="black",
         alpha=0.7,
         width=0.5,
@@ -292,6 +292,7 @@ plot = (
     .jitteru(
         unique_id="unique_grouping",
         marker="o",
+        markercolor=Group(("orange", "magenta")),
         edgecolor="none",
         alpha=0.5,
         width=0.9,
@@ -355,6 +356,7 @@ plot2 = (
 
 ### Boxplot
 Boxplots are a great way to visualize the distribution of data. They can be used to compare different groups and identify outliers in your data. Currently there is no unique_id parameter for boxplot due to how they show data and the fact the plots get overly complicated to look at when there are many tiny boxes.
+* You will notice that you can specify the color of the unique groups by passing a list or tuple of colors to UniqueGroups. The colors will be follow group order the subgroup order. So group 1 subgroups, group 2 subgroups, etc.
 
 
 ```python
@@ -369,6 +371,7 @@ plot = (
     )
     .box(
         facecolor="none",
+        edgecolor=UniqueGroups(["blue", "green", "magenta", "red"]),
         width=0.8,
         alpha=0.8,
         # showmeans=True, # You can shows means but it looks weird with show_ci

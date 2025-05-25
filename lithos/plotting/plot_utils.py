@@ -1,5 +1,4 @@
 from fractions import Fraction
-from itertools import cycle
 
 import colorcet as cc
 import matplotlib as mpl
@@ -71,7 +70,7 @@ def _get_colormap(colormap: str | None):
 
 def _process_colormap(color: str, groups: list):
     color = color.split("-")
-    if color[0] in cc.palette or color in mpl.colormaps:
+    if color[0] in cc.palette or color[0] in mpl.colormaps:
         color_palette = _get_colormap(color[0])
     else:
         raise ValueError("Colormap not recognized")
@@ -136,30 +135,17 @@ def _process_colors(
     if isinstance(color, dict):
         return color
     if isinstance(color, Group):
-        return {key: value for key, value in zip(group_order, color.color)}
+        return {key: value for key, value in zip(group_order, color.group)}
     if isinstance(color, Subgroup):
-        return {key: value for key, value in zip(subgroup_order, color.color)}
+        return {key: value for key, value in zip(subgroup_order, color.subgroup)}
     if isinstance(color, UniqueGroups):
         output = {}
         index = 0
         for g in group_order:
             for s in subgroup_order:
-                output[(g, s)] = color.color[index]
+                output[(g, s)] = color.unique_groups[index]
                 index += 1
         return output
-    # if group_order is not None:
-    #     color_output = {}
-    #     if subgroup_order is None:
-    #         color_output = {key: value for key, value in zip(group_order, cycle(color))}
-    #     elif subgroup_order[0] != "":
-    #         color_output = {
-    #             key: value for key, value in zip(subgroup_order, cycle(color))
-    #         }
-    #     else:
-    #         color_output = {key: value for key, value in zip(group_order, cycle(color))}
-    # else:
-    #     color_output = color[0]
-    # return color_output
 
 
 def radian_ticks(ticks, rotate=False):
