@@ -358,6 +358,7 @@ class LineProcessor(BaseProcessor):
             ugrps = new_data.groups(levels)
         for u, indexes in ugrps.items():
             u = u if len(u) == len(levels) else u[: len(levels)]
+            u = ("",) if len(u) == 0 else u
             ytemp = new_data[indexes, y]
             y_data.append(ytemp)
             xtemp = get_transform(xtransform)(new_data[indexes, x])
