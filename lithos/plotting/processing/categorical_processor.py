@@ -22,7 +22,6 @@ from ..types import (
     AlphaRange,
     BinType,
     BoxPlotData,
-    CountPlotTypes,
     Error,
     Kernels,
     Levels,
@@ -48,7 +47,7 @@ class CategoricalProcessor(BaseProcessor):
             "summaryu": self._summaryu,
             "violin": self._violin,
             "percent": self._percent,
-            "count": self._count,
+            "bar": self._bar,
         }
 
     def process_groups(
@@ -193,8 +192,11 @@ class CategoricalProcessor(BaseProcessor):
         for group_key in groups.keys():
             unique_ids_sub = np.unique(data[groups[group_key], unique_id])
             if len(unique_ids_sub) > 1:
-                dist = np.linspace(-temp, temp, num=len(unique_ids_sub) + 1)
-                dist = np.round((dist[1:] + dist[:-1]) / 2, 10)
+                left = loc_dict[group_key] - width / 2
+                right = loc_dict[group_key] + width / 2
+                vals = len(unique_ids_sub) * 2 + 1
+                dist = np.linspace(left, right, num=vals)
+                dist = dist[1::2]
             else:
                 dist = [0]
             for index, ui_group in enumerate(unique_ids_sub):
@@ -203,7 +205,7 @@ class CategoricalProcessor(BaseProcessor):
                 else:
                     temp_group = group_key + (ui_group,)
                 sub_indexes = unique_groups[temp_group]
-                x = np.full(len(sub_indexes), loc_dict[group_key]) + dist[index]
+                x = np.full(len(sub_indexes), dist[index])
                 if duplicate_offset > 0.0:
                     output = (
                         process_duplicates(data[sub_indexes, y])
@@ -317,34 +319,35 @@ class CategoricalProcessor(BaseProcessor):
         if unique_id is not None:
             unique_groups = data.groups(levels + (unique_id,))
         for group_key, indexes in groups.items():
-            subgroups = np.unique(data[indexes, unique_id])
+            unique_ids_sub = np.unique(data[indexes, unique_id])
             if agg_func is None:
-                temp = barwidth / 2
-                if len(subgroups) > 1:
-                    dist = np.linspace(-temp, temp, num=len(subgroups) + 1)
-                    centers = np.round((dist[1:] + dist[:-1]) / 2, 10)
+                if len(unique_ids_sub) > 1:
+                    left = loc_dict[group_key] - barwidth / 2
+                    right = loc_dict[group_key] + barwidth / 2
+                    vals = len(unique_ids_sub) * 2 + 1
+                    dist = np.linspace(left, right, num=vals)
+                    dist = dist[1::2]
+                    w = (dist[1] - dist[0]) * agg_width
                 else:
-                    centers = [0]
-                w = agg_width / len(subgroups)
-                for index, j in enumerate(subgroups):
+                    dist = [0]
+                    w = barwidth
+                for index, ui_group in enumerate(unique_ids_sub):
                     if group_key == ("",):
-                        temp_group = (j,)
+                        temp_group = (ui_group,)
                     else:
-                        temp_group = group_key + (j,)
+                        temp_group = group_key + (ui_group,)
                     widths.append(w)
                     vals = transform(data[unique_groups[temp_group], y])
-                    x_data.append(loc_dict[group_key] + centers[index])
-
+                    x_data.append(dist[index])
                     y_data.append(get_transform(func)(vals))
                     group_labels.append(group_key)
-
                     if err_func is not None:
                         error_data.append(get_transform(err_func)(vals))
                     else:
                         error_data.append(None)
             else:
                 temp_vals = []
-                for index, j in enumerate(subgroups):
+                for index, j in enumerate(unique_ids_sub):
                     vals = transform(data[unique_groups[group_key + (j,)], y])
                     temp_vals.append(get_transform(func)(vals))
                 x_data.append(loc_dict[group_key])
@@ -549,7 +552,7 @@ class CategoricalProcessor(BaseProcessor):
     def _paired_plot():
         pass
 
-    def _count(
+    def _bar(
         self,
         data: DataHolder,
         y: str,
@@ -563,11 +566,10 @@ class CategoricalProcessor(BaseProcessor):
         alpha: float | int,
         linealpha: float | int,
         zorder_dict: dict[str, int],
-        axis_type: CountPlotTypes,
+        func: Agg,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
-        err_func: Error = None,
-        transform: Transform = None,
+        ytransform: Transform = None,
         *args,
         **kwargs,
     ) -> RectanglePlotData:
@@ -585,29 +587,46 @@ class CategoricalProcessor(BaseProcessor):
             unique_groups = None
         for group_key, indexes in groups.items():
             if unique_id is None:
+                y_values = get_transform(ytransform)(data[unique_groups[indexes], y])
                 bw.append(barwidth)
-                heights.append(len(indexes))
+                heights.append(get_transform(func)(y_values))
                 bottoms.append(0)
                 x_loc.append(loc_dict[group_key])
                 hatches.append(hatch[group_key])
                 group_labels.append(group_key)
             else:
-                unique_ids_sub, unique_counts = np.unique(
-                    data[indexes, unique_id], return_counts=True
-                )
-                temp_width = barwidth / len(unique_ids_sub)
-                if len(unique_ids_sub) > 1:
-                    dist = np.linspace(
-                        -barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1
-                    )
-                    dist = (dist[1:] + dist[:-1]) / 2
+                unique_ids_sub = np.unique(data[indexes, unique_id])
+                if agg_func is None:
+                    if len(unique_ids_sub) > 1:
+                        left = loc_dict[group_key] - barwidth / 2
+                        right = loc_dict[group_key] + barwidth / 2
+                        vals = len(unique_ids_sub) * 2 + 1
+                        dist = np.linspace(left, right, num=vals)
+                        dist = dist[1::2]
+                        w = dist[1] - dist[0]
+                    else:
+                        dist = [0]
+                        w = barwidth
                 else:
-                    dist = [0]
+                    output = np.zeros(len(unique_ids_sub))
+
                 for index, ui_group in enumerate(unique_ids_sub):
-                    bw.append(temp_width)
-                    heights.append(unique_counts[index])
+                    s_indexes = unique_groups[group_key + (ui_group,)]
+                    y_values = get_transform(ytransform)(data[s_indexes, y])
+                    if agg_func is None:
+                        bw.append(w)
+                        heights.append(get_transform(func)(y_values))
+                        bottoms.append(0)
+                        x_loc.append(dist[index])
+                        hatches.append(hatch[group_key])
+                        group_labels.append(group_key)
+                    else:
+                        output[index] = get_transform(func)(y_values)
+                if agg_func is not None:
+                    bw.append(barwidth)
+                    heights.append(get_transform(agg_func)(output))
                     bottoms.append(0)
-                    x_loc.append(loc_dict[group_key] + dist[index])
+                    x_loc.append(loc_dict[group_key])
                     hatches.append(hatch[group_key])
                     group_labels.append(group_key)
         output = RectanglePlotData(
@@ -615,15 +634,15 @@ class CategoricalProcessor(BaseProcessor):
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
-            fillcolors=self._process_dict(groups, facecolor, unique_groups),
-            edgecolors=self._process_dict(groups, edgecolor, unique_groups),
+            fillcolors=self._process_dict(groups, facecolor, unique_groups, agg_func),
+            edgecolors=self._process_dict(groups, edgecolor, unique_groups, agg_func),
             fill_alpha=alpha,
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
             axis="x",
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups),
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
 

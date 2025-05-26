@@ -81,6 +81,13 @@ FUNC_DICT = {
     "gmean": stats.gmean,
     "hmean": stats.hmean,
     "gstd": stats.gstd,
+    "count": len,
+    "percentile_10": lambda a: np.percentile(a, 10),
+    "percentile_75": lambda a: np.percentile(a, 75),
+    "percentile_25": lambda a: np.percentile(a, 25),
+    "percentile_90": lambda a: np.percentile(a, 90),
+    "percentile_5": lambda a: np.percentile(a, 5),
+    "percentile_95": lambda a: np.percentile(a, 95),
 }
 
 

@@ -201,7 +201,7 @@ class BasePlot:
     def figure(
         self,
         margins=0.05,
-        aspect: int | float = 1.0,
+        aspect: int | float | None = None,
         figsize: None | tuple[int, int] = None,
         gridspec_kw: dict[str, str | int | float] = None,
         nrows: int = None,
@@ -262,11 +262,13 @@ class BasePlot:
         save_metadata: bool = False,
         **kwargs,
     ):
+        if path == "" or path is None:
+            path = Path().cwd()
+        else:
+            path = Path(path)
         filename = self._plot_data["y"] if filename == "" else filename
         self._plot_processed_data(savefig, path, filename, filetype, **kwargs)
         if save_metadata:
-            path = Path(path)
-            filename = self._plot_data["y"] if filename == "" else filename
             path = path / f"{filename}.txt"
             self.save_metadata(path)
 

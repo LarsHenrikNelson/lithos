@@ -13,6 +13,12 @@ Lithos is a simple plotting package written in Python and intended for scientifi
 Below is a quick tutorial of how to use Lithos. There are two main classes: `CategoricalPlot` for plotting means, medians, etc and `LinePlot` for plotting continuous variables like KDEs, scatterplots. Both of these classes have a number of methods that can be used to transform the data, aggregate it, design plots, save metadata, etc. There are a variety of ways you can format the plots to generate visual appealing plots that greatly simplifies what you would have to do in other packages. Lithos takes Pandas dataframes, dictionaries, and 2D numpy arrays as input.
 
 ## Installation
+
+#### Install from PyPI
+```bash
+pip install lithos
+```
+
 #### Install from github (need to have git installed)
 ```bash
 pip install git+https://github.com/LarsHenrikNelson/Lithos.git
@@ -171,7 +177,7 @@ plot.plot_format
       'truncate_yaxis': False},
      'figure': {'gridspec_kw': None,
       'margins': 0.05,
-      'aspect': 1.0,
+      'aspect': None,
       'figsize': None,
       'nrows': None,
       'ncols': None,
@@ -452,18 +458,34 @@ plot = (
     
 
 
-### Count plot
-Simple plot that shows the n per grouping.
+### Bar plot
+Traditional bar plot. You can pass a variety of functions such as count and mean. If you need to show errors you can just layer of summary or summaryu and set the barwidth to 0 or agg_width to 0 respectively.
 
 
 ```python
-df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
+df = create_synthetic_data(n_groups=3, n_subgroups=2, n_unique_ids=5, n_points=60)
+fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
 plot = (
     CategoricalPlot(data=df)
     .grouping(group="grouping_1", subgroup="grouping_2")
-    .count(unique_id="unique_grouping", barwidth=0.8)
-    .plot_data(y="y1")
-    .plot()
+    .bar(unique_id="unique_grouping", func="count", barwidth=0.8)
+    .plot_data(y="y")
+    .plot(figure=fig, axes=ax[0])
+)
+plot = (
+    CategoricalPlot(data=df)
+    .grouping(group="grouping_1", subgroup="grouping_2")
+    .bar(unique_id="unique_grouping", func="mean", agg_func="mean", barwidth=0.8)
+    .summaryu(
+        unique_id="unique_grouping",
+        func="mean",
+        agg_width=0,
+        agg_func="mean",
+        barwidth=0.0,
+        capsize=4,
+    )
+    .plot_data(y="y")
+    .plot(figure=fig, axes=ax[1])
 )
 ```
 
@@ -516,7 +538,7 @@ plot = (
         kde_length=1028,
     )
     .plot_data(x="y")
-    .axis_format(ysteps=(8, 1, 7))
+    .axis_format(ysteps=(8, 1, 7), truncate_yaxis=True)
     .axis(ydecimals=2)
     .figure(ncols=2)
     .plot(figure=fig, axes=ax[2:])
@@ -579,6 +601,7 @@ plot = (
         minor_ticklength=3.5,
         minor_tickwidth=2,
     )
+    .figure(aspect=1)
     .plot()
 )
 ```

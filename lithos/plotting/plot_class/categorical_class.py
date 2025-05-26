@@ -122,7 +122,7 @@ class CategoricalPlot(BasePlot):
         func: Agg = "mean",
         capsize: int = 0,
         capstyle: CapStyle = "round",
-        barwidth: float = 1.0,
+        barwidth: float = 0.9,
         err_func: Error = "sem",
         linewidth: int = 2,
         color: ColorParameters = "black",
@@ -155,10 +155,10 @@ class CategoricalPlot(BasePlot):
         agg_width: float = 1.0,
         capsize: int = 0,
         capstyle: CapStyle = "round",
-        barwidth: float = 1.0,
+        barwidth: float = 0.9,
         err_func: Error = "sem",
         linewidth: int = 2,
-        color: ColorParameters = "black",
+        color: ColorParameters = "glasbey_category10",
         alpha: float = 1.0,
         legend: bool = False,
     ):
@@ -188,7 +188,7 @@ class CategoricalPlot(BasePlot):
         facecolor: ColorParameters = "glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
         fliers="",
-        width: float = 1.0,
+        width: float = 0.9,
         linewidth=1,
         alpha: AlphaRange = 0.5,
         linealpha: AlphaRange = 1.0,
@@ -222,7 +222,7 @@ class CategoricalPlot(BasePlot):
         linewidth=1,
         alpha: AlphaRange = 0.5,
         edge_alpha: AlphaRange = 1.0,
-        width: float = 1.0,
+        width: float = 0.9,
         kde_length: int = 128,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
@@ -264,7 +264,7 @@ class CategoricalPlot(BasePlot):
         facecolor="glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
         hatch: bool = False,
-        barwidth: float = 1.0,
+        barwidth: float = 0.9,
         linewidth=1,
         alpha: float = 0.5,
         linealpha=1.0,
@@ -302,20 +302,21 @@ class CategoricalPlot(BasePlot):
         if not self.inplace:
             return self
 
-    def count(
+    def bar(
         self,
         facecolor: ColorParameters = "glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
         hatch=None,
-        barwidth: float = 1.0,
+        barwidth: float = 0.9,
         linewidth=1,
         alpha: float = 0.5,
         linealpha=1.0,
-        axis_type: CountPlotTypes = "count",
+        func: Agg = "mean",
+        agg_func: Agg | None = None,
         unique_id: str | None = None,
         legend: bool = False,
     ):
-        self._plot_methods.append("count")
+        self._plot_methods.append("bar")
         self._plot_prefs.append(
             {
                 "facecolor": facecolor,
@@ -325,9 +326,10 @@ class CategoricalPlot(BasePlot):
                 "linewidth": linewidth,
                 "alpha": alpha,
                 "linealpha": linealpha,
-                "axis_type": axis_type,
+                "func": func,
                 "legend": legend,
                 "unique_id": unique_id,
+                "agg_func": agg_func,
             }
         )
 

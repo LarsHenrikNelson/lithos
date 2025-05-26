@@ -209,7 +209,7 @@ class TestCategoricalProcessor:
             ("two_grouping_with_unique_ids", "grouping_2"),
         ],
     )
-    def test_count(self, data, subgroup, request) -> None:
+    def test_bar(self, data, subgroup, request) -> None:
         _fixt = request.getfixturevalue(data)
         processor = CategoricalProcessor(
             markers=("o", "X", "^", "s", "d"),
@@ -219,7 +219,7 @@ class TestCategoricalProcessor:
         plot = (
             CategoricalPlot(_fixt[0])
             .grouping(group="grouping_1", subgroup=subgroup)
-            .count(unique_id="unique_grouping")
+            .bar(unique_id="unique_grouping")
             .plot_data(y="y")
         )
         output, _ = processor(plot.data, plot.metadata())
