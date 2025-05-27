@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lithos"
 readme = "README.md"
-license = {file = "LICENSE.md"}
+license = "BSD-3-Clause"
 description = "Lithos: plotting package for categorical and nested data."
 authors = [{ name = "Lars Henrik Nelson", email = "larshnelson@protonmail.com" }]
 maintainers = [{ name = "Lars Henrik Nelson", email = "larshnelson@protonmail.com" }]
