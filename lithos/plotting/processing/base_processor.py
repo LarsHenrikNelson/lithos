@@ -81,7 +81,7 @@ class BaseProcessor:
                 output_args[key] = value
 
         output_args["facetgroup"] = process_scatter_args(
-            self._plot_dict["facet"],
+            self._plot_dict["loc_dict"],
             data,
             self._plot_dict["levels"],
             self._plot_dict["group_order"],
