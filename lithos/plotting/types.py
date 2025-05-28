@@ -29,6 +29,9 @@ class RectanglePlotData(PlotData):
     plot_type: str = "rectangle"
 
 
+FillType: TypeAlias = Literal[None, "fill_under", "fill_between"]
+
+
 @dataclass
 class LinePlotData(PlotData):
     x_data: list
@@ -43,7 +46,7 @@ class LinePlotData(PlotData):
     markersize: float | None = None
     markerfacecolor: list[str | None] | None = None
     markeredgecolor: list[str | None] | None = None
-    fill_between: bool = False
+    filltype: FillType = None
     fillcolor: list[str | None] | None = None
     fillalpha: float | None = None
     direction: Literal["xy"] = "y"
@@ -200,8 +203,8 @@ class UniqueGroups(NamedTuple):
 
 
 AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]
-ColorParameters: TypeAlias = str | dict[str, str] | None
 CountPlotTypes: TypeAlias = Literal["percent", "count"]
+ColorParameters: TypeAlias = str | dict[str, str] | None
 TransformFuncs: TypeAlias = Literal[
     "log10", "log2", "ln", "inverse", "ninverse", "sqrt"
 ]
@@ -227,3 +230,21 @@ BinType: TypeAlias = Literal["density", "percent"]
 CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
 SavePath: TypeAlias = str | Path | BytesIO | StringIO
 FitFunc: TypeAlias = callable | Literal["linear", "sine", "polynomial"]
+
+
+class MarkerLine(NamedTuple):
+    marker: str
+    markestyle: str
+    markersize: float
+    markerfacecolor: ColorParameters | tuple[str, str] = None
+    markerfacedge: ColorParameters | tuple[str, str] = None
+
+
+class FillBetweenLine(NamedTuple):
+    fill_alpha: AlphaRange = 0.5
+    fillcolor: ColorParameters | tuple[str, str] = "glaseby_category10"
+
+
+class FillUnderLine(NamedTuple):
+    fill_alpha: AlphaRange = 1.0
+    fillcolor: ColorParameters | tuple[str, str] = "glaseby_category10"

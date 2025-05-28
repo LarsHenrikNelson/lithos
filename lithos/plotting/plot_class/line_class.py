@@ -11,6 +11,8 @@ from ..types import (
     KDEType,
     SavePath,
     FitFunc,
+    Kernels,
+    FillType,
 )
 from .. import matplotlib_plotter as mpl
 from .base_class import BasePlot
@@ -144,7 +146,7 @@ class LinePlot(BasePlot):
 
     def kde(
         self,
-        kernel: KDEType = "gaussian",
+        kernel: Kernels = "gaussian",
         bw: BW = "silverman",
         tol: float | int = 1e-3,
         common_norm: bool = False,
@@ -152,18 +154,15 @@ class LinePlot(BasePlot):
         fillcolor: ColorParameters | None = None,
         linestyle: str = "-",
         linewidth: int = 2,
-        fill_between: bool = False,
+        fill_type: FillType = None,
         linealpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 1.0,
-        fill_under: bool = False,
         kde_length: int | None = None,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
         err_func: Error = None,
-        KDEType: Literal["tree", "fft"] = "fft",
+        KDEType: KDEType = "fft",
     ):
-        if fill_under and fill_between:
-            raise AttributeError("Cannot fill under and between at the same time")
         if fillcolor is None:
             fillcolor = linecolor
         self._plot_methods.append("kde")
@@ -177,8 +176,7 @@ class LinePlot(BasePlot):
                 "fillcolor": fillcolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
-                "fill_between": fill_between,
-                "fill_under": fill_under,
+                "fill_type": fill_type,
                 "linealpha": linealpha,
                 "fillalpha": fillalpha,
                 "kde_length": kde_length,
