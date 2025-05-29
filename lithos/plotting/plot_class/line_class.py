@@ -1,4 +1,4 @@
-from typing import Callable, Literal
+from typing import Literal
 
 import pandas as pd
 
@@ -12,7 +12,6 @@ from ..types import (
     SavePath,
     FitFunc,
     Kernels,
-    FillType,
 )
 from .. import matplotlib_plotter as mpl
 from .base_class import BasePlot
@@ -154,7 +153,8 @@ class LinePlot(BasePlot):
         fillcolor: ColorParameters | None = None,
         linestyle: str = "-",
         linewidth: int = 2,
-        fill_type: FillType = None,
+        fill_under: bool = False,
+        fill_between: bool = False,
         linealpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 1.0,
         kde_length: int | None = None,
@@ -163,6 +163,8 @@ class LinePlot(BasePlot):
         err_func: Error = None,
         KDEType: KDEType = "fft",
     ):
+        if fill_under and fill_between:
+            raise AttributeError("Cannot fill under and between at the same time")
         if fillcolor is None:
             fillcolor = linecolor
         self._plot_methods.append("kde")
@@ -176,7 +178,8 @@ class LinePlot(BasePlot):
                 "fillcolor": fillcolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
-                "fill_type": fill_type,
+                "fill_between": fill_between,
+                "fill_under": fill_under,
                 "linealpha": linealpha,
                 "fillalpha": fillalpha,
                 "kde_length": kde_length,

@@ -29,9 +29,6 @@ class RectanglePlotData(PlotData):
     plot_type: str = "rectangle"
 
 
-FillType: TypeAlias = Literal[None, "fill_under", "fill_between"]
-
-
 @dataclass
 class LinePlotData(PlotData):
     x_data: list
@@ -46,54 +43,12 @@ class LinePlotData(PlotData):
     markersize: float | None = None
     markerfacecolor: list[str | None] | None = None
     markeredgecolor: list[str | None] | None = None
-    filltype: FillType = None
+    fill_between: bool = False
     fillcolor: list[str | None] | None = None
     fillalpha: float | None = None
     direction: Literal["xy"] = "y"
     fill_under: bool = False
     plot_type: str = "line"
-
-
-class SimpleLinePlotData(PlotData):
-    x_data: list
-    y_data: list
-    linecolor: list[str | None] | None = None
-    linestyle: list[str | None] | None = None
-    linealpha: float | None = None
-    plot_type: str = "simple_line"
-
-
-class MarkerLinePlotData(PlotData):
-    x_data: list
-    y_data: list
-    error_data: list
-    facet_index: list[int]
-    linecolor: list[str | None] | None = None
-    linestyle: list[str | None] | None = None
-    linealpha: float | None = None
-    linewidth: list[float | None] | None = None
-    marker: list[str | None] | None = None
-    markerfacecolor: list[str | None] | None = None
-    markeredgecolor: list[str | None] | None = None
-    markersize: float | None = None
-    direction: Literal["xy"] = "y"
-    plot_type: str = "marker_line"
-
-
-class FillBetweenPlotData(PlotData):
-    x_data: list
-    y_data: list
-    error_data: list
-    facet_index: list[int]
-    linecolor: list[str | None] | None = None
-    fillcolor: list[str | None] | None = None
-    linewidth: list[float | None] | None = None
-    linestyle: list[str | None] | None = None
-    fillalpha: float | None = None
-    linealpha: float | None = None
-    fill_under: bool = False
-    direction: Literal["xy"] = "y"
-    plot_type: str = "fill_line"
 
 
 @dataclass
