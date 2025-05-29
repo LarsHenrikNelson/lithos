@@ -29,7 +29,9 @@ class BaseProcessor:
         style_args = {"marker", "linestyle", "hatch"}
         width_args = {"width", "barwidth"}
         for key, value in args.items():
-            if "color" in key:
+            if key == "style":
+                output_args[key] = self.preprocess_args(value)
+            elif "color" in key:
                 color = _process_colors(
                     value,
                     self._plot_dict["group_order"],
@@ -121,11 +123,11 @@ class BaseProcessor:
             processed_data.append(temp)
         return processed_data, self._plot_dict
 
-    def _process_dict(self, groups, dict, subgroups=None, agg: str | None = None):
-        if subgroups is None or agg is not None:
-            output = [dict[g] for g in groups.keys()]
+    def _process_output(self, group_labels, input):
+        if isinstance(input, dict):
+            output = [input[g] for g in group_labels]
         else:
-            output = [dict[g[:-1]] for g in subgroups.keys()]
+            output = [input for _ in group_labels]
         return output
 
     # def _biplot(

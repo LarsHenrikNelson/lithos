@@ -416,6 +416,12 @@ class Plotter:
             return self._plot_box
         elif plot_type == "violin":
             return self._plot_violin
+        elif plot_type == "marker_line":
+            return self._plot_marker_line
+        elif plot_type == "fill_between_line":
+            return self._plot_fill_between_line
+        elif plot_type == "fill_under_line":
+            return
         else:
             raise ValueError(f"Unsupported plot function: {plot_type}")
 
@@ -671,149 +677,6 @@ class Plotter:
                 zorder=z,
             )
 
-    def _plot_line(
-        self,
-        ax: plt.Axes,
-        x_data: list,
-        y_data: list,
-        error_data: list,
-        facet_index: list[int],
-        zorder: list[int],
-        marker: list[str | None] | None = None,
-        linecolor: list[str | None] | None = None,
-        fillcolor: list[str | None] | None = None,
-        linewidth: list[float | None] | None = None,
-        linestyle: list[str | None] | None = None,
-        markerfacecolor: list[str | None] | None = None,
-        markeredgecolor: list[str | None] | None = None,
-        fill_between: bool = False,
-        fill_under: bool = False,
-        direction: Literal["x", "y"] = "y",
-        markersize: float | None = None,
-        fillalpha: float | None = None,
-        linealpha: float | None = None,
-        **kwargs,
-    ):
-        for x, y, err, ls, lc, fc, mf, me, mk, fi, z in zip(
-            x_data,
-            y_data,
-            error_data,
-            linestyle,
-            linecolor,
-            fillcolor,
-            markerfacecolor,
-            markeredgecolor,
-            marker,
-            facet_index,
-            zorder,
-        ):
-            if not fill_between and not fill_under:
-                if direction == "x":
-                    if err is None:
-                        err = 0
-                    ax[fi].errorbar(
-                        x,
-                        y,
-                        xerr=err,
-                        marker=mk,
-                        color=lc,
-                        elinewidth=linewidth,
-                        linewidth=linewidth,
-                        linestyle=ls,
-                        markerfacecolor=mf,
-                        markeredgecolor=me,
-                        markersize=markersize,
-                        alpha=linealpha,
-                        zorder=z,
-                    )
-                else:
-                    ax[fi].errorbar(
-                        x,
-                        y,
-                        yerr=err,
-                        marker=mk,
-                        color=lc,
-                        elinewidth=linewidth,
-                        linewidth=linewidth,
-                        linestyle=ls,
-                        markerfacecolor=mf,
-                        markeredgecolor=me,
-                        markersize=markersize,
-                        alpha=linealpha,
-                        zorder=z,
-                    )
-            elif fill_between:
-                if err is not None:
-                    if direction == "y":
-                        ax[fi].fill_between(
-                            x,
-                            y - err,
-                            y + err,
-                            color=self._process_color(fc, fillalpha),
-                            linewidth=0,
-                            edgecolor="none",
-                            zorder=z,
-                        )
-                    else:
-                        ax[fi].fill_betweenx(
-                            y,
-                            x - err,
-                            x + err,
-                            color=self._process_color(fc, fillalpha),
-                            linewidth=0,
-                            edgecolor="none",
-                            zorder=z,
-                        )
-                ax[fi].plot(
-                    x,
-                    y,
-                    linestyle=ls,
-                    linewidth=linewidth,
-                    color=lc,
-                    alpha=linealpha,
-                    zorder=z,
-                )
-            elif fill_under:
-                if direction == "y":
-                    ax[fi].fill_between(
-                        x,
-                        0,
-                        y,
-                        color=self._process_color(fc, fillalpha),
-                        linewidth=0,
-                        edgecolor="none",
-                        zorder=z,
-                    )
-                else:
-                    ax[fi].fill_betweenx(
-                        y,
-                        0,
-                        x,
-                        color=self._process_color(fc, fillalpha),
-                        linewidth=0,
-                        edgecolor="none",
-                        zorder=z,
-                    )
-                ax[fi].plot(
-                    x,
-                    y,
-                    linestyle=ls,
-                    linewidth=linewidth,
-                    color=lc,
-                    alpha=linealpha,
-                    zorder=z,
-                )
-            else:
-                ax[fi].plot(
-                    x,
-                    y,
-                    linestyle=ls,
-                    linewidth=linewidth,
-                    color=lc,
-                    alpha=linealpha,
-                    zorder=z,
-                )
-
     def _plot_marker_line(
         self,
         ax: plt.Axes,
@@ -867,7 +730,119 @@ class Plotter:
                 **plot_err,
             )
 
-    def _plot_simple_line(
+    def plot_fill_between_line(
+        self,
+        ax: plt.Axes,
+        x_data: list,
+        y_data: list,
+        error_data: list,
+        facet_index: list[int],
+        zorder: list[int],
+        linecolor: list[str | None] | None = None,
+        fillcolor: list[str | None] | None = None,
+        linewidth: list[float | None] | None = None,
+        linestyle: list[str | None] | None = None,
+        direction: Literal["x", "y"] = "y",
+        fillalpha: float | None = None,
+        linealpha: float | None = None,
+        **kwargs,
+    ):
+        for x, y, err, ls, lc, fc, fi, z in zip(
+            x_data,
+            y_data,
+            error_data,
+            linestyle,
+            linecolor,
+            fillcolor,
+            facet_index,
+            zorder,
+        ):
+            if direction == "y":
+                ax[fi].fill_between(
+                    x,
+                    y - err,
+                    y + err,
+                    color=self._process_color(fc, fillalpha),
+                    linewidth=0,
+                    edgecolor="none",
+                    zorder=z,
+                )
+            else:
+                ax[fi].fill_betweenx(
+                    y,
+                    x - err,
+                    x + err,
+                    color=self._process_color(fc, fillalpha),
+                    linewidth=0,
+                    edgecolor="none",
+                    zorder=z,
+                )
+            ax[fi].plot(
+                x,
+                y,
+                linestyle=ls,
+                linewidth=linewidth,
+                color=lc,
+                alpha=linealpha,
+                zorder=z,
+            )
+
+    def plot_fill_under_line(
+        self,
+        ax: plt.Axes,
+        x_data: list,
+        y_data: list,
+        facet_index: list[int],
+        zorder: list[int],
+        linecolor: list[str | None] | None = None,
+        fillcolor: list[str | None] | None = None,
+        linewidth: list[float | None] | None = None,
+        linestyle: list[str | None] | None = None,
+        direction: Literal["x", "y"] = "y",
+        fillalpha: float | None = None,
+        linealpha: float | None = None,
+        **kwargs,
+    ):
+        for x, y, ls, lc, fc, fi, z in zip(
+            x_data,
+            y_data,
+            linestyle,
+            linecolor,
+            fillcolor,
+            facet_index,
+            zorder,
+        ):
+            if direction == "y":
+                ax[fi].fill_between(
+                    x,
+                    0,
+                    y,
+                    color=self._process_color(fc, fillalpha),
+                    linewidth=0,
+                    edgecolor="none",
+                    zorder=z,
+                )
+            else:
+                ax[fi].fill_betweenx(
+                    y,
+                    0,
+                    x,
+                    color=self._process_color(fc, fillalpha),
+                    linewidth=0,
+                    edgecolor="none",
+                    zorder=z,
+                )
+            ax[fi].plot(
+                x,
+                y,
+                linestyle=ls,
+                linewidth=linewidth,
+                color=lc,
+                alpha=linealpha,
+                zorder=z,
+            )
+
+    def _plot_line(
         self,
         ax: plt.Axes,
         x_data: list,

@@ -13,6 +13,10 @@ from ..types import (
     FitFunc,
     Kernels,
     FillType,
+    MarkerLine,
+    FillBetweenLine,
+    FillUnderLine,
+    Line,
 )
 from .. import matplotlib_plotter as mpl
 from .base_class import BasePlot
@@ -58,88 +62,39 @@ class LinePlot(BasePlot):
 
     def line(
         self,
-        marker: str = "none",
-        markerfacecolor: ColorParameters | tuple[str, str] = None,
-        markeredgecolor: ColorParameters | tuple[str, str] = None,
-        markersize: float | str = 1,
-        linecolor: ColorParameters = "glasbey_category10",
-        fillcolor: ColorParameters | None = None,
-        fill_between: bool = False,
-        linestyle: str = "-",
-        linewidth: int = 2,
-        linealpha: AlphaRange = 1.0,
-        fillalpha: AlphaRange = 0.5,
+        style: Line | MarkerLine | FillBetweenLine = Line(),
         unique_id: str | None = None,
-        func: Agg | None = None,
-        err_func: Error | None = None,
         index: str | None = None,
     ):
         self._plot_methods.append("line")
-        self._plot_prefs.append(
-            {
-                "marker": marker,
-                "markerfacecolor": markerfacecolor,
-                "markeredgecolor": markeredgecolor,
-                "markersize": markersize,
-                "linecolor": linecolor,
-                "fillcolor": fillcolor,
-                "linestyle": linestyle,
-                "linewidth": linewidth,
-                "linealpha": linealpha,
-                "unique_id": unique_id,
-                "fill_between": fill_between,
-                "fillalpha": fillalpha,
-                "func": func,
-                "err_func": err_func,
-                "index": index,
-            }
-        )
+        prefs = {
+            "unique_id": unique_id,
+            "index": index,
+        }
+        prefs["style"] = style._asdict()
+        self._plot_prefs.append(prefs)
 
         if not self.inplace:
             return self
 
     def aggline(
         self,
-        marker: str = "none",
-        markerfacecolor: ColorParameters | tuple[str, str] = None,
-        markeredgecolor: ColorParameters | tuple[str, str] = None,
-        markersize: float | str = 1,
-        linecolor: ColorParameters = "glasbey_category10",
-        fillcolor: ColorParameters | None = None,
-        linewidth: float = 1.0,
-        linestyle: str = "-",
-        linealpha: float = 1.0,
+        style: Line | MarkerLine | FillBetweenLine | None = None,
         func: Agg = "mean",
-        err_func: Error = "sem",
-        agg_func: Agg | None = None,
-        fill_between: bool = False,
-        fillalpha: AlphaRange = 0.5,
         sort=True,
         unique_id=None,
     ):
-        if fillcolor is None:
-            fillcolor = linecolor
         self._plot_methods.append("aggline")
-        self._plot_prefs.append(
-            {
-                "marker": marker,
-                "markerfacecolor": markerfacecolor,
-                "markeredgecolor": markeredgecolor,
-                "markersize": markersize,
-                "linecolor": linecolor,
-                "fillcolor": fillcolor,
-                "linewidth": linewidth,
-                "linestyle": linestyle,
-                "linealpha": linealpha,
-                "func": func,
-                "err_func": err_func,
-                "agg_func": agg_func,
-                "fill_between": fill_between,
-                "fillalpha": fillalpha,
-                "sort": sort,
-                "unique_id": unique_id,
-            }
-        )
+        if style is None:
+            style = FillBetweenLine()
+        prefs = {
+            "func": func,
+            "style": style,
+            "sort": sort,
+            "unique_id": unique_id,
+        }
+        prefs["style"] = style._asdict()
+        self._plot_prefs.append(prefs)
 
         if not self.inplace:
             return self
@@ -150,77 +105,25 @@ class LinePlot(BasePlot):
         bw: BW = "silverman",
         tol: float | int = 1e-3,
         common_norm: bool = False,
-        linecolor: ColorParameters = "glasbey_category10",
-        fillcolor: ColorParameters | None = None,
-        linestyle: str = "-",
-        linewidth: int = 2,
-        fill_type: FillType = None,
-        linealpha: AlphaRange = 1.0,
-        fillalpha: AlphaRange = 1.0,
+        style: Line | MarkerLine | FillBetweenLine | FillUnderLine | None = None,
         kde_length: int | None = None,
         unique_id: str | None = None,
-        agg_func: Agg | None = None,
-        err_func: Error = None,
         KDEType: KDEType = "fft",
     ):
-        if fillcolor is None:
-            fillcolor = linecolor
         self._plot_methods.append("kde")
-        self._plot_prefs.append(
-            {
-                "kernel": kernel,
-                "bw": bw,
-                "tol": tol,
-                "common_norm": common_norm,
-                "linecolor": linecolor,
-                "fillcolor": fillcolor,
-                "linestyle": linestyle,
-                "linewidth": linewidth,
-                "fill_type": fill_type,
-                "linealpha": linealpha,
-                "fillalpha": fillalpha,
-                "kde_length": kde_length,
-                "unique_id": unique_id,
-                "agg_func": agg_func,
-                "err_func": err_func,
-                "KDEType": KDEType,
-            }
-        )
-
-        if not self.inplace:
-            return self
-
-    def polyhist(
-        self,
-        color: ColorParameters = None,
-        linestyle: str = "-",
-        linewidth: int = 2,
-        bin_limits=None,
-        density=True,
-        nbins=50,
-        func="mean",
-        err_func="sem",
-        fit_func=None,
-        alpha: AlphaRange = 1.0,
-        unique_id: str | None = None,
-    ):
-        if bin_limits is not None and len(bin_limits) != 2:
-            raise AttributeError("bin_limits must be length 2")
-        self._plot_methods.append("polyhist")
-        self._plot_pref.append(
-            {
-                "linestyle": linestyle,
-                "linewidth": linewidth,
-                "bin_limits": bin_limits,
-                "density": density,
-                "nbins": nbins,
-                "func": func,
-                "err_func": err_func,
-                "fit_func": fit_func,
-                "alpha": alpha,
-                "unique_id": unique_id,
-            }
-        )
+        if style is None:
+            style = FillUnderLine()
+        prefs = {
+            "kernel": kernel,
+            "bw": bw,
+            "tol": tol,
+            "common_norm": common_norm,
+            "kde_length": kde_length,
+            "unique_id": unique_id,
+            "KDEType": KDEType,
+        }
+        prefs["style"] = style._asdict()
+        self._plot_prefs.append(prefs)
 
         if not self.inplace:
             return self
@@ -269,43 +172,25 @@ class LinePlot(BasePlot):
 
     def ecdf(
         self,
-        linecolor: ColorParameters = "glasbey_category10",
-        fillcolor: ColorParameters | None = None,
-        linestyle: str = "-",
-        linewidth: int = 2,
-        linealpha: AlphaRange = 1.0,
-        fill_between: bool = True,
-        fillalpha: AlphaRange = 0.5,
+        style: Line | MarkerLine | FillBetweenLine | None = None,
         unique_id: str | None = None,
-        agg_func: Agg | None = None,
-        err_func: Error = None,
         ecdf_type: Literal["spline", "bootstrap", "none"] = "none",
         ecdf_args=None,
     ):
-        if ecdf_args is None and agg_func is not None:
+        if ecdf_args is None:
             ecdf_args = {"size": 1000, "repititions": 1000, "seed": 42}
-            ecdf_type = "bootstrap"
         else:
             ecdf_args
-        if fillcolor is None:
-            fillcolor = linecolor
         self._plot_methods.append("ecdf")
-        self._plot_prefs.append(
-            {
-                "linecolor": linecolor,
-                "fillcolor": fillcolor,
-                "linestyle": linestyle,
-                "linewidth": linewidth,
-                "linealpha": linealpha,
-                "fill_between": fill_between,
-                "fillalpha": fillalpha,
-                "ecdf_type": ecdf_type,
-                "agg_func": agg_func,
-                "err_func": err_func,
-                "ecdf_args": ecdf_args,
-                "unique_id": unique_id,
-            }
-        )
+        if style is None:
+            style = Line()
+        prefs = {
+            "ecdf_type": ecdf_type,
+            "ecdf_args": ecdf_args,
+            "unique_id": unique_id,
+        }
+        prefs["style"] = style._asdict()
+        self._plot_prefs.append()
 
         self.plot_format["axis"]["ylim"] = [0.0, 1.0]
 
@@ -341,29 +226,20 @@ class LinePlot(BasePlot):
     def fit(
         self,
         fit_func: FitFunc,
-        linecolor: ColorParameters = "glasbey_category10",
-        linestyle: str = "-",
-        linewidth: int = 2,
-        alpha: AlphaRange = 1.0,
+        style: Line | MarkerLine | FillBetweenLine | None = None,
         unique_id: str | None = None,
         fit_args: dict = None,
-        agg_func: Agg = None,
-        err_func: Error = None,
     ):
         self._plot_methods.append("fit")
-        self._plot_prefs.append(
-            {
-                "linecolor": linecolor,
-                "linestyle": linestyle,
-                "linewidth": linewidth,
-                "alpha": alpha,
-                "unique_id": unique_id,
-                "fit_func": fit_func,
-                "fit_args": fit_args,
-                "agg_func": agg_func,
-                "err_func": err_func,
-            }
-        )
+        if style is None:
+            style = Line()
+        prefs = {
+            "unique_id": unique_id,
+            "fit_func": fit_func,
+            "fit_args": fit_args,
+        }
+        prefs["style"] = style._asdict()
+        self._plot_prefs.append()
 
         if not self.inplace:
             return self

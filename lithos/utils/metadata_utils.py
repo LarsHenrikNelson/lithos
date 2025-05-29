@@ -1,7 +1,17 @@
 from pathlib import Path
 import ast
 
-from ..plotting.types import Group, Subgroup, UniqueGroups
+from ..plotting.types import (
+    Group,
+    Subgroup,
+    UniqueGroups,
+    MarkerLine,
+    FillBetweenLine,
+    FillUnderLine,
+)
+
+PLOTTYPES = [Group, Subgroup, UniqueGroups, MarkerLine, FillBetweenLine, FillUnderLine]
+
 
 def home_dir():
     p = Path.home()
@@ -41,14 +51,16 @@ def set_metadata_dir(directory: str | Path):
 def metadata_to_string(metadata, level=0):
     output = []
     if isinstance(metadata, dict):
-        output.append(f"{' '*level*2}" + "{\n")
+        output.append(f"{' ' * level * 2}" + "{\n")
         for key in metadata.keys():
             if isinstance(key, str):
                 temp_key = f"'{key}'"
             else:
                 temp_key = key
-            output.append(f"{' '*level*2}{temp_key}:\n")
-            if isinstance(metadata[key], (list, tuple, dict, Group, Subgroup, UniqueGroups)):
+            output.append(f"{' ' * level * 2}{temp_key}:\n")
+            if isinstance(
+                metadata[key], (list, tuple, dict, Group, Subgroup, UniqueGroups)
+            ):
                 temp = metadata_to_string(metadata[key], level + 1)
                 output.extend(temp)
             else:
@@ -57,9 +69,9 @@ def metadata_to_string(metadata, level=0):
                 else:
                     temp = str(metadata[key])
                 output[-1] = output[-1][:-1] + f" {temp},\n"
-        output.append(f"{' '*level*2}" + "},\n")
+        output.append(f"{' ' * level * 2}" + "},\n")
     elif isinstance(metadata, list):
-        output.append(f"{' '*level*2}" + "[\n")
+        output.append(f"{' ' * level * 2}" + "[\n")
         for index, val in enumerate(metadata):
             if isinstance(val, (dict)):
                 temp = metadata_to_string(val, level + 1)
@@ -78,12 +90,12 @@ def metadata_to_string(metadata, level=0):
                     prepend = ""
                 temp = prepend + str(val) + postend
                 output.append(temp)
-        output.append(f"{' '*level*2}" + "],\n")
-    elif isinstance(metadata, (Group, Subgroup, UniqueGroups)):
+        output.append(f"{' ' * level * 2}" + "],\n")
+    elif isinstance(metadata, PLOTTYPES):
         temp = metadata_to_string(metadata._asdict(), level + 1)
         output.extend(temp)
     elif isinstance(metadata, tuple):
-        output.append(f"{' '*level*2}" + "(\n")
+        output.append(f"{' ' * level * 2}" + "(\n")
         for index, val in enumerate(metadata):
             if isinstance(val, (dict)):
                 temp = metadata_to_string(val, level + 1)
@@ -102,13 +114,14 @@ def metadata_to_string(metadata, level=0):
                     prepend = ""
                 temp = prepend + str(val) + postend
                 output.append(temp)
-        output.append(f"{' '*level*2}" + "),\n")
+        output.append(f"{' ' * level * 2}" + "),\n")
     elif isinstance(metadata, callable):
         temp = (" " * level * 2) + "callable,\n"
         output.append(temp)
     if level == 0:
         output[-1] = "}\n"
     return output
+
 
 def _process_metadata(metadata: dict):
     if "plot_prefs" in metadata:
@@ -123,6 +136,7 @@ def _process_metadata(metadata: dict):
                     elif "unique_groups" in value:
                         value = UniqueGroups(**value)
     return metadata
+
 
 def load_metadata(metadata_path: str | Path):
     if not isinstance(metadata_path, (str, dict, Path)):

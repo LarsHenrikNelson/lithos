@@ -14,7 +14,10 @@ from ..types import (
     Levels,
     RectanglePlotData,
     ScatterPlotData,
+    MarkerLinePlotData,
+    FillBetweenPlotData,
     LinePlotData,
+    FillUnderPlotData,
     Transform,
     FitFunc,
 )
@@ -28,13 +31,29 @@ class LineProcessor(BaseProcessor):
         self.PLOTS = {
             "hist": self._hist,
             "line": self._line,
-            "poly_hist": self._poly_hist,
             "kde": self._kde,
             "ecdf": self._ecdf,
             "scatter": self._scatter,
             "aggline": self._aggline,
             "fit": self._fit,
         }
+
+    def post_process_line(self, plot_data, style):
+        plot_type = style.pop("plot_type")
+        temp = {}
+        for key, value in style.items():
+            temp[key] = self._process_output(plot_data["group_labels"], value)
+        temp.update(plot_data)
+        if plot_type == "marker":
+            output = MarkerLinePlotData(**temp)
+        elif plot_type == "fill_between":
+            output = FillBetweenPlotData(**temp)
+        elif plot_type == "fill_under":
+            output = FillUnderPlotData(**temp)
+        if plot_type == "line" or temp["error_data"] is None:
+            _ = temp.pop("error_data")
+            output = LinePlotData(**temp)
+        return output
 
     def process_groups(
         self, data, group, subgroup, group_order, subgroup_order, facet, facet_title
@@ -209,16 +228,16 @@ class LineProcessor(BaseProcessor):
             bottoms=bottoms,
             bins=plot_bins,
             binwidths=bw,
-            fillcolors=self._process_dict(groups, facecolor, unique_groups, agg_func),
-            edgecolors=self._process_dict(groups, edgecolor, unique_groups, agg_func),
+            fillcolors=self._process_output(group_labels, facecolor),
+            edgecolors=self._process_output(group_labels, edgecolor),
             fill_alpha=fillalpha,
             edge_alpha=linealpha,
-            hatches=self._process_dict(groups, hatch, unique_groups, agg_func),
+            hatches=self._process_output(group_labels, hatch),
             linewidth=linewidth,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
+            facet_index=self._process_output(group_labels, loc_dict),
             axis=axis,
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
 
@@ -287,21 +306,11 @@ class LineProcessor(BaseProcessor):
         x: str,
         y: str,
         levels: Levels,
-        marker: str | dict[str, str],
-        markersize: float | int,
-        markerfacecolor: str | dict[str, str],
-        markeredgecolor: str | dict[str, str],
-        linestyle: str | dict[str, str],
-        linewidth: float | int,
-        linecolor: str | dict[str, str],
-        fillcolor: str | dict[str, str],
-        linealpha: float | int,
+        style: dict,
         loc_dict: dict[str, int],
         zorder_dict: dict[str, int],
         func: Agg = None,
         err_func: Error = None,
-        fill_between: bool = False,
-        fillalpha: AlphaRange = 1.0,
         agg_func: Agg | None = None,
         ytransform: Transform = None,
         xtransform: Transform = None,
@@ -314,16 +323,10 @@ class LineProcessor(BaseProcessor):
         y_data = []
         error_data = []
         facet_index = []
-        mks = []
-        lcs = []
-        fcs = []
-        lss = []
-        mfcs = []
-        mecs = []
         group_labels = []
         zorder = []
 
-        err_data = None
+        error_data = None
         new_levels = (levels + (x,)) if unique_id is None else (levels + (x, unique_id))
         ytransform = get_transform(ytransform)
         func = get_transform(func)
@@ -335,13 +338,13 @@ class LineProcessor(BaseProcessor):
                     col: (y, lambda x: get_transform(err_func)((ytransform(x))))
                     for col in [y]
                 }
-                err_data = DataHolder(
+                error_df = DataHolder(
                     data.groupby(y, new_levels, sort=sort).agg(**agg_dict)
                 )
         else:
             if agg_func is not None:
                 if err_func is not None:
-                    err_data = DataHolder(
+                    error_df = DataHolder(
                         new_data[list(levels + (x, y))]
                         .groupby(list(levels + (x,)), sort=sort, as_index=False)
                         .agg(get_transform(err_func))
@@ -359,42 +362,23 @@ class LineProcessor(BaseProcessor):
         for u, indexes in ugrps.items():
             u = u if len(u) == len(levels) else u[: len(levels)]
             u = ("",) if len(u) == 0 else u
-            ytemp = new_data[indexes, y]
-            y_data.append(ytemp)
-            xtemp = get_transform(xtransform)(new_data[indexes, x])
-            x_data.append(xtemp)
-            temp_err = err_data[indexes, y] if err_func is not None else None
+            group_labels.append(u)
+            y_data.append(new_data[indexes, y])
+            x_data.append(get_transform(xtransform)(new_data[indexes, x]))
+            temp_err = error_df[indexes, y] if err_func is not None else None
             error_data.append(temp_err)
             facet_index.append(loc_dict[u])
-            mks.append(marker[u])
-            lcs.append(linecolor[u])
-            fcs.append(fillcolor[u])
-            lss.append(linestyle[u])
-            mfcs.append(markerfacecolor[u])
-            mecs.append(markeredgecolor[u])
-            group_labels.append(u)
             zorder.append(zorder_dict[u])
-        output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=error_data,
-            facet_index=facet_index,
-            marker=mks,
-            linecolor=lcs,
-            fillcolor=fcs,
-            linewidth=linewidth,
-            linestyle=lss,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
-            markersize=markersize,
-            fill_between=fill_between,
-            linealpha=linealpha,
-            fillalpha=fillalpha,
-            direction="y",
-            group_labels=group_labels,
-            zorder=zorder,
-        )
-
+        output = {
+            "x_data": x_data,
+            "y_data": y_data,
+            "error_data": error_data,
+            "facet_index": facet_index,
+            "direction": "y",
+            "group_labels": group_labels,
+            "zorder": zorder,
+        }
+        output = self.post_process_line(output, style)
         return output
 
     def _kde(
@@ -403,16 +387,9 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        linecolor: str | dict[str, str],
-        fillcolor: str | dict[str, str],
         loc_dict: dict[str, int],
-        linestyle: str | dict[str, str],
-        linewidth: float | int,
-        linealpha: float | int,
-        fillalpha: float | int,
-        fill_between: bool,
-        fill_under: bool,
         zorder_dict: dict[str, int],
+        style: dict,
         kernel: Kernels = "gaussian",
         bw: BW = "ISJ",
         kde_length: int | None = None,
@@ -431,7 +408,7 @@ class LineProcessor(BaseProcessor):
 
         x_data = []
         y_data = []
-        error_data = []
+        error_data = [] if err_func is not None else None
         group_labels = []
         unique_groups = None
 
@@ -461,7 +438,6 @@ class LineProcessor(BaseProcessor):
                     y_kde, x_kde = x_kde, y_kde
                 y_data.append(y_kde)
                 x_data.append(x_kde)
-                error_data.append(None)
                 group_labels.append(group_key)
             else:
                 subgroups, count = np.unique(
@@ -501,7 +477,6 @@ class LineProcessor(BaseProcessor):
                             y_kde, x_kde = x_kde, y_kde
                         y_data.append(y_kde)
                         x_data.append(x_kde)
-                        error_data.append(None)
                         group_labels.append(group_key)
                     else:
                         _, y_kde = stats.kde(
@@ -521,33 +496,18 @@ class LineProcessor(BaseProcessor):
                     y_data.append(y_kde)
                     x_data.append(x_kde)
                     group_labels.append(group_key)
-                    error_data.append(
-                        get_transform(err_func)(y_hold, axis=0)
-                        if err_func is not None
-                        else None
-                    )
-        nones = [None] * len(y_data)
-        output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=error_data,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
-            marker=nones,
-            linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
-            fillcolor=self._process_dict(groups, fillcolor, unique_groups, agg_func),
-            linewidth=linewidth,
-            linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
-            markerfacecolor=nones,
-            markeredgecolor=nones,
-            markersize=None,
-            fill_between=fill_between,
-            linealpha=linealpha,
-            fillalpha=fillalpha,
-            fill_under=fill_under,
-            direction=direction,
-            group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
-        )
+                    if err_func is not None:
+                        error_data.append(get_transform(err_func)(y_hold, axis=0))
+        output = {
+            "x_data": x_data,
+            "y_data": y_data,
+            "error_data": error_data,
+            "facet_index": self._process_output(group_labels, loc_dict),
+            "direction": direction,
+            "group_labels": group_labels,
+            "zorder": self._process_output(group_labels, zorder_dict),
+        }
+        output = self.post_process_line(output, style)
         return output
 
     def _ecdf(
@@ -556,15 +516,9 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        linewidth: float | int,
-        linecolor: str | dict[str, str],
-        fillcolor: str | dict[str, str],
         loc_dict: dict[str, int],
-        linestyle: str | dict[str, str],
-        linealpha: float | int,
         zorder_dict: dict[str, int],
-        fill_between: bool = False,
-        fillalpha: AlphaRange = 1.0,
+        style: dict,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
         err_func=None,
@@ -582,7 +536,7 @@ class LineProcessor(BaseProcessor):
             ecdf_args = {}
         x_data = []
         y_data = []
-        error_data = []
+        error_data = [] if err_func is not None else None
         group_labels = []
         unique_groups = None
 
@@ -590,7 +544,6 @@ class LineProcessor(BaseProcessor):
 
         if unique_id is not None:
             unique_groups = data.groups(levels + (unique_id,))
-
         for group_key, indexes in groups.items():
             if unique_id is None:
                 y_values = np.asarray(data[indexes, column]).flatten()
@@ -599,7 +552,6 @@ class LineProcessor(BaseProcessor):
                 )
                 y_data.append(y_ecdf)
                 x_data.append(x_ecdf)
-                error_data.append(None)
                 group_labels.append(group_key)
             else:
                 subgroups, counts = np.unique(
@@ -622,7 +574,7 @@ class LineProcessor(BaseProcessor):
                         )
                         y_data.append(y_ecdf)
                         x_data.append(x_ecdf)
-                        error_data.append(None)
+
                         group_labels.append(group_key)
                     else:
                         x_ecdf, _ = stats.ecdf(
@@ -635,145 +587,18 @@ class LineProcessor(BaseProcessor):
                     x_data.append(get_transform(agg_func)(x_hold, axis=0))
                     y_data.append(y_ecdf)
                     group_labels.append(group_key)
-                    error_data.append(
-                        get_transform(err_func)(x_hold, axis=0)
-                        if err_func is not None
-                        else None
-                    )
-        nones = [None] * len(y_data)
-        output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=error_data,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
-            marker=nones,
-            linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
-            fillcolor=self._process_dict(groups, fillcolor, unique_groups, agg_func),
-            linewidth=linewidth,
-            linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
-            markerfacecolor=nones,
-            markeredgecolor=nones,
-            markersize=None,
-            fill_between=fill_between,
-            linealpha=linealpha,
-            fillalpha=fillalpha,
-            direction="x",
-            group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
-        )
-        return output
-
-    def _poly_hist(
-        self,
-        data: DataHolder,
-        y: str,
-        x: str,
-        levels: Levels,
-        color_dict: dict[str, str],
-        loc_dict: dict[str, int],
-        linestyle_dict: dict[str, str],
-        linewidth: float | int,
-        unique_id: str | None = None,
-        density: bool = True,
-        bin_limits: list[float, float] | None = None,
-        nbins: int = 50,
-        func: Agg = "mean",
-        err_func: Error = "sem",
-        fit_func=None,
-        alpha: AlphaRange = 1.0,
-        xtransform: Transform = None,
-        ytransform: Transform = None,
-    ) -> LinePlotData:
-        x_data = []
-        y_data = []
-        error_data = []
-        facet_index = []
-        mks = []
-        lcs = []
-        lss = []
-        mfcs = []
-        mecs = []
-
-        y = y if x is None else x
-        transform = ytransform if xtransform is None else xtransform
-        transform = get_transform(transform)
-        if bin_limits is None:
-            bins = np.linspace(
-                transform(data[y]).min(), transform(data[y]).max(), num=nbins + 1
-            )
-            x = np.linspace(
-                transform(data[y]).min(), transform(data[y]).max(), num=nbins
-            )
-        else:
-            x = np.linspace(bin[0], bin[1], num=nbins)
-            bins = np.linspace(bin[0], bin[1], num=nbins + 1)
-
-        if err_func is not None:
-            fill_between = True
-
-        groups = data.groups(levels)
-        if unique_id is not None:
-            func = get_transform(func)
-            if err_func is not None:
-                err_func = get_transform(err_func)
-            for i, indexes in groups.items():
-                subgroups = np.unique(data[indexes, unique_id])
-                temp_list = np.zeros((len(subgroups), bins))
-                for index, j in enumerate(subgroups):
-                    temp = np.where(data[unique_id] == j)[0]
-                    temp_data = np.sort(transform(data[temp, y]))
-                    poly, _ = np.histogram(temp_data, bins)
-                    if density:
-                        poly = poly / poly.sum()
-                    if fit_func is not None:
-                        poly = fit_func(x, poly)
-                    temp_list[index] = poly
-                mean_data = func(temp_list, axis=0)
-                x_data.append(x)
-                y_data.append(mean_data)
-                facet_index.append(loc_dict[i])
-                mks.append(None)
-                lcs.append(color_dict[i])
-                lss.append(linestyle_dict[i])
-                mfcs.append("none")
-                mecs.append("none")
-                if err_func is not None:
-                    error_data.append(err_func(temp_list, axis=0))
-                else:
-                    error_data.append(None)
-        else:
-            for i, indexes in groups.items():
-                temp = np.sort(transform(data[indexes, y]))
-                poly, _ = np.histogram(temp, bins)
-                if fit_func is not None:
-                    poly = fit_func(x, poly)
-                if density:
-                    poly = poly / poly.sum()
-                x_data.append(x)
-                y_data.append(poly)
-                facet_index.append(loc_dict[i])
-                mks.append(None)
-                lcs.append(color_dict[i])
-                lss.append(linestyle_dict[i])
-                mfcs.append("none")
-                mecs.append("none")
-        output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=error_data,
-            facet_index=facet_index,
-            marker=mks,
-            linecolor=lcs,
-            linewidth=linewidth,
-            linestyle=lss,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
-            markersize=None,
-            fill_between=fill_between,
-            linealpha=alpha,
-            fillalpha=alpha,
-            direction="y",
-        )
+                    if err_func is not None:
+                        error_data.append(get_transform(err_func)(x_hold, axis=0))
+        output = {
+            "x_data": x_data,
+            "y_data": y_data,
+            "error_data": error_data,
+            "facet_index": self._process_output(group_labels, loc_dict),
+            "direction": "x",
+            "group_labels": group_labels,
+            "zorder": self._process_output(group_labels, zorder_dict),
+        }
+        output = self.post_process_line(output, style)
         return output
 
     def _line(
@@ -782,18 +607,14 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        linecolor: dict[str, str],
         loc_dict: dict[str, int],
-        linestyle: dict[str, str],
         zorder_dict: dict[str, int],
-        linewidth: float | int = 2,
+        style: dict,
         unique_id: str | None = None,
-        linealpha: AlphaRange = 1.0,
-        fillalpha: AlphaRange = 0.5,
         xtransform: Transform = None,
         ytransform: Transform = None,
         func: Agg = "mean",
-        err_func: Error = "sem",
+        err_func: Error = None,
         index: str | None = None,
         *args,
         **kwargs,
@@ -801,7 +622,7 @@ class LineProcessor(BaseProcessor):
         x_data = []
         y_data = []
         group_labels = []
-        err_data = []
+        error_data = [] if err_func is not None else None
         unique_groups = None
 
         if index is None and x is not None:
@@ -820,7 +641,6 @@ class LineProcessor(BaseProcessor):
                     x_data.append(get_transform(xtransform)(np.arange(len(temp_y))))
                 y_data.append(get_transform(ytransform)(temp_y))
                 group_labels.append(group_key)
-                err_data.append(None)
             else:
                 uids = np.unique(data[indexes, unique_id])
                 if func is not None:
@@ -844,7 +664,6 @@ class LineProcessor(BaseProcessor):
                             x_data.append(
                                 get_transform(xtransform)(np.arange(len(temp_y)))
                             )
-                        err_data.append(None)
                     else:
                         temp_x = np.asarray(data[sub_indexes, x])
                         y_output[index, :] = get_transform(ytransform)(temp_y)
@@ -854,36 +673,17 @@ class LineProcessor(BaseProcessor):
                     x_data.append(get_transform(func)(x_output, axis=0))
                     group_labels.append(group_key)
                 if err_func is not None:
-                    err_data.append(get_transform(err_func)(y_output, axis=0))
-                else:
-                    err_data.append(None)
-        nones = [None] * len(y_data)
-        if err_func is not None:
-            fillcolor = self._process_dict(groups, linecolor, unique_groups, func)
-            fill_between = True
-        else:
-            fillcolor = nones
-            fill_between = False
-        output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=err_data,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups, func),
-            marker=nones,
-            linecolor=self._process_dict(groups, linecolor, unique_groups, func),
-            fillcolor=fillcolor,
-            linewidth=linewidth,
-            linestyle=self._process_dict(groups, linestyle, unique_groups, func),
-            markerfacecolor=nones,
-            markeredgecolor=nones,
-            markersize=None,
-            fill_between=fill_between,
-            linealpha=linealpha,
-            fillalpha=fillalpha,
-            direction="y",
-            group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
-        )
+                    error_data.append(get_transform(err_func)(y_output, axis=0))
+        output = {
+            "x_data": x_data,
+            "y_data": y_data,
+            "error_data": error_data,
+            "facet_index": self._process_output(group_labels, loc_dict),
+            "direction": "y",
+            "group_labels": group_labels,
+            "zorder": self._process_output(group_labels, zorder_dict),
+        }
+        output = self.post_process_line(output, style)
         return output
 
     def _fit(
@@ -893,13 +693,10 @@ class LineProcessor(BaseProcessor):
         x: str,
         fit_func: FitFunc,
         levels: Levels,
-        linecolor: dict[str, str],
         loc_dict: dict[str, int],
-        linestyle: dict[str, str],
         zorder_dict: dict[str, int],
-        linewidth: float | int = 2,
+        style: dict,
         unique_id: str | None = None,
-        linealpha: AlphaRange = 1.0,
         xtransform: Transform = None,
         ytransform: Transform = None,
         fit_args: dict | None = None,
@@ -939,25 +736,14 @@ class LineProcessor(BaseProcessor):
                     y_data.append(fit_output[1])
                     x_data.append(temp_x)
                     group_labels.append(group_key)
-        nones = [None] * len(y_data)
-        output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=nones,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups, func),
-            marker=nones,
-            linecolor=self._process_dict(groups, linecolor, unique_groups, func),
-            fillcolor=nones,
-            linewidth=linewidth,
-            linestyle=self._process_dict(groups, linestyle, unique_groups, func),
-            markerfacecolor=nones,
-            markeredgecolor=nones,
-            markersize=None,
-            fill_between=False,
-            linealpha=linealpha,
-            fillalpha=None,
-            direction="y",
-            group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
-        )
+        output = {
+            "x_data": x_data,
+            "y_data": y_data,
+            "error_data": None,
+            "facet_index": self._process_output(group_labels, loc_dict),
+            "direction": "y",
+            "group_labels": group_labels,
+            "zorder": self._process_output(group_labels, zorder_dict),
+        }
+        output = self.post_process_line(output, style)
         return output

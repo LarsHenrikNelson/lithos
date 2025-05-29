@@ -5,6 +5,113 @@ from typing import Annotated, Literal, TypeAlias, NamedTuple
 
 import numpy as np
 
+Kernels: TypeAlias = Literal[
+    "gaussian",
+    "exponential",
+    "box",
+    "tri",
+    "epa",
+    "biweight",
+    "triweight",
+    "tricube",
+    "cosine",
+]
+
+BW: TypeAlias = float | Literal["ISJ", "silverman", "scott"]
+KDEType: TypeAlias = Literal["fft", "tree"]
+Levels: TypeAlias = str | int | float
+
+
+@dataclass
+class ValueRange:
+    lo: float
+    hi: float
+
+
+class Group(NamedTuple):
+    group: list
+
+
+class Subgroup(NamedTuple):
+    subgroup: list
+
+
+class UniqueGroups(NamedTuple):
+    unique_groups: list
+
+
+AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]
+CountPlotTypes: TypeAlias = Literal["percent", "count"]
+ColorParameters: TypeAlias = str | dict[str, str] | None
+TransformFuncs: TypeAlias = Literal[
+    "log10", "log2", "ln", "inverse", "ninverse", "sqrt"
+]
+AggFuncs: TypeAlias = Literal[
+    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean"
+]
+ErrorFuncs: TypeAlias = Literal[
+    "sem",
+    "ci",
+    "periodic_std",
+    "periodic_sem",
+    "std",
+    "nanstd",
+    "var",
+    "nanvar",
+    "mad",
+    "gstd",
+]
+Error: TypeAlias = ErrorFuncs | callable | None
+Agg: TypeAlias = AggFuncs | callable
+Transform: TypeAlias = TransformFuncs | None
+BinType: TypeAlias = Literal["density", "percent"]
+CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
+SavePath: TypeAlias = str | Path | BytesIO | StringIO
+FitFunc: TypeAlias = callable | Literal["linear", "sine", "polynomial"]
+
+
+class Line(NamedTuple):
+    plot_type: str = "line"
+    linecolor: ColorParameters = "glasbey_category10"
+    linewidth: float = 1.0
+    linestyle: str = "-"
+    linealpha: float = 1.0
+
+
+class MarkerLine(NamedTuple):
+    plot_type: str = "marker"
+    linecolor: ColorParameters = "glasbey_category10"
+    linewidth: float = 1.0
+    linestyle: str = "-"
+    linealpha: float = 1.0
+    marker: str = "o"
+    markersize: float = 1
+    markerfacecolor: ColorParameters | tuple[str, str] = "glasbey_category10"
+    markeredgecolor: ColorParameters | tuple[str, str] = "glasbey_category10"
+
+
+class FillBetweenLine(NamedTuple):
+    plot_type: str = "fill_between"
+    linecolor: ColorParameters = "glasbey_category10"
+    linewidth: float = 1.0
+    linestyle: str = "-"
+    linealpha: float = 1.0
+    fill_alpha: AlphaRange = 0.5
+    fillcolor: ColorParameters | tuple[str, str] = "glasbey_category10"
+
+
+class FillUnderLine(NamedTuple):
+    plot_type: str = "fill_under"
+    linecolor: ColorParameters = "glasbey_category10"
+    linewidth: float = 1.0
+    linestyle: str = "-"
+    linealpha: float = 1.0
+    linewidth: float = 1.0
+    linestyle: str = "-"
+    linealpha: float = 1.0
+    fill_alpha: AlphaRange = 1.0
+    fillcolor: ColorParameters | tuple[str, str] = "glasbey_category10"
+
 
 @dataclass
 class PlotData:
@@ -34,66 +141,45 @@ FillType: TypeAlias = Literal[None, "fill_under", "fill_between"]
 
 @dataclass
 class LinePlotData(PlotData):
+    facet_index: list[int]
     x_data: list
     y_data: list
-    error_data: list
-    facet_index: list[int]
     linecolor: list[str | None] | None = None
-    linewidth: list[float | None] | None = None
     linestyle: list[str | None] | None = None
     linealpha: float | None = None
-    marker: list[str | None] | None = None
-    markersize: float | None = None
-    markerfacecolor: list[str | None] | None = None
-    markeredgecolor: list[str | None] | None = None
-    filltype: FillType = None
-    fillcolor: list[str | None] | None = None
-    fillalpha: float | None = None
-    direction: Literal["xy"] = "y"
-    fill_under: bool = False
+    linewidth: list[float | None] | None = None
     plot_type: str = "line"
+    agg_func: Agg | None = None
+    direction: Literal["xy"] = "y"
 
 
-class SimpleLinePlotData(PlotData):
-    x_data: list
-    y_data: list
-    linecolor: list[str | None] | None = None
-    linestyle: list[str | None] | None = None
-    linealpha: float | None = None
-    plot_type: str = "simple_line"
+@dataclass
+class ErrorLinePlotData(LinePlotData):
+    error_data: list = None
+    err_func: Error = "sem"
 
 
-class MarkerLinePlotData(PlotData):
-    x_data: list
-    y_data: list
-    error_data: list
-    facet_index: list[int]
-    linecolor: list[str | None] | None = None
-    linestyle: list[str | None] | None = None
-    linealpha: float | None = None
-    linewidth: list[float | None] | None = None
+@dataclass
+class MarkerLinePlotData(ErrorLinePlotData):
     marker: list[str | None] | None = None
     markerfacecolor: list[str | None] | None = None
     markeredgecolor: list[str | None] | None = None
     markersize: float | None = None
-    direction: Literal["xy"] = "y"
     plot_type: str = "marker_line"
 
 
-class FillBetweenPlotData(PlotData):
-    x_data: list
-    y_data: list
-    error_data: list
-    facet_index: list[int]
-    linecolor: list[str | None] | None = None
+@dataclass
+class FillBetweenPlotData(ErrorLinePlotData):
     fillcolor: list[str | None] | None = None
-    linewidth: list[float | None] | None = None
-    linestyle: list[str | None] | None = None
-    fillalpha: float | None = None
-    linealpha: float | None = None
-    fill_under: bool = False
-    direction: Literal["xy"] = "y"
-    plot_type: str = "fill_line"
+    fill_alpha: float | None = None
+    plot_type: str = "fill_between_line"
+
+
+@dataclass
+class FillUnderPlotData(LinePlotData):
+    fillcolor: list[str | None] | None = None
+    fill_alpha: float | None = None
+    plot_type: str = "fill_under_line"
 
 
 @dataclass
@@ -165,86 +251,3 @@ class ViolinPlotData(PlotData):
     edge_alpha: float
     linewidth: float
     plot_type: str = "violin"
-
-
-Kernels: TypeAlias = Literal[
-    "gaussian",
-    "exponential",
-    "box",
-    "tri",
-    "epa",
-    "biweight",
-    "triweight",
-    "tricube",
-    "cosine",
-]
-
-BW: TypeAlias = float | Literal["ISJ", "silverman", "scott"]
-KDEType: TypeAlias = Literal["fft", "tree"]
-Levels: TypeAlias = str | int | float
-
-
-@dataclass
-class ValueRange:
-    lo: float
-    hi: float
-
-
-class Group(NamedTuple):
-    group: list
-
-
-class Subgroup(NamedTuple):
-    subgroup: list
-
-
-class UniqueGroups(NamedTuple):
-    unique_groups: list
-
-
-AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]
-CountPlotTypes: TypeAlias = Literal["percent", "count"]
-ColorParameters: TypeAlias = str | dict[str, str] | None
-TransformFuncs: TypeAlias = Literal[
-    "log10", "log2", "ln", "inverse", "ninverse", "sqrt"
-]
-AggFuncs: TypeAlias = Literal[
-    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean"
-]
-ErrorFuncs: TypeAlias = Literal[
-    "sem",
-    "ci",
-    "periodic_std",
-    "periodic_sem",
-    "std",
-    "nanstd",
-    "var",
-    "nanvar",
-    "mad",
-    "gstd",
-]
-Error: TypeAlias = ErrorFuncs | callable | None
-Agg: TypeAlias = AggFuncs | callable
-Transform: TypeAlias = TransformFuncs | None
-BinType: TypeAlias = Literal["density", "percent"]
-CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
-SavePath: TypeAlias = str | Path | BytesIO | StringIO
-FitFunc: TypeAlias = callable | Literal["linear", "sine", "polynomial"]
-
-
-class MarkerLine(NamedTuple):
-    marker: str
-    markestyle: str
-    markersize: float
-    markerfacecolor: ColorParameters | tuple[str, str] = None
-    markerfacedge: ColorParameters | tuple[str, str] = None
-
-
-class FillBetweenLine(NamedTuple):
-    fill_alpha: AlphaRange = 0.5
-    fillcolor: ColorParameters | tuple[str, str] = "glaseby_category10"
-
-
-class FillUnderLine(NamedTuple):
-    fill_alpha: AlphaRange = 1.0
-    fillcolor: ColorParameters | tuple[str, str] = "glaseby_category10"

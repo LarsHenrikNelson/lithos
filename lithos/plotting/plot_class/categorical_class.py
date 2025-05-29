@@ -3,7 +3,6 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from ..plot_utils import _process_colors, create_dict
 from .. import matplotlib_plotter as mpl
 from ..types import (
     BW,

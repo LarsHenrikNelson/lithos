@@ -146,13 +146,13 @@ class CategoricalProcessor(BaseProcessor):
             x_data=x_data,
             y_data=y_data,
             marker=markers,
-            markerfacecolor=self._process_dict(groups, markercolor, unique_groups),
-            markeredgecolor=self._process_dict(groups, edgecolor, unique_groups),
+            markerfacecolor=self._process_output(group_labels, markercolor),
+            markeredgecolor=self._process_output(group_labels, edgecolor),
             markersize=[markersize] * len(y_data),
             alpha=alpha,
             edge_alpha=edge_alpha,
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
 
@@ -223,16 +223,14 @@ class CategoricalProcessor(BaseProcessor):
         output = JitterPlotData(
             x_data=x_data,
             y_data=y_data,
-            marker=self._process_dict(groups, marker, unique_groups, None),
-            markerfacecolor=self._process_dict(
-                groups, markercolor, unique_groups, None
-            ),
-            markeredgecolor=self._process_dict(groups, edgecolor, unique_groups, None),
+            marker=self._process_output(group_labels, marker),
+            markerfacecolor=self._process_output(group_labels, markercolor),
+            markeredgecolor=self._process_output(group_labels, edgecolor),
             markersize=[markersize] * len(y_data),
             alpha=alpha,
             edge_alpha=edge_alpha,
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, None),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
 
@@ -275,13 +273,13 @@ class CategoricalProcessor(BaseProcessor):
             y_data=y_data,
             error_data=error_data,
             widths=[barwidth] * len(y_data),
-            colors=self._process_dict(groups, color),
+            colors=self._process_output(group_labels, color),
             linewidth=linewidth,
             alpha=alpha,
             capstyle=capstyle,
             capsize=capsize,
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
 
@@ -363,13 +361,13 @@ class CategoricalProcessor(BaseProcessor):
             y_data=y_data,
             error_data=error_data,
             widths=widths,
-            colors=self._process_dict(groups, color, unique_groups, agg_func),
+            colors=self._process_output(group_labels, color),
             linewidth=linewidth,
             alpha=alpha,
             capstyle=capstyle,
             capsize=capsize,
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
 
@@ -407,8 +405,8 @@ class CategoricalProcessor(BaseProcessor):
         output = BoxPlotData(
             x_data=x_data,
             y_data=y_data,
-            facecolors=self._process_dict(groups, facecolor),
-            edgecolors=self._process_dict(groups, edgecolor),
+            facecolors=self._process_output(group_labels, facecolor),
+            edgecolors=self._process_output(group_labels, edgecolor),
             alpha=alpha,
             linealpha=linealpha,
             fliers=fliers,
@@ -417,7 +415,7 @@ class CategoricalProcessor(BaseProcessor):
             show_ci=show_ci,
             showmeans=showmeans,
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
 
@@ -535,17 +533,13 @@ class CategoricalProcessor(BaseProcessor):
                 x_data=x_data,
                 y_data=y_data,
                 location=loc,
-                facecolors=self._process_dict(
-                    groups, facecolor, unique_groups, agg_func
-                ),
-                edgecolors=self._process_dict(
-                    groups, edgecolor, unique_groups, agg_func
-                ),
+                facecolors=self._process_output(groups, facecolor),
+                edgecolors=self._process_output(groups, edgecolor),
                 alpha=alpha,
                 edge_alpha=edge_alpha,
                 linewidth=linewidth,
                 group_labels=group_labels,
-                zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+                zorder=self._process_output(group_labels, zorder_dict),
             )
         return output
 
@@ -634,15 +628,15 @@ class CategoricalProcessor(BaseProcessor):
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
-            fillcolors=self._process_dict(groups, facecolor, unique_groups, agg_func),
-            edgecolors=self._process_dict(groups, edgecolor, unique_groups, agg_func),
+            fillcolors=self._process_output(group_labels, facecolor),
+            edgecolors=self._process_output(group_labels, edgecolor),
             fill_alpha=alpha,
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
             axis="x",
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
 
@@ -747,14 +741,14 @@ class CategoricalProcessor(BaseProcessor):
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
-            fillcolors=self._process_dict(groups, facecolor, unique_groups),
-            edgecolors=self._process_dict(groups, edgecolor, unique_groups),
+            fillcolors=self._process_output(group_labels, facecolor),
+            edgecolors=self._process_output(group_labels, edgecolor),
             fill_alpha=alpha,
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
             axis="x",
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups),
+            zorder=self._process_output(group_labels, zorder_dict),
         )
         return output
