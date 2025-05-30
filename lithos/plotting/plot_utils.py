@@ -59,7 +59,7 @@ def _get_colormap(colormap: str | None):
         return cc.palette[colormap]
     elif colormap in mpl.colormaps:
         if isinstance(mpl.colormaps[colormap], mpl.colors.LinearSegmentedColormap):
-            return [mpl.colormaps[colormap](i) for i in np.linspace(0, 1, 255)]
+            return [mpl.colormaps[colormap](i) for i in np.linspace(0, 1, 256)]
         else:
             return mpl.colormaps[colormap].colors
     else:
