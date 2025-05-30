@@ -656,15 +656,38 @@ class Plotter:
         linewidth: float,
         zorder: list[int],
         ax: plt.Axes,
+        style: str,
         **kwargs,
     ):
+        alt = True
         for x, y, loc, fcs, ecs, z in zip(
             x_data, y_data, location, facecolors, edgecolors, zorder
         ):
+            if style == "lsplit":
+                m = y.max() / 2
+                left = y * -1 + loc + m
+                right = loc + m
+            elif style == "rsplit":
+                m = y.max() / 2
+                left = loc - m
+                right = y + loc - m
+            elif style == "alt_split":
+                m = y.max() / 2
+                if alt:
+                    left = y * -1 + loc + m
+                    right = loc + m
+                    alt = not alt
+                else:
+                    left = loc - m
+                    right = y + loc - m
+                    alt = not alt
+            elif style == "full":
+                left = y * -1 + loc
+                right = y + loc
             ax[0].fill_betweenx(
                 x,
-                y * -1 + loc,
-                y + loc,
+                left,
+                right,
                 facecolor=self._process_color(fcs, alpha),
                 edgecolor=(self._process_color(ecs, edge_alpha)),
                 linewidth=linewidth,

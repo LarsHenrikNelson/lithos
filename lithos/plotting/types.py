@@ -119,6 +119,7 @@ class ViolinPlotData(PlotData):
     alpha: float
     edge_alpha: float
     linewidth: float
+    style: str
     plot_type: str = "violin"
 
 

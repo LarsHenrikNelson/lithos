@@ -430,6 +430,7 @@ class CategoricalProcessor(BaseProcessor):
         facecolor,
         edgecolor: dict[str, str],
         zorder_dict: dict[str, int],
+        style: str,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         linewidth: float | int = 1,
@@ -454,7 +455,8 @@ class CategoricalProcessor(BaseProcessor):
         x_data = []
         y_data = []
         loc = []
-        width = width / 2.0
+        if style not in {"lsplit", "rsplit", "alt_split"}:
+            width = width / 2.0
         group_labels = []
 
         if unique_id is not None:
@@ -545,6 +547,7 @@ class CategoricalProcessor(BaseProcessor):
                 edge_alpha=edge_alpha,
                 linewidth=linewidth,
                 group_labels=group_labels,
+                style=style,
                 zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
             )
         return output

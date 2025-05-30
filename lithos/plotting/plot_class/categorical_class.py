@@ -230,9 +230,12 @@ class CategoricalPlot(BasePlot):
         bw: BW = "silverman",
         tol: float | int = 1e-3,
         KDEType: Literal["tree", "fft"] = "fft",
+        style: Literal["lsplit", "rsplit", "alt_split", "full"] = "full",
         unique_style: Literal["split", "overlap"] = "overlap",
         legend: bool = False,
     ):
+        if unique_id is not None and agg_func is None:
+            style = "full"
         self._plot_methods.append("violin")
         self._plot_prefs.append(
             {
@@ -250,6 +253,7 @@ class CategoricalPlot(BasePlot):
                 "kernel": kernel,
                 "bw": bw,
                 "tol": tol,
+                "style": style,
                 "unique_style": unique_style,
             }
         )
