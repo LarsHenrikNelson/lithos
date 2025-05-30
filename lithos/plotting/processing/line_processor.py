@@ -139,7 +139,7 @@ class LineProcessor(BaseProcessor):
     ) -> RectanglePlotData:
         y = y if x is None else x
         transform = ytransform if xtransfrom is None else xtransfrom
-        axis = "y" if x is None else "x"
+        axis = "vertical" if x is None else "horizontal"
 
         bottom = np.zeros(nbins)
         bw = []
@@ -216,7 +216,7 @@ class LineProcessor(BaseProcessor):
             hatches=self._process_dict(groups, hatch, unique_groups, agg_func),
             linewidth=linewidth,
             facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
-            axis=axis,
+            direction=axis,
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
@@ -277,6 +277,7 @@ class LineProcessor(BaseProcessor):
             facet_index=facet,
             linewidth=linewidth,
             group_labels=group_labels,
+            direction="vertical",
             zorder=zorder,
         )
         return output

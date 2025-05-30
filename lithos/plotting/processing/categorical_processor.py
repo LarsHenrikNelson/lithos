@@ -80,7 +80,7 @@ class CategoricalProcessor(BaseProcessor):
             "loc_dict": loc_dict,
             "levels": levels,
             "zorder_dict": zorder_dict,
-            "x_ticks": x_ticks,
+            "ticks": x_ticks,
             "width": width,
         }
 
@@ -99,6 +99,7 @@ class CategoricalProcessor(BaseProcessor):
         edge_alpha: AlphaRange = 1.0,
         seed: int = 42,
         markersize: float | int = 2,
+        x: str = None,
         ytransform: Transform = None,
         unique_id: str | None = None,
         *args,
@@ -107,6 +108,8 @@ class CategoricalProcessor(BaseProcessor):
         transform = get_transform(ytransform)
 
         rng = default_rng(seed)
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
 
         x_data = []
         y_data = []
@@ -123,14 +126,14 @@ class CategoricalProcessor(BaseProcessor):
 
         for group_key, indexes in groups.items():
             temp_jitter = process_jitter(
-                data[indexes, y], loc_dict[group_key], width, rng=rng
+                data[indexes, column], loc_dict[group_key], width, rng=rng
             )
             jitter_values[indexes] = temp_jitter
 
         for group_key, indexes in groups.items():
             if unique_id is None:
                 x_data.append(jitter_values[indexes])
-                y_data.append(transform(data[indexes, y]))
+                y_data.append(transform(data[indexes, column]))
                 group_labels.append(group_key)
                 markers.append(marker[group_key])
             else:
@@ -138,7 +141,7 @@ class CategoricalProcessor(BaseProcessor):
                 for ui_group, mrk in zip(subgroups, cycle(self.MARKERS)):
                     sub_indexes = unique_groups[group_key + (ui_group,)]
                     x_data.append(jitter_values[sub_indexes])
-                    y_data.append(transform(data[sub_indexes, y]))
+                    y_data.append(transform(data[sub_indexes, column]))
                     group_labels.append(group_key)
                     markers.append(mrk)
 
@@ -152,6 +155,7 @@ class CategoricalProcessor(BaseProcessor):
             alpha=alpha,
             edge_alpha=edge_alpha,
             group_labels=group_labels,
+            direction=direction,
             zorder=self._process_dict(groups, zorder_dict, unique_groups),
         )
         return output
@@ -172,11 +176,15 @@ class CategoricalProcessor(BaseProcessor):
         edge_alpha: AlphaRange = 1.0,
         duplicate_offset: float = 0.0,
         markersize: int = 2,
+        x: str = None,
         agg_func: Agg | None = None,
         ytransform: Transform = None,
         *args,
         **kwargs,
     ) -> JitterPlotData:
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
+
         transform = get_transform(ytransform)
         temp = width / 2
 
@@ -208,7 +216,7 @@ class CategoricalProcessor(BaseProcessor):
                 x = np.full(len(sub_indexes), dist[index])
                 if duplicate_offset > 0.0:
                     output = (
-                        process_duplicates(data[sub_indexes, y])
+                        process_duplicates(data[sub_indexes, column])
                         * duplicate_offset
                         * temp
                     )
@@ -218,7 +226,9 @@ class CategoricalProcessor(BaseProcessor):
                 else:
                     x = x[0]
                 x_data.append(x)
-                y_data.append(get_transform(agg_func)(transform(data[sub_indexes, y])))
+                y_data.append(
+                    get_transform(agg_func)(transform(data[sub_indexes, column]))
+                )
                 group_labels.append(group_key)
         output = JitterPlotData(
             x_data=x_data,
@@ -232,6 +242,7 @@ class CategoricalProcessor(BaseProcessor):
             alpha=alpha,
             edge_alpha=edge_alpha,
             group_labels=group_labels,
+            direction=direction,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, None),
         )
         return output
@@ -250,11 +261,15 @@ class CategoricalProcessor(BaseProcessor):
         zorder_dict: dict[str, int],
         color: dict[str, str],
         alpha: AlphaRange,
+        x: str = None,
         err_func: Error | None = None,
         ytransform: Transform = None,
         *args,
         **kwargs,
     ) -> SummaryPlotData:
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
+
         transform = get_transform(ytransform)
         y_data = []
         error_data = []
@@ -264,10 +279,12 @@ class CategoricalProcessor(BaseProcessor):
         groups = data.groups(levels)
         for i, indexes in groups.items():
             x_data.append(loc_dict[i])
-            y_data.append(get_transform(func)(transform(data[indexes, y])))
+            y_data.append(get_transform(func)(transform(data[indexes, column])))
             group_labels.append(i)
             if err_func is not None:
-                error_data.append(get_transform(err_func)(transform(data[indexes, y])))
+                error_data.append(
+                    get_transform(err_func)(transform(data[indexes, column]))
+                )
             else:
                 error_data.append(None)
         output = SummaryPlotData(
@@ -281,6 +298,7 @@ class CategoricalProcessor(BaseProcessor):
             capstyle=capstyle,
             capsize=capsize,
             group_labels=group_labels,
+            direction=direction,
             zorder=self._process_dict(groups, zorder_dict),
         )
         return output
@@ -300,6 +318,7 @@ class CategoricalProcessor(BaseProcessor):
         color: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
+        x: str = None,
         agg_func: Agg | None = None,
         err_func: Error = None,
         agg_width: float = 1.0,
@@ -307,6 +326,9 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ) -> SummaryPlotData:
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
+
         transform = get_transform(ytransform)
         y_data = []
         error_data = []
@@ -337,7 +359,7 @@ class CategoricalProcessor(BaseProcessor):
                     else:
                         temp_group = group_key + (ui_group,)
                     widths.append(w)
-                    vals = transform(data[unique_groups[temp_group], y])
+                    vals = transform(data[unique_groups[temp_group], column])
                     x_data.append(dist[index])
                     y_data.append(get_transform(func)(vals))
                     group_labels.append(group_key)
@@ -348,7 +370,7 @@ class CategoricalProcessor(BaseProcessor):
             else:
                 temp_vals = []
                 for index, j in enumerate(unique_ids_sub):
-                    vals = transform(data[unique_groups[group_key + (j,)], y])
+                    vals = transform(data[unique_groups[group_key + (j,)], column])
                     temp_vals.append(get_transform(func)(vals))
                 x_data.append(loc_dict[group_key])
                 widths.append(barwidth)
@@ -369,6 +391,7 @@ class CategoricalProcessor(BaseProcessor):
             capstyle=capstyle,
             capsize=capsize,
             group_labels=group_labels,
+            direction=direction,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
@@ -385,6 +408,7 @@ class CategoricalProcessor(BaseProcessor):
         fliers: str = "",
         width: float = 1.0,
         linewidth: float | int = 1,
+        x: str = None,
         showmeans: bool = False,
         show_ci: bool = False,
         alpha: AlphaRange = 1.0,
@@ -393,6 +417,8 @@ class CategoricalProcessor(BaseProcessor):
         *args,
         **kwargs,
     ):
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
         transform = get_transform(ytransform)
 
         y_data = []
@@ -401,7 +427,7 @@ class CategoricalProcessor(BaseProcessor):
 
         groups = data.groups(levels)
         for group_key, value in groups.items():
-            y_data.append(transform(data[value, y]))
+            y_data.append(transform(data[value, column]))
             x_data.append([loc_dict[group_key]])
             group_labels.append(group_key)
         output = BoxPlotData(
@@ -417,6 +443,7 @@ class CategoricalProcessor(BaseProcessor):
             show_ci=show_ci,
             showmeans=showmeans,
             group_labels=group_labels,
+            direction=direction,
             zorder=self._process_dict(groups, zorder_dict),
         )
         return output
@@ -441,12 +468,16 @@ class CategoricalProcessor(BaseProcessor):
         bw: BW = "ISJ",
         kde_length: int | None = None,
         tol: float | int = 1e-3,
+        x: str = None,
         KDEType="fft",
         agg_func: Agg | None = None,
         unique_style: Literal["split", "overlap"] = "overlap",
         *args,
         **kwargs,
     ):
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
+
         transform = get_transform(ytransform)
 
         groups = data.groups(levels)
@@ -463,7 +494,7 @@ class CategoricalProcessor(BaseProcessor):
             unique_groups = data.groups(levels + (unique_id,))
         for group_key, group_indexes in groups.items():
             if unique_id is None:
-                y_values = np.asarray(data[group_indexes, y]).flatten()
+                y_values = np.asarray(data[group_indexes, column]).flatten()
                 x_kde, y_kde = stats.kde(
                     get_transform(transform)(y_values),
                     bw=bw,
@@ -479,7 +510,7 @@ class CategoricalProcessor(BaseProcessor):
             else:
                 subgroups = np.unique(data[group_indexes, unique_id])
                 if agg_func is not None:
-                    temp_data = data[group_indexes, y]
+                    temp_data = data[group_indexes, column]
                     min_data = get_transform(transform)(temp_data.min())
                     max_data = get_transform(transform)(temp_data.max())
                     min_data = min_data - np.abs((min_data * tol))
@@ -501,7 +532,7 @@ class CategoricalProcessor(BaseProcessor):
                         dist = np.full(len(subgroups), loc_dict[group_key])
                         uwidth = width
                     s_indexes = unique_groups[group_key + (s,)]
-                    y_values = np.asarray(data[s_indexes, y]).flatten()
+                    y_values = np.asarray(data[s_indexes, column]).flatten()
                     if agg_func is None:
                         x_kde, y_kde = stats.kde(
                             get_transform(transform)(y_values),
@@ -548,6 +579,7 @@ class CategoricalProcessor(BaseProcessor):
                 linewidth=linewidth,
                 group_labels=group_labels,
                 style=style,
+                direction=direction,
                 zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
             )
         return output
@@ -570,12 +602,16 @@ class CategoricalProcessor(BaseProcessor):
         linealpha: float | int,
         zorder_dict: dict[str, int],
         func: Agg,
+        x: str = None,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
         ytransform: Transform = None,
         *args,
         **kwargs,
     ) -> RectanglePlotData:
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
+
         bw = []
         bottoms = []
         heights = []
@@ -590,7 +626,9 @@ class CategoricalProcessor(BaseProcessor):
             unique_groups = None
         for group_key, indexes in groups.items():
             if unique_id is None:
-                y_values = get_transform(ytransform)(data[unique_groups[indexes], y])
+                y_values = get_transform(ytransform)(
+                    data[unique_groups[indexes], column]
+                )
                 bw.append(barwidth)
                 heights.append(get_transform(func)(y_values))
                 bottoms.append(0)
@@ -615,7 +653,7 @@ class CategoricalProcessor(BaseProcessor):
 
                 for index, ui_group in enumerate(unique_ids_sub):
                     s_indexes = unique_groups[group_key + (ui_group,)]
-                    y_values = get_transform(ytransform)(data[s_indexes, y])
+                    y_values = get_transform(ytransform)(data[s_indexes, column])
                     if agg_func is None:
                         bw.append(w)
                         heights.append(get_transform(func)(y_values))
@@ -643,7 +681,7 @@ class CategoricalProcessor(BaseProcessor):
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
-            axis="x",
+            direction=direction,
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
@@ -665,16 +703,20 @@ class CategoricalProcessor(BaseProcessor):
         alpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
         hatch: str | None = None,
+        x: str = None,
         unique_id: str | None = None,
         invert: bool = False,
         axis_type: BinType = "density",
         *args,
         **kwargs,
     ) -> RectanglePlotData:
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
+
         if cutoff is not None:
             bins = np.zeros(len(cutoff) + 2)
-            bins[-1] = data[y].max() + 1e-6
-            bins[0] = data[y].min() - 1e-6
+            bins[-1] = data[column].max() + 1e-6
+            bins[0] = data[column].min() - 1e-6
             for i in range(len(cutoff)):
                 bins[i + 1] = cutoff[i]
 
@@ -683,7 +725,7 @@ class CategoricalProcessor(BaseProcessor):
             if len(include_bins) < (len(bins) - 1):
                 include_bins.extend([True] * ((len(bins) - 1) - len(include_bins)))
         else:
-            bins = np.unique(data[y])
+            bins = np.unique(data[column])
             if include_bins is None:
                 include_bins = [True] * len(bins)
 
@@ -712,7 +754,7 @@ class CategoricalProcessor(BaseProcessor):
             if unique_id is None:
                 bw.append([barwidth] * plot_bins)
                 top, bottom = _bin_data(
-                    data[indexes, y], bins, axis_type, invert, cutoff
+                    data[indexes, column], bins, axis_type, invert, cutoff
                 )
                 heights.append(top[include_bins])
                 bottoms.append(bottom[include_bins])
@@ -732,7 +774,7 @@ class CategoricalProcessor(BaseProcessor):
                     dist = [0]
                 for index, ui_group in enumerate(unique_ids_sub):
                     top, bottom = _bin_data(
-                        data[unique_groups[group_key + (ui_group,)], y],
+                        data[unique_groups[group_key + (ui_group,)], column],
                         bins,
                         axis_type,
                         invert,
@@ -746,9 +788,7 @@ class CategoricalProcessor(BaseProcessor):
                     hatches.append(hs)
                     group_labels.append(group_key)
         fillcolors = self._process_dict(groups, facecolor, unique_groups)
-        # fillcolors = [[c] * plot_bins for c in fillcolors]
         edgecolors = self._process_dict(groups, edgecolor, unique_groups)
-        # edgecolors = [[c] * plot_bins for c in edgecolors]
         output = RectanglePlotData(
             heights=heights,
             bottoms=bottoms,
@@ -760,7 +800,7 @@ class CategoricalProcessor(BaseProcessor):
             edge_alpha=linealpha,
             hatches=hatches,
             linewidth=linewidth,
-            axis="x",
+            direction=direction,
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups),
         )

@@ -434,7 +434,7 @@ class Plotter:
         ax: mpl.axes.Axes | list[mpl.axes.Axes] | np.ndarray[mpl.axes.Axes],
         zorder: list[int],
         facet_index: list[int] | None = None,
-        axis: Literal["x", "y"] = "x",
+        direction: Literal["x", "y"] = "x",
         **kwargs,
     ):
         if facet_index is None:
@@ -450,7 +450,7 @@ class Plotter:
             facet_index,
             zorder,
         ):
-            if axis == "x":
+            if direction == "vertical":
                 ax[facet].bar(
                     x=loc,
                     height=t,
@@ -1119,16 +1119,35 @@ class CategoricalPlotter(Plotter):
         )
         return fig, [ax]
 
+    def set_categorical_axis(self, ax, axis="x"):
+        if axis == "x":
+            ax.set_xticks(
+                ticks=self.plot_dict["ticks"],
+                labels=self.plot_dict["group_order"],
+                rotation=self.plot_format["labels"]["xtick_rotation"],
+                fontfamily=self.plot_format["labels"]["font"],
+                fontweight=self.plot_format["labels"]["tick_fontweight"],
+                fontsize=self.plot_format["labels"]["ticklabel_size"],
+            )
+            if self.plot_format["axis_format"]["truncate_xaxis"]:
+                ticks = self.plot_dict["ticks"]
+                ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+        else:
+            ax.set_yticks(
+                ticks=self.plot_dict["ticks"],
+                labels=self.plot_dict["group_order"],
+                rotation=self.plot_format["labels"]["xtick_rotation"],
+                fontfamily=self.plot_format["labels"]["font"],
+                fontweight=self.plot_format["labels"]["tick_fontweight"],
+                fontsize=self.plot_format["labels"]["ticklabel_size"],
+            )
+            if self.plot_format["axis_format"]["truncate_yaxis"]:
+                ticks = self.plot_dict["ticks"]
+                ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+
     def format_plot(self):
         ax = self.axes[0]
-        ax.set_xticks(
-            ticks=self.plot_dict["x_ticks"],
-            labels=self.plot_dict["group_order"],
-            rotation=self.plot_format["labels"]["xtick_rotation"],
-            fontfamily=self.plot_format["labels"]["font"],
-            fontweight=self.plot_format["labels"]["tick_fontweight"],
-            fontsize=self.plot_format["labels"]["ticklabel_size"],
-        )
+
         for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
             if lw == 0:
                 ax.spines[spine].set_visible(False)
@@ -1143,9 +1162,7 @@ class CategoricalPlotter(Plotter):
             style=self.plot_format["axis_format"]["style"],
         )
 
-        if self.plot_format["axis_format"]["truncate_xaxis"]:
-            ticks = self.plot_dict["x_ticks"]
-            ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+        self.set_categorical_axis(ax)
 
         ax.set_ylabel(
             self.plot_labels["ylabel"],

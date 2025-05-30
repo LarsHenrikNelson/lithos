@@ -10,6 +10,7 @@ import numpy as np
 class PlotData:
     group_labels: list[str]
     zorder: list[int]
+    direction: Literal["vertical", "horizontal"]
 
 
 @dataclass
@@ -24,7 +25,6 @@ class RectanglePlotData(PlotData):
     edge_alpha: float
     hatches: list[str]
     linewidth: float
-    axis: Literal["x", "y"]
     facet_index: None | list[int] = None
     plot_type: str = "rectangle"
 
@@ -46,7 +46,6 @@ class LinePlotData(PlotData):
     fill_between: bool = False
     fillcolor: list[str | None] | None = None
     fillalpha: float | None = None
-    direction: Literal["xy"] = "y"
     fill_under: bool = False
     plot_type: str = "line"
 
