@@ -877,7 +877,7 @@ class LinePlotter(Plotter):
             self.plot_format["figure"]["nrows"] is None
             and self.plot_format["figure"]["ncols"] is None
         ):
-            nrows = len(self.plot_dict["group_order"])
+            nrows = len(self.plot_dict["group_order"]) if self.plot_dict["facet"] else 1
             ncols = 1
         elif self.plot_format["figure"]["nrows"] is None:
             nrows = 1
