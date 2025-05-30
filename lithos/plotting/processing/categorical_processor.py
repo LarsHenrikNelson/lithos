@@ -720,7 +720,6 @@ class CategoricalProcessor(BaseProcessor):
             else:
                 unique_ids_sub = np.unique(data[groups[group_key], unique_id])
                 temp_width = barwidth / len(unique_ids_sub)
-                bw.append([temp_width] * plot_bins * len(unique_ids_sub))
                 if len(unique_ids_sub) > 1:
                     dist = np.linspace(
                         -barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1
@@ -738,17 +737,22 @@ class CategoricalProcessor(BaseProcessor):
                     )
                     heights.append(top[include_bins])
                     bottoms.append(bottom[include_bins])
+                    bw.append(temp_width)
                     x_s = [loc_dict[group_key] + dist[index]] * plot_bins
                     x_loc.append(x_s)
                     hatches.append(hs)
                     group_labels.append(group_key)
+        fillcolors = self._process_dict(groups, facecolor, unique_groups)
+        # fillcolors = [[c] * plot_bins for c in fillcolors]
+        edgecolors = self._process_dict(groups, edgecolor, unique_groups)
+        # edgecolors = [[c] * plot_bins for c in edgecolors]
         output = RectanglePlotData(
             heights=heights,
             bottoms=bottoms,
             bins=x_loc,
             binwidths=bw,
-            fillcolors=self._process_dict(groups, facecolor, unique_groups),
-            edgecolors=self._process_dict(groups, edgecolor, unique_groups),
+            fillcolors=fillcolors,
+            edgecolors=edgecolors,
             fill_alpha=alpha,
             edge_alpha=linealpha,
             hatches=hatches,
