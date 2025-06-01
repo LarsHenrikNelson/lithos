@@ -458,8 +458,6 @@ class LineProcessor(BaseProcessor):
                 if common_norm:
                     multiplier = float(temp_size / size)
                     y_kde *= multiplier
-                if y is not None:
-                    y_kde, x_kde = x_kde, y_kde
                 y_data.append(y_kde)
                 x_data.append(x_kde)
                 error_data.append(None)
@@ -498,8 +496,6 @@ class LineProcessor(BaseProcessor):
                             tol=tol,
                             kde_length=kde_length,
                         )
-                        if y is not None:
-                            y_kde, x_kde = x_kde, y_kde
                         y_data.append(y_kde)
                         x_data.append(x_kde)
                         error_data.append(None)
@@ -515,12 +511,9 @@ class LineProcessor(BaseProcessor):
                         )
                         y_hold[hi, :] = y_kde
                 if agg_func is not None:
-                    if y is not None:
-                        y_kde, x_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
-                    else:
-                        x_kde, y_kde = x_array, get_transform(agg_func)(y_hold, axis=0)
+                    y_kde = get_transform(agg_func)(y_hold, axis=0)
                     y_data.append(y_kde)
-                    x_data.append(x_kde)
+                    x_data.append(x_array)
                     group_labels.append(group_key)
                     error_data.append(
                         get_transform(err_func)(y_hold, axis=0)

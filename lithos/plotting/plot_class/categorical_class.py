@@ -230,7 +230,7 @@ class CategoricalPlot(BasePlot):
         bw: BW = "silverman",
         tol: float | int = 1e-3,
         KDEType: Literal["tree", "fft"] = "fft",
-        style: Literal["lsplit", "rsplit", "alt_split", "full"] = "full",
+        style: Literal["left", "right", "alternate", "full"] = "full",
         unique_style: Literal["split", "overlap"] = "overlap",
         legend: bool = False,
     ):

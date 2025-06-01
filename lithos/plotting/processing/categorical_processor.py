@@ -486,7 +486,7 @@ class CategoricalProcessor(BaseProcessor):
         x_data = []
         y_data = []
         loc = []
-        if style not in {"lsplit", "rsplit", "alt_split"}:
+        if style not in {"left", "right", "alternate"}:
             width = width / 2.0
         group_labels = []
 

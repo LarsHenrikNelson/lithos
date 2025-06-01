@@ -678,21 +678,21 @@ class Plotter:
         direction: str,
         **kwargs,
     ):
-        if style in {"lsplit", "rsplit"}:
+        if style in {"left", "right"}:
             zorder = zorder[::-1]
         alt = True
         for x, y, loc, fcs, ecs, z in zip(
             x_data, y_data, location, facecolors, edgecolors, zorder
         ):
-            if style == "lsplit":
+            if style == "left":
                 m = y.max() / 2
                 left = y * -1 + loc + m
                 right = loc + m
-            elif style == "rsplit":
+            elif style == "right":
                 m = y.max() / 2
                 left = loc - m
                 right = y + loc - m
-            elif style == "alt_split":
+            elif style == "alternate":
                 m = y.max() / 2
                 if alt:
                     left = y * -1 + loc + m
@@ -763,9 +763,9 @@ class Plotter:
             zorder,
         ):
             if not fill_between and not fill_under:
-                if direction == "x":
-                    if err is None:
-                        err = 0
+                if err is None:
+                    err = 0
+                if direction == "horizontal":
                     ax[fi].errorbar(
                         x,
                         y,
@@ -799,7 +799,7 @@ class Plotter:
                     )
             elif fill_between:
                 if err is not None:
-                    if direction == "y":
+                    if direction == "vertical":
                         ax[fi].fill_between(
                             x,
                             y - err,
@@ -811,14 +811,15 @@ class Plotter:
                         )
                     else:
                         ax[fi].fill_betweenx(
-                            y,
-                            x - err,
-                            x + err,
+                            x,
+                            y - err,
+                            y + err,
                             color=self._process_color(fc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
                             zorder=z,
                         )
+                        y, x = x, y
                 ax[fi].plot(
                     x,
                     y,
@@ -829,11 +830,11 @@ class Plotter:
                     zorder=z,
                 )
             elif fill_under:
-                if direction == "y":
+                if direction == "vertical":
                     ax[fi].fill_between(
                         x,
-                        0,
                         y,
+                        0,
                         color=self._process_color(fc, fillalpha),
                         linewidth=0,
                         edgecolor="none",
@@ -841,14 +842,16 @@ class Plotter:
                     )
                 else:
                     ax[fi].fill_betweenx(
+                        x,
                         y,
                         0,
-                        x,
                         color=self._process_color(fc, fillalpha),
                         linewidth=0,
                         edgecolor="none",
                         zorder=z,
                     )
+                if direction == "horizontal":
+                    y, x = x, y
                 ax[fi].plot(
                     x,
                     y,
