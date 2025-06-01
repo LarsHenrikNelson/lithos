@@ -360,6 +360,50 @@ plot2 = (
     
 
 
+### Violin
+You can also create split violin plots. There are three styles: "left", "right" and "alternate". "Right" can be used to to create a ridgeline plot. "Alternate" really only looks good with event number of groups.
+
+
+```python
+df = create_synthetic_data(n_groups=5, n_subgroups=2, n_unique_ids=5, n_points=60)
+fig, ax = plt.subplots(
+    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
+)
+plot1 = (
+    CategoricalPlot(data=df)
+    .grouping(group="grouping_1", group_spacing=0.9)
+    .violin(
+        edgecolor="white",
+        linewidth=1,
+        edge_alpha=0.8,
+        width=0.9,
+        style="right",
+    )
+    .plot_data(x="y", ylabel="test", title="")
+    .plot(figure=fig, axes=ax.flat[0])
+)
+df = create_synthetic_data(n_groups=5, n_subgroups=2, n_unique_ids=5, n_points=60)
+plot2 = (
+    CategoricalPlot(data=df)
+    .grouping(group="grouping_1", subgroup="grouping_2", group_spacing=0.9)
+    .violin(
+        edgecolor="black",
+        linewidth=1,
+        edge_alpha=0.3,
+        width=0.9,
+        style="alternate"
+    )
+    .plot_data(y="y", ylabel="test", title="")
+    .plot(figure=fig, axes=ax.flat[1])
+)
+```
+
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/violin.png)
+    
+
+
 ### Boxplot
 Boxplots are a great way to visualize the distribution of data. They can be used to compare different groups and identify outliers in your data. Currently there is no unique_id parameter for boxplot due to how they show data and the fact the plots get overly complicated to look at when there are many tiny boxes.
 * You will notice that you can specify the color of the unique groups by passing a list or tuple of colors to UniqueGroups. The colors will be follow group order the subgroup order. So group 1 subgroups, group 2 subgroups, etc.
@@ -518,7 +562,7 @@ plot = (
         fillalpha=0.3,
         kde_length=1028,
     )
-    .plot_data(x="y")
+    .plot_data(y="y")
     .axis_format(ysteps=(8, 1, 7))
     .axis(ydecimals=2)
     .figure(ncols=2)
@@ -606,12 +650,6 @@ plot = (
 )
 ```
 
-
-    
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/ecdf.png)
-    
-
-
 ### Aggline
 Aggline allows you to aggregate points before plotting the data. This is useful when you have time series or distance data that you want to aggregate the y values (but not x) at discrete times or distances. Here are several parameters this plots uses:
 * You can choose to plot the aggregating error however only the error for the y values is plotted.
@@ -674,12 +712,6 @@ plot2 = (
 )
 ```
 
-
-    
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/aggline.png)
-    
-
-
 ### Line plot
 If you have a simple line that does not need to be aggregated then use the line method. This provides a simple line plot for timeseries data. Here are the few parameters that line can take:
 * You do not have to pass x to plot_data. Lithos will just create an x of increasing numbers.
@@ -715,12 +747,6 @@ plot = (
     .plot(figure=fig, axes=ax[1])
 )
 ```
-
-
-    
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/line.png)
-    
-
 
 ### Scatter plot
 
@@ -764,11 +790,59 @@ plot = (
 )
 ```
 
+### Fit
+Fit currently provides a simple linear regression. You can output confidence intervals, bootstrapped confidence intervals or prediction intervals (ci_func="ci"|"bootstrap_ci" or "pi"). You can pass a unique grouping and aggregate your linear fits. When aggregating linear fits ci_func will not be used.
 
-    
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/scatter.png)
-    
 
+```python
+df = create_synthetic_data(
+    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, scale=2.0
+)
+df1 = create_synthetic_data(
+    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, seed=30, scale=2.0
+)
+df["y1"] = df1["y"]
+fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
+plot = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .fit(
+        linecolor={0: "orange", 1: "blue"},
+        linestyle="--",
+        fill_between=True,
+        err_func='std',
+        ci_func="bootstrap_ci"
+    )
+    .fit(
+        unique_id="unique_grouping",
+        linecolor={0: "orange", 1: "blue"},
+        fill_between=True,
+        agg_func=None,
+    )
+    .plot_data(x="y", y="y1")
+    .figure(ncols=2)
+    .plot(figure=fig, axes=ax[0])
+)
+plot = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .fit(
+        unique_id="unique_grouping",
+        linecolor={0: "orange", 1: "blue"},
+        fill_between=True,
+        linestyle="--",
+    )
+    .fit(
+        unique_id="unique_grouping",
+        linecolor={0: "orange", 1: "blue"},
+        fill_between=True,
+        agg_func=None,
+    )
+    .plot_data(x="y", y="y1")
+    .figure(ncols=2)
+    .plot(figure=fig, axes=ax[1])
+)
+```
 
 ### Histogram
 Histogram has several unique parameters:
@@ -809,12 +883,6 @@ plot1 = (
 )
 ```
 
-
-    
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/hist.png)
-    
-
-
 * You can also plot the histogram as a polar plot.
 * Additionally you can use pi values instead of floats if you pass xunits as radian (0, 2pi) or wradian (-pi, pi).
 * You can adjust the figure size by using the figure method.
@@ -834,7 +902,7 @@ plot1 = (
         linewidth=0,
         fillalpha=0.3,
     )
-    .plot_data(x="y")
+    .plot_data(y="y")
     .axis(ydecimals=2, xdecimals=2, xunits="radian")
     .figure(
         projection="polar",
@@ -845,9 +913,3 @@ plot1 = (
     .plot()
 )
 ```
-
-
-    
-![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/circular_hist.png)
-    
-

@@ -799,11 +799,17 @@ class Plotter:
                     )
             elif fill_between:
                 if err is not None:
+                    if err.shape[0] == 2:
+                        err1 = err[0]
+                        err2 = err[1]
+                    else:
+                        err1 = err
+                        err2 = err
                     if direction == "vertical":
                         ax[fi].fill_between(
                             x,
-                            y - err,
-                            y + err,
+                            y - err1,
+                            y + err2,
                             color=self._process_color(fc, fillalpha),
                             linewidth=0,
                             edgecolor="none",
@@ -812,8 +818,8 @@ class Plotter:
                     else:
                         ax[fi].fill_betweenx(
                             x,
-                            y - err,
-                            y + err,
+                            y - err1,
+                            y + err2,
                             color=self._process_color(fc, fillalpha),
                             linewidth=0,
                             edgecolor="none",

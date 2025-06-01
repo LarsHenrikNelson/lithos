@@ -343,15 +343,19 @@ class LinePlot(BasePlot):
 
     def fit(
         self,
-        fit_func: FitFunc,
+        fit_func: FitFunc= "linear",
         linecolor: ColorParameters = "glasbey_category10",
+        fillcolor: ColorParameters = "glasbey_category10",
         linestyle: str = "-",
         linewidth: int = 2,
+        fillalpha: AlphaRange = 0.5,
+        fill_between=False,
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
         fit_args: dict = None,
-        agg_func: Agg = None,
-        err_func: Error = None,
+        ci_func: Literal["ci", "pi", "bootstrap_ci"] = "ci",
+        agg_func: Agg = "mean",
+        err_func: Error = "sem",
     ):
         self._plot_methods.append("fit")
         self._plot_prefs.append(
@@ -359,12 +363,16 @@ class LinePlot(BasePlot):
                 "linecolor": linecolor,
                 "linestyle": linestyle,
                 "linewidth": linewidth,
+                "fillcolor": fillcolor,
+                "fillalpha": fillalpha,
                 "alpha": alpha,
                 "unique_id": unique_id,
                 "fit_func": fit_func,
                 "fit_args": fit_args,
                 "agg_func": agg_func,
                 "err_func": err_func,
+                "ci_func": ci_func,
+                "fill_between": fill_between,
             }
         )
 

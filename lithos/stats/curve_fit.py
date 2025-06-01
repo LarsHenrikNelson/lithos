@@ -1,10 +1,77 @@
 from typing import Literal
 
-from scipy.stats import linregress
+from scipy import stats
 from scipy.optimize import curve_fit
 import numpy as np
 from numpy.polynomial import Polynomial
-from ..plotting.types import FitFunc
+from ..plotting.types import FitFunc, CIFunc
+
+
+def confidence_intervals(x, y, fit_x, residuals):
+    n = len(y)
+    dof = n - 2
+    t = stats.t.ppf(0.975, dof)
+    s_err = np.sqrt(np.sum(residuals**2) / dof)
+    ci = (
+        t
+        * s_err
+        * np.sqrt(1 / n + (fit_x - np.mean(x)) ** 2 / np.sum((x - np.mean(x)) ** 2))
+    )
+    return ci
+
+
+def boostrap_confidence_intervals(x, y, fit_x):
+    rng = np.random.default_rng(seed=42)
+    boot_dist = []
+    n_boot = 100
+    args = [x, y]
+    n = len(y)
+    for i in range(int(n_boot)):
+        resampler = rng.integers(0, n, n, dtype=np.intp)  # intp is indexing dtype
+        sample = [np.take(a, resampler, axis=0) for a in args]
+        boot_dist.append(stats.linregress(*sample))
+    yfits = [output.slope * fit_x + output.intercept for output in boot_dist]
+    ci = np.percentile(np.array(yfits), q=[97.5, 2.5], axis=0)
+    yhat = np.mean(yfits, axis=0)
+    ci = ci-yhat
+    ci[1] *= -1
+    return ci
+
+
+def prediction_intervals(x, y, fit_x, residuals):
+    n = len(y)
+    dof = n - 2
+    t = stats.t.ppf(0.975, dof)
+    s_err = np.sqrt(np.sum(residuals**2) / dof)
+    pi = (
+        t
+        * s_err
+        * np.sqrt(1 + 1 / n + (fit_x - np.mean(x)) ** 2 / np.sum((x - np.mean(x)) ** 2))
+    )
+    return pi
+
+
+def get_ci_func(ci_func: CIFunc = "ci", **kwargs):
+    if ci_func == "ci":
+        return confidence_intervals(
+            x=kwargs["x"],
+            y=kwargs["y"],
+            fit_x=kwargs["fit_x"],
+            residuals=kwargs["residuals"],
+        )
+    elif ci_func == "pi":
+        return prediction_intervals(
+            x=kwargs["x"],
+            y=kwargs["y"],
+            fit_x=kwargs["fit_x"],
+            residuals=kwargs["residuals"],
+        )
+    elif ci_func == "bootstrap_ci":
+        return boostrap_confidence_intervals(
+            x=kwargs["x"], y=kwargs["y"], fit_x=kwargs["fit_x"]
+        )
+    else:
+        return None
 
 
 def sine(x, amplitude=1.0, omega=1.0, phase=0.0, offset=0.0):
@@ -29,23 +96,37 @@ def line(x, slope=1.0, intercept=0.0):
     return slope * x + intercept
 
 
-def fit_polynomial(x, y, degree=2):
+def fit_polynomial(x, y, fit_x=None, degree=2):
     output = Polynomial.fit(x, y, degree)
-    fit_y = output(x)
-    return output, fit_y
+    if fit_x is None:
+        fit_x = np.sort(x)
+    fit_y = output(fit_x)
+    residuals = y - output(x)
+    ci = get_ci_func(x, y, fit_x, residuals, ci_func=None)
+    return output, fit_y, fit_x, ci
 
 
-def fit_linear_regression(x, y):
-    output = linregress(x, y)
-    fit_y = line(x, output.slope, output.intercept)
-    return output, fit_y
+def fit_linear_regression(
+    x, y, fit_x=None, ci_func: CIFunc = "ci"
+):
+    output = stats.linregress(x, y)
+    if fit_x is None:
+        fit_x = np.sort(x)
+    fit_y = line(fit_x, output.slope, output.intercept)
+    residuals = y - line(x, output.slope, output.intercept)
+    ci = get_ci_func(x=x, y=y, fit_x=fit_x, residuals=residuals, ci_func=ci_func)
+    return output, fit_y, fit_x, ci
 
 
-def fit_sine(x, y):
+def fit_sine(x, y, fit_x=None, ci_func: CIFunc = "ci"):
     p0 = guess_sine(x, y)
     output = curve_fit(sine, x, y, p0=p0)
-    fit_y = sine(x, *output[0])
-    return output, fit_y
+    if fit_x is None:
+        fit_x = np.sort(x)
+    fit_y = sine(fit_x, *output[0])
+    residuals = y - line(x, output.slope, output.intercept)
+    ci = get_ci_func(x=x, y=y, fit_x=fit_x, residuals=residuals, ci_func=ci_func)
+    return output, fit_y, fit_x, ci
 
 
 FIT_DICT = {

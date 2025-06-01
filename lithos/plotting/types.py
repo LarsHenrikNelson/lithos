@@ -185,6 +185,7 @@ BinType: TypeAlias = Literal["density", "percent"]
 CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
 SavePath: TypeAlias = str | Path | BytesIO | StringIO
 FitFunc: TypeAlias = callable | Literal["linear", "sine", "polynomial"]
+CIFunc: TypeAlias = Literal["ci", "pi", "none"]
 
 
 class MarkerLine(NamedTuple):

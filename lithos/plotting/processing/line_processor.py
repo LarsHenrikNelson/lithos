@@ -895,14 +895,19 @@ class LineProcessor(BaseProcessor):
         linewidth: float | int = 2,
         unique_id: str | None = None,
         linealpha: AlphaRange = 1.0,
+        fillalpha: AlphaRange = 0.5,
         xtransform: Transform = None,
         ytransform: Transform = None,
         fit_args: dict | None = None,
-        func: Agg = None,
+        fill_between: bool = False,
+        ci_func: Literal["ci", 'pi'] = "ci",
+        agg_func: Agg = None,
+        err_func: Agg = None,
         **kwargs,
     ):
         x_data = []
         y_data = []
+        error_data = []
         group_labels = []
         unique_groups = None
 
@@ -917,42 +922,65 @@ class LineProcessor(BaseProcessor):
                 temp_y = get_transform(ytransform)(np.asarray(data[indexes, y]))
                 temp_x = get_transform(xtransform)(np.asarray(data[indexes, x]))
                 fit_output = stats.fit(
-                    fit_func=fit_func, x=temp_x, y=temp_y, **fit_args
+                    fit_func=fit_func, x=temp_x, y=temp_y, ci_func=ci_func, **fit_args
                 )
                 y_data.append(fit_output[1])
-                x_data.append(temp_x)
+                x_data.append(fit_output[2])
+                error_data.append(fit_output[3])
                 group_labels.append(group_key)
             else:
                 uids = np.unique(data[indexes, unique_id])
-                for j in uids:
+                if agg_func is not None:
+                    temp_data = data[indexes, x]
+                    min_data = get_transform(xtransform)(temp_data.min())
+                    max_data = get_transform(xtransform)(temp_data.max())
+                    x_array = np.linspace(min_data, max_data, num=100)
+                    y_hold = np.zeros((len(uids), 100))
+                    x_data.append(x_array)
+                for uindex, j in enumerate(uids):
                     sub_indexes = unique_groups[group_key + (j,)]
-                    temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
-                    temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
-                    fit_output = stats.fit(
-                        fit_func=fit_func, x=temp_x, y=temp_y, **fit_args
-                    )
-                    y_data.append(fit_output[1])
-                    x_data.append(temp_x)
+                    if agg_func is None:
+                        temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
+                        temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
+                        fit_output = stats.fit(
+                            fit_func=fit_func, x=temp_x, y=temp_y, ci_func=ci_func, **fit_args
+                        )
+                        y_data.append(fit_output[1])
+                        x_data.append(fit_output[2])
+                        error_data.append(None)
+                        group_labels.append(group_key)
+                    else:
+                        temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
+                        temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
+                        fit_output = stats.fit(
+                            fit_func=fit_func, x=temp_x, y=temp_y, fit_x=x_array, ci_func=ci_func, **fit_args
+                        )
+                        y_hold[uindex, :] = fit_output[1]
+                if agg_func is not None:
+                    y_values = get_transform(agg_func)(y_hold, axis=0)
+                    y_data.append(y_values)
+                    error_values = get_transform(err_func)(y_hold, axis=0)
+                    error_data.append(error_values)
                     group_labels.append(group_key)
         nones = [None] * len(y_data)
         output = LinePlotData(
             x_data=x_data,
             y_data=y_data,
-            error_data=nones,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups, func),
+            error_data=error_data,
+            facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
             marker=nones,
-            linecolor=self._process_dict(groups, linecolor, unique_groups, func),
-            fillcolor=nones,
+            linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
+            fillcolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
             linewidth=linewidth,
-            linestyle=self._process_dict(groups, linestyle, unique_groups, func),
+            linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
             markerfacecolor=nones,
             markeredgecolor=nones,
             markersize=None,
-            fill_between=False,
+            fill_between=fill_between,
             linealpha=linealpha,
-            fillalpha=None,
+            fillalpha=fillalpha,
             direction="vertical",
             group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
+            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
         return output
