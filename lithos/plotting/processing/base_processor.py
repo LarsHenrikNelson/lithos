@@ -14,12 +14,12 @@ class BaseProcessor:
         self.MARKERS = markers
         self.HATCHES = hatches
         self._plot_dict = {}
-        self.zorder = -200
+        self.zorder = 0
 
     def _set_zorder(self):
         adder = self.zorder * len(self._plot_dict["zorder_dict"]) + 1
         zorder_dict = {
-            key: value + adder for key, value in self._plot_dict["zorder_dict"].items()
+            key: 1+(value + adder)/100 for key, value in self._plot_dict["zorder_dict"].items()
         }
         self.zorder += 1
         return zorder_dict

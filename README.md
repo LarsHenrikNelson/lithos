@@ -528,7 +528,7 @@ plot = (
         barwidth=0.0,
         capsize=4,
     )
-    .plot_data(y="y")
+    .plot_data(x="y")
     .plot(figure=fig, axes=ax[1])
 )
 ```
@@ -650,6 +650,12 @@ plot = (
 )
 ```
 
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/ecdf.png)
+    
+
+
 ### Aggline
 Aggline allows you to aggregate points before plotting the data. This is useful when you have time series or distance data that you want to aggregate the y values (but not x) at discrete times or distances. Here are several parameters this plots uses:
 * You can choose to plot the aggregating error however only the error for the y values is plotted.
@@ -712,6 +718,12 @@ plot2 = (
 )
 ```
 
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/aggline.png)
+    
+
+
 ### Line plot
 If you have a simple line that does not need to be aggregated then use the line method. This provides a simple line plot for timeseries data. Here are the few parameters that line can take:
 * You do not have to pass x to plot_data. Lithos will just create an x of increasing numbers.
@@ -747,6 +759,12 @@ plot = (
     .plot(figure=fig, axes=ax[1])
 )
 ```
+
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/line.png)
+    
+
 
 ### Scatter plot
 
@@ -789,6 +807,12 @@ plot = (
     .plot(figure=fig, axes=ax[1])
 )
 ```
+
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/scatter.png)
+    
+
 
 ### Fit
 Fit currently provides a simple linear regression. You can output confidence intervals, bootstrapped confidence intervals or prediction intervals (ci_func="ci"|"bootstrap_ci" or "pi"). You can pass a unique grouping and aggregate your linear fits. When aggregating linear fits ci_func will not be used.
@@ -844,6 +868,12 @@ plot = (
 )
 ```
 
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/fit.png)
+    
+
+
 ### Histogram
 Histogram has several unique parameters:
 * You can plot on both the x and y axis.
@@ -883,6 +913,12 @@ plot1 = (
 )
 ```
 
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/hist.png)
+    
+
+
 * You can also plot the histogram as a polar plot.
 * Additionally you can use pi values instead of floats if you pass xunits as radian (0, 2pi) or wradian (-pi, pi).
 * You can adjust the figure size by using the figure method.
@@ -913,3 +949,9 @@ plot1 = (
     .plot()
 )
 ```
+
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/circular_hist.png)
+    
+
