@@ -391,7 +391,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
-            direction="y",
+            direction="vertical",
             group_labels=group_labels,
             zorder=zorder,
         )
@@ -437,7 +437,7 @@ class LineProcessor(BaseProcessor):
         unique_groups = None
 
         column = y if x is None else x
-        direction = "x" if x is None else "y"
+        direction = direction = "vertical" if x is None else "horizontal"
         transform = ytransform if xtransform is None else xtransform
 
         groups = data.groups(levels)
@@ -577,6 +577,7 @@ class LineProcessor(BaseProcessor):
         **kwargs,
     ) -> LinePlotData:
         column = y if x is None else x
+        column = y if x is None else x
         transform = ytransform if xtransform is None else xtransform
 
         if ecdf_args is None:
@@ -658,7 +659,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
-            direction="x",
+            direction="vertical",
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )
@@ -773,7 +774,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=alpha,
             fillalpha=alpha,
-            direction="y",
+            direction="vertical",
         )
         return output
 
@@ -881,7 +882,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
-            direction="y",
+            direction="vertical",
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
         )
@@ -957,7 +958,7 @@ class LineProcessor(BaseProcessor):
             fill_between=False,
             linealpha=linealpha,
             fillalpha=None,
-            direction="y",
+            direction="vertical",
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, func),
         )

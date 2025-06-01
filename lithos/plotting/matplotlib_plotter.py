@@ -488,11 +488,14 @@ class Plotter:
         edge_alpha: float,
         zorder: list[int],
         ax: plt.Axes,
+        direction: str,
         **kwargs,
     ):
         for x, y, mk, mf, me, ms, z in zip(
             x_data, y_data, marker, markerfacecolor, markeredgecolor, markersize, zorder
         ):
+            if direction == "horizontal":
+                y, x = x, y
             ax[0].plot(
                 x,
                 y,
@@ -565,11 +568,19 @@ class Plotter:
         capsize: float,
         zorder: list[int],
         ax: plt.Axes,
+        direction: str,
         **kwargs,
     ):
         for xd, yd, e, c, w, z in zip(
             x_data, y_data, error_data, colors, widths, zorder
         ):
+            if direction == "horizontal":
+                yd, xd = xd, yd
+                e, w = w / 2, e
+                capsize1, capsize2 = 0, capsize
+            else:
+                e, w = e, w / 2
+                capsize1, capsize2 = capsize, 0
             _, caplines, bars = ax[0].errorbar(
                 x=xd,
                 y=yd,
@@ -577,7 +588,7 @@ class Plotter:
                 c=self._process_color(c, alpha),
                 fmt="none",
                 linewidth=linewidth,
-                capsize=capsize,
+                capsize=capsize1,
                 zorder=z,
             )
             for cap in caplines:
@@ -586,16 +597,21 @@ class Plotter:
                 cap._marker._capstyle = CapStyle(capstyle)
             for b in bars:
                 b.set_capstyle(capstyle)
+
             _, caplines, bars = ax[0].errorbar(
                 y=yd,
                 x=xd,
-                xerr=w / 2,
+                xerr=w,
                 c=self._process_color(c, alpha),
                 fmt="none",
                 linewidth=linewidth,
-                capsize=0,
+                capsize=capsize2,
                 zorder=z,
             )
+            for cap in caplines:
+                cap.set_solid_capstyle(capstyle)
+                cap.set_markeredgewidth(linewidth)
+                cap._marker._capstyle = CapStyle(capstyle)
             for b in bars:
                 b.set_capstyle(capstyle)
         return ax
@@ -615,6 +631,7 @@ class Plotter:
         showmeans: bool,
         zorder: list[int],
         ax: plt.Axes,
+        direction: str,
         **kwargs,
     ):
         for x, y, fcs, ecs, z in zip(x_data, y_data, facecolors, edgecolors, zorder):
@@ -638,6 +655,7 @@ class Plotter:
                 patch_artist=True,
                 showmeans=showmeans,
                 meanline=showmeans,
+                orientation=direction,
                 zorder=z,
                 **props,
             )
@@ -657,8 +675,11 @@ class Plotter:
         zorder: list[int],
         ax: plt.Axes,
         style: str,
+        direction: str,
         **kwargs,
     ):
+        if style in {"lsplit", "rsplit"}:
+            zorder = zorder[::-1]
         alt = True
         for x, y, loc, fcs, ecs, z in zip(
             x_data, y_data, location, facecolors, edgecolors, zorder
@@ -684,15 +705,26 @@ class Plotter:
             elif style == "full":
                 left = y * -1 + loc
                 right = y + loc
-            ax[0].fill_betweenx(
-                x,
-                left,
-                right,
-                facecolor=self._process_color(fcs, alpha),
-                edgecolor=(self._process_color(ecs, edge_alpha)),
-                linewidth=linewidth,
-                zorder=z,
-            )
+            if direction == "vertical":
+                ax[0].fill_betweenx(
+                    x,
+                    left,
+                    right,
+                    facecolor=self._process_color(fcs, alpha),
+                    edgecolor=(self._process_color(ecs, edge_alpha)),
+                    linewidth=linewidth,
+                    zorder=z,
+                )
+            else:
+                ax[0].fill_between(
+                    x,
+                    left,
+                    right,
+                    facecolor=self._process_color(fcs, alpha),
+                    edgecolor=(self._process_color(ecs, edge_alpha)),
+                    linewidth=linewidth,
+                    zorder=z,
+                )
 
     def _plot_line(
         self,
@@ -1148,6 +1180,8 @@ class CategoricalPlotter(Plotter):
     def format_plot(self):
         ax = self.axes[0]
 
+        direction = "vertical" if self.plot_labels["x"] is None else "horizontal"
+
         for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
             if lw == 0:
                 ax.spines[spine].set_visible(False)
@@ -1155,22 +1189,37 @@ class CategoricalPlotter(Plotter):
                 ax.spines[spine].set_linewidth(lw)
         self._set_grid(ax)
 
-        self.set_axis(
-            ax,
-            self.plot_format["axis"]["ydecimals"],
-            axis="y",
-            style=self.plot_format["axis_format"]["style"],
-        )
+        if direction == "vertical":
+            self.set_axis(
+                ax,
+                self.plot_format["axis"]["ydecimals"],
+                axis="y",
+                style=self.plot_format["axis_format"]["style"],
+            )
+            self.set_categorical_axis(ax)
+            ax.set_ylabel(
+                self.plot_labels["ylabel"],
+                fontsize=self.plot_format["labels"]["labelsize"],
+                fontfamily=self.plot_format["labels"]["font"],
+                fontweight=self.plot_format["labels"]["label_fontweight"],
+                rotation=self.plot_format["labels"]["ylabel_rotation"],
+            )
+        else:
+            self.set_axis(
+                ax,
+                self.plot_format["axis"]["ydecimals"],
+                axis="x",
+                style=self.plot_format["axis_format"]["style"],
+            )
+            self.set_categorical_axis(ax, axis="y")
+            ax.set_xlabel(
+                self.plot_labels["ylabel"],
+                fontsize=self.plot_format["labels"]["labelsize"],
+                fontfamily=self.plot_format["labels"]["font"],
+                fontweight=self.plot_format["labels"]["label_fontweight"],
+                rotation=self.plot_format["labels"]["xlabel_rotation"],
+            )
 
-        self.set_categorical_axis(ax)
-
-        ax.set_ylabel(
-            self.plot_labels["ylabel"],
-            fontsize=self.plot_format["labels"]["labelsize"],
-            fontfamily=self.plot_format["labels"]["font"],
-            fontweight=self.plot_format["labels"]["label_fontweight"],
-            rotation=self.plot_format["labels"]["ylabel_rotation"],
-        )
         ax.set_title(
             self.plot_labels["title"],
             fontsize=self.plot_format["labels"]["titlesize"],

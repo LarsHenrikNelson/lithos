@@ -58,9 +58,9 @@ class CategoricalPlot(BasePlot):
         edgecolor: ColorParameters = "white",
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
-        width: float | int = 1.0,
+        width: float | int = 0.9,
         seed: int = 42,
-        markersize: float = 2.0,
+        markersize: float = 5.0,
         unique_id: str | None = None,
         legend: bool = False,
     ):
@@ -91,9 +91,9 @@ class CategoricalPlot(BasePlot):
         edgecolor: ColorParameters = "none",
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
-        width: float | int = 1.0,
+        width: float | int = 0.9,
         duplicate_offset=0.0,
-        markersize: float = 2.0,
+        markersize: float = 5.0,
         agg_func: Agg | None = None,
         legend: bool = False,
     ):

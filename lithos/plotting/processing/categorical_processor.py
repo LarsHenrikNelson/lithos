@@ -626,9 +626,7 @@ class CategoricalProcessor(BaseProcessor):
             unique_groups = None
         for group_key, indexes in groups.items():
             if unique_id is None:
-                y_values = get_transform(ytransform)(
-                    data[unique_groups[indexes], column]
-                )
+                y_values = get_transform(ytransform)(data[indexes, column])
                 bw.append(barwidth)
                 heights.append(get_transform(func)(y_values))
                 bottoms.append(0)
