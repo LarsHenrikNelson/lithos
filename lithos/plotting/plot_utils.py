@@ -353,7 +353,10 @@ def process_scatter_args(
 ):
     if isinstance(arg, dict):
         output = create_dict(arg, unique_groups)
-        output = [output[j] for j in zip(*[data[i] for i in levels])]
+        if len(levels) > 0:
+            output = [output[j] for j in zip(*[data[i] for i in levels])]
+        else:
+            output = [0] * data.shape[0]
         return output
     if isinstance(arg_cycle, (np.ndarray, list)):
         if arg in data:
@@ -377,7 +380,10 @@ def process_scatter_args(
         if arg in cc.palette or arg_cycle in mpl.colormaps:
             arg = _process_colors(arg, group_order, subgroup_order)
         output = create_dict(arg, unique_groups)
-        output = [output[j] for j in zip(*[data[i] for i in levels])]
+        if len(levels) > 0:
+            output = [output[j] for j in zip(*[data[i] for i in levels])]
+        else:
+            output = [output[("",)]] * data.shape[0]
     return output
 
 
