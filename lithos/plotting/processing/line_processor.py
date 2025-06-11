@@ -146,12 +146,30 @@ class LineProcessor(BaseProcessor):
                 plot_bins.append(bins)
                 group_labels.append(group_key)
                 count += 1
-        if hist_type == "bar":
+        if hist_type == "fill":
+            s = np.sum(plot_data, axis=0)
+            s = np.where(s == 0, 1, s)
+            plot_data = [i/s for i in plot_data]
+            bottoms = [np.zeros(len(i)) for i in plot_data]
+            for i in range(1, len(plot_data)):
+                plot_data[i] += plot_data[i-1]
+                bottoms[i] += plot_data[i-1]
+            stacked = True
+        elif hist_type == 'stacked':
+            stacked = True
+            bottoms = [np.zeros(len(i)) for i in plot_data]
+            for i in range(1, len(plot_data)):
+                plot_data[i] += plot_data[i-1]
+                bottoms[i] += plot_data[i-1]
+        else:
+            stacked = False
+            bottoms = [np.zeros(len(i)) for i in plot_data]
+        if hist_type != "step":
             output = RectanglePlotData(
                 heights=plot_data,
-                bottoms=[np.zeros(len(i)-1) for i in plot_bins],
+                bottoms=bottoms,
                 bins=[i[:-1] for i in plot_bins],
-                binwidths=[np.full(len(i)-1, i[1] - i[0]) for i in plot_bins],
+                binwidths=[np.full(len(i) - 1, i[1] - i[0]) for i in plot_bins],
                 fillcolors=self._process_dict(
                     groups, facecolor, unique_groups, agg_func
                 ),
@@ -168,11 +186,12 @@ class LineProcessor(BaseProcessor):
                 direction=axis,
                 group_labels=group_labels,
                 zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+                stacked=stacked,
             )
         else:
             nones = [None for _ in plot_data]
             for index in range(len(plot_data)):
-                p = np.zeros(len(plot_data[index])*2+2)
+                p = np.zeros(len(plot_data[index]) * 2 + 2)
                 p[1:-1] = np.repeat(plot_data[index], 2)
                 plot_data[index] = p
                 plot_bins[index] = np.repeat(plot_bins[index], 2)

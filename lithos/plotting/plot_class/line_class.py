@@ -230,7 +230,7 @@ class LinePlot(BasePlot):
 
     def hist(
         self,
-        hist_type: Literal["bar", "step"] = "bar",
+        hist_type: Literal["bar", "step", "stacked"] = "bar",
         facecolor: ColorParameters = "glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
         linewidth: float | int = 2,

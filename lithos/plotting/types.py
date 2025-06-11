@@ -26,6 +26,7 @@ class RectanglePlotData(PlotData):
     hatches: list[str]
     linewidth: float
     facet_index: None | list[int] = None
+    stacked: bool = False
     plot_type: str = "rectangle"
 
 

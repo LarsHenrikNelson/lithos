@@ -439,6 +439,7 @@ class Plotter:
     ):
         if facet_index is None:
             facet_index = [0] * len(heights)
+        index = 0
         for t, b, loc, bw, fc, ec, ht, facet, z in zip(
             heights,
             bottoms,
@@ -474,6 +475,7 @@ class Plotter:
                     hatch=ht,
                     zorder=z,
                 )
+            index += 1
         return ax
 
     def _plot_jitter(
