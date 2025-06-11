@@ -230,7 +230,7 @@ class LinePlot(BasePlot):
 
     def hist(
         self,
-        hist_type: Literal["bar", "step", "stepfilled"] = "bar",
+        hist_type: Literal["bar", "step"] = "bar",
         facecolor: ColorParameters = "glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
         linewidth: float | int = 2,
@@ -238,7 +238,7 @@ class LinePlot(BasePlot):
         fillalpha: AlphaRange = 0.5,
         linealpha: float = 1.0,
         bin_limits=None,
-        stat: Literal["density", "probability", "count"] = "density",
+        stat: Literal["density", "probability", "count"] = "count",
         nbins=50,
         err_func: Error = None,
         agg_func: Agg | None = None,
