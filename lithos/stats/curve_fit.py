@@ -33,7 +33,7 @@ def boostrap_confidence_intervals(x, y, fit_x):
     yfits = [output.slope * fit_x + output.intercept for output in boot_dist]
     ci = np.percentile(np.array(yfits), q=[97.5, 2.5], axis=0)
     yhat = np.mean(yfits, axis=0)
-    ci = ci-yhat
+    ci = ci - yhat
     ci[1] *= -1
     return ci
 
@@ -106,9 +106,9 @@ def fit_polynomial(x, y, fit_x=None, degree=2):
     return output, fit_y, fit_x, ci
 
 
-def fit_linear_regression(
-    x, y, fit_x=None, ci_func: CIFunc = "ci"
-):
+def fit_linear_regression(x, y, fit_x=None, ci_func: CIFunc = "ci"):
+    if len(y) == 1:
+        return None, y, x, [0]
     output = stats.linregress(x, y)
     if fit_x is None:
         fit_x = np.sort(x)
