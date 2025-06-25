@@ -904,8 +904,10 @@ plot1 = (
         unique_id="unique_grouping",
         agg_func="mean",
         bin_limits="common",
-        linewidth=0,
+        linewidth=2,
         fillalpha=0.3,
+        hist_type="step",
+        stat="density",
     )
     .plot_data(x="y")
     .axis(ydecimals=2, xdecimals=2)
@@ -937,6 +939,7 @@ plot1 = (
         bin_limits="common",
         linewidth=0,
         fillalpha=0.3,
+        stat="density",
     )
     .plot_data(y="y")
     .axis(ydecimals=2, xdecimals=2, xunits="radian")

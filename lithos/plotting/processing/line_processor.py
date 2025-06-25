@@ -73,13 +73,13 @@ class LineProcessor(BaseProcessor):
         loc_dict: dict[str, int],
         zorder_dict: dict[str, int],
         hatch: dict[str, str],
-        hist_type: Literal["bar", "step", "stepfilled"] = "bar",
+        hist_type: Literal["bar", "step"] = "bar",
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
         bin_limits: list[float, float] | None = None,
         linewidth: float | int = 2,
         nbins=None,
-        stat="probability",
+        stat="density",
         agg_func: Agg | None = None,
         unique_id: str | None = None,
         ytransform: Transform = None,
@@ -87,62 +87,10 @@ class LineProcessor(BaseProcessor):
         *args,
         **kwargs,
     ):
-        if hist_type == "bar":
-            output = self._bar_histogram(
-                data=data,
-                y=y,
-                x=x,
-                levels=levels,
-                facecolor=facecolor,
-                edgecolor=edgecolor,
-                loc_dict=loc_dict,
-                zorder_dict=zorder_dict,
-                hatch=hatch,
-                fillalpha=fillalpha,
-                linealpha=linealpha,
-                bin_limits=bin_limits,
-                nbins=nbins,
-                stat=stat,
-                agg_func=agg_func,
-                unique_id=unique_id,
-                ytransform=ytransform,
-                xtransfrom=xtransfrom,
-                linewidth=linewidth,
-                *args,
-                **kwargs,
-            )
-        return output
-
-    def _bar_histogram(
-        self,
-        data: DataHolder,
-        y: str,
-        x: str,
-        levels: Levels,
-        facecolor: dict[str, str],
-        edgecolor: dict[str, str],
-        loc_dict: dict[str, int],
-        zorder_dict: dict[str, int],
-        hatch: dict[str, str],
-        fillalpha: AlphaRange = 1.0,
-        linealpha: AlphaRange = 1.0,
-        linewidth: float | int = 2,
-        bin_limits: list[float, float] | Literal["common"] | None = None,
-        nbins=None,
-        stat="probability",
-        agg_func: Agg | None = None,
-        unique_id: str | None = None,
-        ytransform: Transform = None,
-        xtransfrom=None,
-        *args,
-        **kwargs,
-    ) -> RectanglePlotData:
         y = y if x is None else x
         transform = ytransform if xtransfrom is None else xtransfrom
         axis = "vertical" if x is None else "horizontal"
 
-        bottom = np.zeros(nbins)
-        bw = []
         plot_data = []
         plot_bins = []
         count = 0
@@ -165,7 +113,6 @@ class LineProcessor(BaseProcessor):
                         bins=nbins,
                         range=bin_limits,
                     )
-                temp_bw = np.full(nbins, bins[1] - bins[0])
                 subgroup = np.unique(data[group_indexes, unique_id])
                 if agg_func is not None:
                     temp_list = np.zeros((len(subgroup), nbins))
@@ -178,14 +125,12 @@ class LineProcessor(BaseProcessor):
                         temp_list[index] = poly
                     else:
                         plot_data.append(poly)
-                        bw.append(temp_bw)
                         plot_bins.append(bins[:-1])
                         group_labels.append(group_key)
                         count += 1
                 if agg_func is not None:
                     plot_data.append(get_transform(agg_func)(temp_list, axis=0))
-                    bw.append(temp_bw)
-                    plot_bins.append(bins[:-1])
+                    plot_bins.append(bins)
                     group_labels.append(group_key)
                     count += 1
             else:
@@ -196,30 +141,87 @@ class LineProcessor(BaseProcessor):
                         bins=nbins,
                         range=bin_limits,
                     )
-                bw.append(np.full(nbins, bins[1] - bins[0]))
                 poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
                 plot_data.append(poly)
-                plot_bins.append(bins[:-1])
+                plot_bins.append(bins)
                 group_labels.append(group_key)
                 count += 1
-
-        bottoms = [bottom for _ in plot_bins]
-        output = RectanglePlotData(
-            heights=plot_data,
-            bottoms=bottoms,
-            bins=plot_bins,
-            binwidths=bw,
-            fillcolors=self._process_dict(groups, facecolor, unique_groups, agg_func),
-            edgecolors=self._process_dict(groups, edgecolor, unique_groups, agg_func),
-            fill_alpha=fillalpha,
-            edge_alpha=linealpha,
-            hatches=self._process_dict(groups, hatch, unique_groups, agg_func),
-            linewidth=linewidth,
-            facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
-            direction=axis,
-            group_labels=group_labels,
-            zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
-        )
+        if hist_type == "fill":
+            s = np.sum(plot_data, axis=0)
+            s = np.where(s == 0, 1, s)
+            plot_data = [i/s for i in plot_data]
+            bottoms = [np.zeros(len(i)) for i in plot_data]
+            for i in range(1, len(plot_data)):
+                plot_data[i] += plot_data[i-1]
+                bottoms[i] += plot_data[i-1]
+            stacked = True
+        elif hist_type == 'stacked':
+            stacked = True
+            bottoms = [np.zeros(len(i)) for i in plot_data]
+            for i in range(1, len(plot_data)):
+                plot_data[i] += plot_data[i-1]
+                bottoms[i] += plot_data[i-1]
+        else:
+            stacked = False
+            bottoms = [np.zeros(len(i)) for i in plot_data]
+        if hist_type != "step":
+            output = RectanglePlotData(
+                heights=plot_data,
+                bottoms=bottoms,
+                bins=[i[:-1] for i in plot_bins],
+                binwidths=[np.full(len(i) - 1, i[1] - i[0]) for i in plot_bins],
+                fillcolors=self._process_dict(
+                    groups, facecolor, unique_groups, agg_func
+                ),
+                edgecolors=self._process_dict(
+                    groups, edgecolor, unique_groups, agg_func
+                ),
+                fill_alpha=fillalpha,
+                edge_alpha=linealpha,
+                hatches=self._process_dict(groups, hatch, unique_groups, agg_func),
+                linewidth=linewidth,
+                facet_index=self._process_dict(
+                    groups, loc_dict, unique_groups, agg_func
+                ),
+                direction=axis,
+                group_labels=group_labels,
+                zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+                stacked=stacked,
+            )
+        else:
+            nones = [None for _ in plot_data]
+            for index in range(len(plot_data)):
+                p = np.zeros(len(plot_data[index]) * 2 + 2)
+                p[1:-1] = np.repeat(plot_data[index], 2)
+                plot_data[index] = p
+                plot_bins[index] = np.repeat(plot_bins[index], 2)
+            output = LinePlotData(
+                x_data=plot_bins,
+                y_data=plot_data,
+                error_data=[None for _ in plot_data],
+                facet_index=self._process_dict(
+                    groups, loc_dict, unique_groups, agg_func
+                ),
+                marker=[None for _ in plot_data],
+                linecolor=self._process_dict(
+                    groups, edgecolor, unique_groups, agg_func
+                ),
+                fillcolor=self._process_dict(
+                    groups, facecolor, unique_groups, agg_func
+                ),
+                linewidth=linewidth,
+                linestyle=["-" for _ in plot_data],
+                markerfacecolor=nones,
+                markeredgecolor=nones,
+                markersize=[0 for _ in plot_data],
+                fill_between=False,
+                fill_under=[True for _ in plot_data],
+                linealpha=linealpha,
+                fillalpha=fillalpha,
+                direction=axis,
+                group_labels=group_labels,
+                zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
+            )
         return output
 
     def _scatter(
@@ -900,7 +902,7 @@ class LineProcessor(BaseProcessor):
         ytransform: Transform = None,
         fit_args: dict | None = None,
         fill_between: bool = False,
-        ci_func: Literal["ci", 'pi'] = "ci",
+        ci_func: Literal["ci", "pi"] = "ci",
         agg_func: Agg = None,
         err_func: Agg = None,
         **kwargs,
@@ -940,20 +942,37 @@ class LineProcessor(BaseProcessor):
                 for uindex, j in enumerate(uids):
                     sub_indexes = unique_groups[group_key + (j,)]
                     if agg_func is None:
-                        temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
-                        temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
+                        temp_y = get_transform(ytransform)(
+                            np.asarray(data[sub_indexes, y])
+                        )
+                        temp_x = get_transform(xtransform)(
+                            np.asarray(data[sub_indexes, x])
+                        )
                         fit_output = stats.fit(
-                            fit_func=fit_func, x=temp_x, y=temp_y, ci_func=ci_func, **fit_args
+                            fit_func=fit_func,
+                            x=temp_x,
+                            y=temp_y,
+                            ci_func=ci_func,
+                            **fit_args,
                         )
                         y_data.append(fit_output[1])
                         x_data.append(fit_output[2])
                         error_data.append(None)
                         group_labels.append(group_key)
                     else:
-                        temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
-                        temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
+                        temp_y = get_transform(ytransform)(
+                            np.asarray(data[sub_indexes, y])
+                        )
+                        temp_x = get_transform(xtransform)(
+                            np.asarray(data[sub_indexes, x])
+                        )
                         fit_output = stats.fit(
-                            fit_func=fit_func, x=temp_x, y=temp_y, fit_x=x_array, ci_func=ci_func, **fit_args
+                            fit_func=fit_func,
+                            x=temp_x,
+                            y=temp_y,
+                            fit_x=x_array,
+                            ci_func=ci_func,
+                            **fit_args,
                         )
                         y_hold[uindex, :] = fit_output[1]
                 if agg_func is not None:
