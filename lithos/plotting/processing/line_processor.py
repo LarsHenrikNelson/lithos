@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Literal
 
 import numpy as np
@@ -17,6 +18,7 @@ from ..types import (
     LinePlotData,
     Transform,
     FitFunc,
+    HistTypes,
 )
 
 from .base_processor import BaseProcessor
@@ -62,6 +64,41 @@ class LineProcessor(BaseProcessor):
             "facet": facet,
         }
 
+    def _post_process_density(
+        self, plot_data, hist_type: HistTypes, facet_index: list[int]
+    ):
+        plot_data = np.asarray(plot_data)
+        output = np.zeros(plot_data.shape)
+        bottoms = np.zeros(plot_data.shape)
+        indexes = np.unique(facet_index)
+        facet_index = np.array(facet_index)
+        for i in indexes:
+            t_indexes = np.where(facet_index == i)[0]
+            p, b = self._post_process_density_type(plot_data[t_indexes,:], hist_type)
+            output[t_indexes,:] = p[:,:]
+            bottoms[t_indexes,:] = b[:,:]
+        return output, bottoms
+
+
+    def _post_process_density_type(self, data, hist_type: HistTypes):
+        if hist_type == "fill":
+            og = np.asarray(data)
+            t_sum = og.sum(axis=0)
+            output = np.divide(og, t_sum, where=t_sum > 0)
+            output[og == 0] = 0
+            bottoms = np.zeros(output.shape)
+            bottoms[1:, :] = output.cumsum(axis=0)[:-1, :]
+            bottoms[output == 0] = 0
+        elif hist_type == "stack":
+            output = np.asarray(data)
+            bottoms = np.zeros(output.shape)
+            bottoms[1:, :] = output.cumsum(axis=0)[:-1, :]
+            bottoms[output == 0] = 0
+        else:
+            output = np.asarray(data)
+            bottoms = np.zeros(output.shape)
+        return output, bottoms
+
     def _hist(
         self,
         data: DataHolder,
@@ -73,7 +110,7 @@ class LineProcessor(BaseProcessor):
         loc_dict: dict[str, int],
         zorder_dict: dict[str, int],
         hatch: dict[str, str],
-        hist_type: Literal["bar", "step"] = "bar",
+        hist_type: HistTypes = "bar",
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
         bin_limits: list[float, float] | None = None,
@@ -146,25 +183,11 @@ class LineProcessor(BaseProcessor):
                 plot_bins.append(bins)
                 group_labels.append(group_key)
                 count += 1
-        if hist_type == "fill":
-            s = np.sum(plot_data, axis=0)
-            s = np.where(s == 0, 1, s)
-            plot_data = [i/s for i in plot_data]
-            bottoms = [np.zeros(len(i)) for i in plot_data]
-            for i in range(1, len(plot_data)):
-                plot_data[i] += plot_data[i-1]
-                bottoms[i] += plot_data[i-1]
-            stacked = True
-        elif hist_type == 'stacked':
-            stacked = True
-            bottoms = [np.zeros(len(i)) for i in plot_data]
-            for i in range(1, len(plot_data)):
-                plot_data[i] += plot_data[i-1]
-                bottoms[i] += plot_data[i-1]
-        else:
-            stacked = False
-            bottoms = [np.zeros(len(i)) for i in plot_data]
+        facet_index=self._process_dict(
+                    groups, loc_dict, unique_groups, agg_func
+                )
         if hist_type != "step":
+            plot_data, bottoms = self._post_process_density(plot_data, hist_type, facet_index)
             output = RectanglePlotData(
                 heights=plot_data,
                 bottoms=bottoms,
@@ -180,13 +203,10 @@ class LineProcessor(BaseProcessor):
                 edge_alpha=linealpha,
                 hatches=self._process_dict(groups, hatch, unique_groups, agg_func),
                 linewidth=linewidth,
-                facet_index=self._process_dict(
-                    groups, loc_dict, unique_groups, agg_func
-                ),
+                facet_index=facet_index,
                 direction=axis,
                 group_labels=group_labels,
                 zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
-                stacked=stacked,
             )
         else:
             nones = [None for _ in plot_data]

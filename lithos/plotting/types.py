@@ -187,6 +187,7 @@ CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
 SavePath: TypeAlias = str | Path | BytesIO | StringIO
 FitFunc: TypeAlias = callable | Literal["linear", "sine", "polynomial"]
 CIFunc: TypeAlias = Literal["ci", "pi", "none"]
+HistTypes: TypeAlias  = Literal["bar", "step", "stack", "fill"]
 
 
 class MarkerLine(NamedTuple):

@@ -12,6 +12,7 @@ from ..types import (
     SavePath,
     FitFunc,
     Kernels,
+    HistTypes
 )
 from .. import matplotlib_plotter as mpl
 from .base_class import BasePlot
@@ -230,7 +231,7 @@ class LinePlot(BasePlot):
 
     def hist(
         self,
-        hist_type: Literal["bar", "step", "stacked"] = "bar",
+        hist_type: HistTypes = "bar",
         facecolor: ColorParameters = "glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
         linewidth: float | int = 2,
