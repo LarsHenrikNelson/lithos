@@ -74,11 +74,10 @@ class LineProcessor(BaseProcessor):
         facet_index = np.array(facet_index)
         for i in indexes:
             t_indexes = np.where(facet_index == i)[0]
-            p, b = self._post_process_density_type(plot_data[t_indexes,:], hist_type)
-            output[t_indexes,:] = p[:,:]
-            bottoms[t_indexes,:] = b[:,:]
+            p, b = self._post_process_density_type(plot_data[t_indexes, :], hist_type)
+            output[t_indexes, :] = p[:, :]
+            bottoms[t_indexes, :] = b[:, :]
         return output, bottoms
-
 
     def _post_process_density_type(self, data, hist_type: HistTypes):
         if hist_type == "fill":
@@ -183,11 +182,11 @@ class LineProcessor(BaseProcessor):
                 plot_bins.append(bins)
                 group_labels.append(group_key)
                 count += 1
-        facet_index=self._process_dict(
-                    groups, loc_dict, unique_groups, agg_func
-                )
+        facet_index = self._process_dict(groups, loc_dict, unique_groups, agg_func)
         if hist_type != "step":
-            plot_data, bottoms = self._post_process_density(plot_data, hist_type, facet_index)
+            plot_data, bottoms = self._post_process_density(
+                plot_data, hist_type, facet_index
+            )
             output = RectanglePlotData(
                 heights=plot_data,
                 bottoms=bottoms,
@@ -386,7 +385,7 @@ class LineProcessor(BaseProcessor):
             y_data.append(ytemp)
             xtemp = get_transform(xtransform)(new_data[indexes, x])
             x_data.append(xtemp)
-            temp_err = err_data[indexes, y] if err_func is not None else None
+            temp_err = err_data[indexes, y] if err_data is not None else None
             error_data.append(temp_err)
             facet_index.append(loc_dict[u])
             mks.append(marker[u])
