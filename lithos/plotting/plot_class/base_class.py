@@ -32,7 +32,6 @@ class BasePlot:
         self.plotter = None
 
         self.plot_format = {}
-        self._plot_dict = {}
         self._plot_data = {}
 
         if not self.inplace:
@@ -59,17 +58,19 @@ class BasePlot:
         linestyle="solid",
         linealpha=1,
         linecolor="black",
+        linewidth=1.5,
     ):
         if linetype not in ["hline", "vline"]:
             raise AttributeError("linetype must by hline or vline")
         if isinstance(lines, (float, int)):
             lines = [lines]
-        self._plot_dict[linetype] = {
+        self.plot_format[linetype] = {
             "linetype": linetype,
             "lines": lines,
             "linestyle": linestyle,
             "linealpha": linealpha,
             "linecolor": linecolor,
+            "linewidth": linewidth,
         }
 
         if not self.inplace:

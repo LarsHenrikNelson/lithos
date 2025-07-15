@@ -158,6 +158,7 @@ class Plotter:
                     linestyle=line_dict["linestyle"],
                     color=line_dict["linecolor"],
                     alpha=line_dict["linealpha"],
+                    linewidth=line_dict["linewidth"],
                 )
             else:
                 ax.axhline(
@@ -165,6 +166,7 @@ class Plotter:
                     linestyle=line_dict["linestyle"],
                     color=line_dict["linecolor"],
                     alpha=line_dict["linealpha"],
+                    linewidth=line_dict["linewidth"],
                 )
 
     def _set_lims(
@@ -1109,11 +1111,11 @@ class LinePlotter(Plotter):
                 self.format_rectilinear(sub_ax, xdecimals, ydecimals)
             else:
                 self.format_polar(sub_ax)
-            if "hline" in self.plot_dict:
-                self._plot_axlines(self.plot_dict["hline"], sub_ax)
+            if "hline" in self.plot_format:
+                self._plot_axlines(self.plot_format["hline"], sub_ax)
 
-            if "vline" in self.plot_dict:
-                self._plot_axlines(self.plot_dict["vline"], sub_ax)
+            if "vline" in self.plot_format:
+                self._plot_axlines(self.plot_format["vline"], sub_ax)
 
             sub_ax.tick_params(
                 axis="both",
@@ -1230,6 +1232,12 @@ class CategoricalPlotter(Plotter):
                 fontweight=self.plot_format["labels"]["label_fontweight"],
                 rotation=self.plot_format["labels"]["xlabel_rotation"],
             )
+
+        if "hline" in self.plot_format:
+            self._plot_axlines(self.plot_format["hline"], ax)
+
+        if "vline" in self.plot_format:
+            self._plot_axlines(self.plot_format["vline"], ax)
 
         ax.set_title(
             self.plot_labels["title"],
