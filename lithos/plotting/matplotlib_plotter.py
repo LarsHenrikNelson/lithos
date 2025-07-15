@@ -159,6 +159,7 @@ class Plotter:
                     color=line_dict["linecolor"],
                     alpha=line_dict["linealpha"],
                     linewidth=line_dict["linewidth"],
+                    zorder=line_dict["zorder"]
                 )
             else:
                 ax.axhline(
@@ -167,6 +168,7 @@ class Plotter:
                     color=line_dict["linecolor"],
                     alpha=line_dict["linealpha"],
                     linewidth=line_dict["linewidth"],
+                    zorder=line_dict["zorder"],
                 )
 
     def _set_lims(

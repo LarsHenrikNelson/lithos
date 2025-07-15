@@ -59,6 +59,7 @@ class BasePlot:
         linealpha=1,
         linecolor="black",
         linewidth=1.5,
+        zorder=1,
     ):
         if linetype not in ["hline", "vline"]:
             raise AttributeError("linetype must by hline or vline")
@@ -71,6 +72,7 @@ class BasePlot:
             "linealpha": linealpha,
             "linecolor": linecolor,
             "linewidth": linewidth,
+            "zorder": zorder,
         }
 
         if not self.inplace:
