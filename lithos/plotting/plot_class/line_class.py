@@ -148,7 +148,7 @@ class LinePlot(BasePlot):
         self,
         kernel: Kernels = "gaussian",
         bw: BW = "silverman",
-        tol: float | int = 1e-3,
+        tol: float | int | tuple = 1e-3,
         common_norm: bool = False,
         linecolor: ColorParameters = "glasbey_category10",
         fillcolor: ColorParameters | None = None,

@@ -438,7 +438,7 @@ class LineProcessor(BaseProcessor):
         kernel: Kernels = "gaussian",
         bw: BW = "ISJ",
         kde_length: int | None = None,
-        tol: float | int = 1e-3,
+        tol: float | int | tuple = 1e-3,
         common_norm: bool = True,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
@@ -462,6 +462,13 @@ class LineProcessor(BaseProcessor):
         transform = ytransform if xtransform is None else xtransform
 
         groups = data.groups(levels)
+
+        if isinstance(tol, tuple):
+            min_data, max_data = tol
+            if min_data >= data[column].min():
+                raise ValueError(f"tol[0] must be less than the minimum value of {column}")
+            if max_data <= data[column].max():
+                raise ValueError(f"tol[1] must be greater than the maximum value of {column}")
 
         if unique_id is not None:
             unique_groups = data.groups(levels + (unique_id,))
@@ -489,13 +496,16 @@ class LineProcessor(BaseProcessor):
                 )
 
                 if agg_func is not None:
-                    temp_data = data[group_indexes, column]
-                    min_data = get_transform(transform)(temp_data.min())
-                    max_data = get_transform(transform)(temp_data.max())
-                    min_data = min_data - np.abs((min_data * tol))
-                    max_data = max_data + np.abs((max_data * tol))
-                    min_data = min_data if min_data != 0 else -1e-10
-                    max_data = max_data if max_data != 0 else 1e-10
+                    if not isinstance(tol, tuple):
+                        temp_data = data[group_indexes, column]
+                        min_data = get_transform(transform)(temp_data.min())
+                        max_data = get_transform(transform)(temp_data.max())
+                        min_data = min_data - np.abs((min_data * tol))
+                        max_data = max_data + np.abs((max_data * tol))
+                        min_data = min_data if min_data != 0 else -1e-10
+                        max_data = max_data if max_data != 0 else 1e-10
+                    else:
+                        min_data, max_data = tol
                     if KDEType == "fft":
                         if kde_length is None:
                             kde_length = int(np.ceil(np.log2(len(temp_data))))

@@ -5,10 +5,13 @@ import numpy as np
 import numpy.typing as npt
 
 
-def _kde_length(data, kde_obj, tol: float = 0.1, kde_length: int | None = None):
-    width = np.sqrt(np.cov(data) * kde_obj.bw**2)
-    min_data = data.min() - width * tol
-    max_data = data.max() + width * tol
+def _kde_length(data, kde_obj, tol: float | int | tuple = 0.1, kde_length: int | None = None):
+    if isinstance(tol, tuple):
+        min_data, max_data = tol
+    else:
+        width = np.sqrt(np.cov(data) * kde_obj.bw**2)
+        min_data = data.min() - width * tol
+        max_data = data.max() + width * tol
     if kde_length is None:
         kde_length = 1 << int(np.ceil(np.log2(len(data))))
     x = np.linspace(min_data, max_data, num=kde_length)
@@ -31,7 +34,7 @@ def kde(
     bw: Literal["ISJ", "silverman", "scott"] = "ISJ",
     x: Optional[np.array] = None,
     kde_length: int | None = None,
-    tol: float = 1e-3,
+    tol: float | int | tuple = 1e-3,
     KDEType: Literal["fft", "tree"] = "fft",
 ):
     data = np.asarray(data)
