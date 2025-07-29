@@ -601,7 +601,6 @@ class LineProcessor(BaseProcessor):
         **kwargs,
     ) -> LinePlotData:
         column = y if x is None else x
-        column = y if x is None else x
         transform = ytransform if xtransform is None else xtransform
 
         if ecdf_args is None:
