@@ -350,7 +350,7 @@ class LinePlot(BasePlot):
         linestyle: str = "-",
         linewidth: int = 2,
         fillalpha: AlphaRange = 0.5,
-        fill_between=False,
+        fill_between=True,
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
         fit_args: dict = None,

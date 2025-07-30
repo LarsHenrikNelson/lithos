@@ -123,9 +123,9 @@ class LineProcessor(BaseProcessor):
         *args,
         **kwargs,
     ):
-        y = y if x is None else x
-        transform = ytransform if xtransfrom is None else xtransfrom
         axis = "vertical" if y is None else "horizontal"
+        column = y if x is None else x
+        transform = ytransform if xtransfrom is None else xtransfrom
 
         plot_data = []
         plot_bins = []
@@ -136,7 +136,7 @@ class LineProcessor(BaseProcessor):
 
         bins = None
         if bin_limits == "common":
-            bins = np.histogram_bin_edges(get_transform(transform)(data[y]), bins=nbins)
+            bins = np.histogram_bin_edges(get_transform(transform)(data[column]), bins=nbins)
 
         groups = data.groups(levels)
         if unique_id is not None:
@@ -145,7 +145,7 @@ class LineProcessor(BaseProcessor):
             if unique_id is not None:
                 if bins is None:
                     bins = np.histogram_bin_edges(
-                        get_transform(transform)(data[group_indexes[group_key], y]),
+                        get_transform(transform)(data[group_indexes[group_key], column]),
                         bins=nbins,
                         range=bin_limits,
                     )
@@ -155,7 +155,7 @@ class LineProcessor(BaseProcessor):
                 else:
                     temp_list = []
                 for index, j in enumerate(subgroup):
-                    temp_data = np.sort(data[unique_groups[group_key + (j,)], y])
+                    temp_data = np.sort(data[unique_groups[group_key + (j,)], column])
                     poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
                     if agg_func is not None:
                         temp_list[index] = poly
@@ -170,10 +170,10 @@ class LineProcessor(BaseProcessor):
                     group_labels.append(group_key)
                     count += 1
             else:
-                temp_data = np.sort(data[groups[group_key], y])
+                temp_data = np.sort(data[groups[group_key], column])
                 if bins is None:
                     bins = np.histogram_bin_edges(
-                        get_transform(transform)(data[group_indexes, y]),
+                        get_transform(transform)(data[group_indexes, column]),
                         bins=nbins,
                         range=bin_limits,
                     )

@@ -880,6 +880,7 @@ Histogram has several unique parameters:
 * If you pass "common" to bin_limits then all the plots will have bins of the same size and the same max and min.
 * You can also pass custom bins and custom bin limits.
 * Like many other plotting methods you can pass a unique_id and agg_func which will create a histogram per unique_id then aggregate the data together.
+* The hist_type argument accepts 'bar', 'step', 'stepfilled' and 'stack'. See the examples below for what the outcome looks like.
 
 
 ```python
@@ -921,6 +922,47 @@ plot1 = (
     
 
 
+
+```python
+df = create_synthetic_data(n_groups=3, n_unique_ids=5, n_points=60)
+fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
+plot1 = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .hist(
+        bin_limits="common",
+        linewidth=0,
+        fillalpha=0.3,
+        hist_type="stack",
+    )
+    .plot_data(x="y")
+    .axis(ydecimals=2, xdecimals=2)
+    .plot(figure=fig, axes=ax[0])
+)
+plot1 = (
+    LinePlot(data=df)
+    .grouping(group="grouping_1")
+    .hist(
+        unique_id="unique_grouping",
+        agg_func="mean",
+        bin_limits="common",
+        linewidth=2,
+        fillalpha=0.3,
+        hist_type="fill",
+        stat="density",
+    )
+    .plot_data(x="y")
+    .axis(ydecimals=2, xdecimals=2)
+    .plot(figure=fig, axes=ax[1])
+)
+```
+
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/hist_step_fill.png)
+    
+
+
 * You can also plot the histogram as a polar plot.
 * Additionally you can use pi values instead of floats if you pass xunits as radian (0, 2pi) or wradian (-pi, pi).
 * You can adjust the figure size by using the figure method.
@@ -941,7 +983,7 @@ plot1 = (
         fillalpha=0.3,
         stat="density",
     )
-    .plot_data(y="y")
+    .plot_data(x="y")
     .axis(ydecimals=2, xdecimals=2, xunits="radian")
     .figure(
         projection="polar",
