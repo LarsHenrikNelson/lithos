@@ -125,7 +125,7 @@ class LineProcessor(BaseProcessor):
     ):
         y = y if x is None else x
         transform = ytransform if xtransfrom is None else xtransfrom
-        axis = "vertical" if x is None else "horizontal"
+        axis = "vertical" if y is None else "horizontal"
 
         plot_data = []
         plot_bins = []
@@ -458,7 +458,7 @@ class LineProcessor(BaseProcessor):
         unique_groups = None
 
         column = y if x is None else x
-        direction = direction = "vertical" if x is None else "horizontal"
+        direction = direction = "vertical" if y is None else "horizontal"
         transform = ytransform if xtransform is None else xtransform
 
         groups = data.groups(levels)
