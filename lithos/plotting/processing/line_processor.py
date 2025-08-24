@@ -682,7 +682,7 @@ class LineProcessor(BaseProcessor):
             fill_between=fill_between,
             linealpha=linealpha,
             fillalpha=fillalpha,
-            direction="vertical",
+            direction="horizontal",
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
         )

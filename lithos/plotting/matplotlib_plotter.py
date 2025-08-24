@@ -822,6 +822,7 @@ class Plotter:
                             zorder=z,
                         )
                     else:
+                        y, x = x, y
                         ax[fi].fill_betweenx(
                             x,
                             y - err1,
