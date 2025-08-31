@@ -5,19 +5,7 @@ import matplotlib as mpl
 import numpy as np
 from numpy.random import default_rng
 
-from .types import Group, Subgroup, UniqueGroups
-
-
-def _calc_hist(data, bins, stat):
-    if stat == "probability":
-        data, _ = np.histogram(data, bins)
-        return data / data.sum()
-    elif stat == "count":
-        data, _ = np.histogram(data, bins)
-        return data
-    elif stat == "density":
-        data, _ = np.histogram(data, bins, density=True)
-        return data
+from .types import Group, Subgroup, UniqueGroups, JitterType
 
 
 def create_dict(grouping: str | int | dict, unique_groups: list) -> dict:
@@ -190,7 +178,7 @@ def process_duplicates(values, output=None):
     return output
 
 
-def process_jitter(values, loc, width, rng=None, seed=42):
+def process_jitter(values, loc, width, rng=None, seed=42, jitter_type: JitterType = "fill"):
     if rng is None:
         rng = default_rng(seed)
     try:
@@ -200,8 +188,7 @@ def process_jitter(values, loc, width, rng=None, seed=42):
     jitter_values = np.zeros(len(values))
     asort = np.argsort(values)
     start = 0
-    s = (-width / 2) + loc
-    e = (width / 2) + loc
+    count_max = counts.max()
     for c in counts:
         if c != 0:
             if c == 1:
@@ -210,6 +197,13 @@ def process_jitter(values, loc, width, rng=None, seed=42):
                 temp -= width / 4
                 temp += loc
             else:
+                if jitter_type == "dist":
+                    mod = c/count_max
+                    w = width * mod
+                else:
+                    w = width
+                s = (-w / 2) + loc
+                e = (w / 2) + loc
                 temp = rng.permutation(np.linspace(s, e, num=c))
             jitter_values[asort[start : start + c]] = temp
             start += c

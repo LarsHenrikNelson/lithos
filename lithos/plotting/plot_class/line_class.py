@@ -2,21 +2,23 @@ from typing import Literal
 
 import pandas as pd
 
+from .. import matplotlib_plotter as mpl
+from ..processing import LineProcessor
 from ..types import (
     BW,
     Agg,
     AlphaRange,
     ColorParameters,
     Error,
-    KDEType,
-    SavePath,
     FitFunc,
+    HistBinLimits,
+    HistStat,
+    HistType,
+    KDEType,
     Kernels,
-    HistTypes
+    SavePath,
 )
-from .. import matplotlib_plotter as mpl
 from .base_class import BasePlot
-from ..processing import LineProcessor
 
 
 class LinePlot(BasePlot):
@@ -194,52 +196,17 @@ class LinePlot(BasePlot):
         if not self.inplace:
             return self
 
-    def polyhist(
-        self,
-        color: ColorParameters = None,
-        linestyle: str = "-",
-        linewidth: int = 2,
-        bin_limits=None,
-        density=True,
-        nbins=50,
-        func="mean",
-        err_func="sem",
-        fit_func=None,
-        alpha: AlphaRange = 1.0,
-        unique_id: str | None = None,
-    ):
-        if bin_limits is not None and len(bin_limits) != 2:
-            raise AttributeError("bin_limits must be length 2")
-        self._plot_methods.append("polyhist")
-        self._plot_pref.append(
-            {
-                "linestyle": linestyle,
-                "linewidth": linewidth,
-                "bin_limits": bin_limits,
-                "density": density,
-                "nbins": nbins,
-                "func": func,
-                "err_func": err_func,
-                "fit_func": fit_func,
-                "alpha": alpha,
-                "unique_id": unique_id,
-            }
-        )
-
-        if not self.inplace:
-            return self
-
     def hist(
         self,
-        hist_type: HistTypes = "bar",
+        hist_type: HistType = "bar",
         facecolor: ColorParameters = "glasbey_category10",
         edgecolor: ColorParameters = "glasbey_category10",
         linewidth: float | int = 2,
         hatch=None,
         fillalpha: AlphaRange = 0.5,
         linealpha: float = 1.0,
-        bin_limits=None,
-        stat: Literal["density", "probability", "count"] = "count",
+        bin_limits: HistBinLimits = None,
+        stat: HistStat = "count",
         nbins=50,
         err_func: Error = None,
         agg_func: Agg | None = None,
@@ -344,7 +311,7 @@ class LinePlot(BasePlot):
 
     def fit(
         self,
-        fit_func: FitFunc= "linear",
+        fit_func: FitFunc = "linear",
         linecolor: ColorParameters = "glasbey_category10",
         fillcolor: ColorParameters = "glasbey_category10",
         linestyle: str = "-",
