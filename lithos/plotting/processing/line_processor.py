@@ -32,7 +32,6 @@ class LineProcessor(BaseProcessor):
         self.PLOTS = {
             "hist": self._hist,
             "line": self._line,
-            "poly_hist": self._poly_hist,
             "kde": self._kde,
             "ecdf": self._ecdf,
             "scatter": self._scatter,
