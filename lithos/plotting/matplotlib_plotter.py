@@ -645,14 +645,15 @@ class Plotter:
                 "boxprops": {
                     "facecolor": (self._process_color(fcs, alpha)),
                     "edgecolor": (self._process_color(ecs, linealpha)),
+                    "linewidth": linewidth
                 },
-                "medianprops": {"color": (self._process_color(ecs, linealpha))},
-                "whiskerprops": {"color": (self._process_color(ecs, linealpha))},
-                "capprops": {"color": (self._process_color(ecs, linealpha))},
+                "medianprops": {"color": (self._process_color(ecs, linealpha)), "linewidth": linewidth},
+                "whiskerprops": {"color": (self._process_color(ecs, linealpha)), "linewidth": linewidth},
+                "capprops": {"color": (self._process_color(ecs, linealpha)), "linewidth": linewidth},
             }
             if showmeans:
                 props["meanprops"] = {"color": (self._process_color(ecs, linealpha))}
-            bplot = ax[0].boxplot(
+            _ = ax[0].boxplot(
                 y,
                 positions=x,
                 sym=fliers,
@@ -665,8 +666,6 @@ class Plotter:
                 zorder=z,
                 **props,
             )
-            for i in bplot["boxes"]:
-                i.set_linewidth(linewidth)
 
     def _plot_violin(
         self,
