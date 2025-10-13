@@ -4,23 +4,25 @@ from typing import Literal
 import numpy as np
 
 from ... import stats
+from ...stats import hist
 from ...utils import DataHolder, get_transform
-from ..plot_utils import _calc_hist, create_dict, _create_groupings
+from ..plot_utils import _create_groupings, create_dict
 from ..types import (
     BW,
     Agg,
     AlphaRange,
     Error,
+    FitFunc,
+    HistBinLimits,
+    HistStat,
+    HistType,
     Kernels,
     Levels,
+    LinePlotData,
     RectanglePlotData,
     ScatterPlotData,
-    LinePlotData,
     Transform,
-    FitFunc,
-    HistTypes,
 )
-
 from .base_processor import BaseProcessor
 
 
@@ -30,7 +32,6 @@ class LineProcessor(BaseProcessor):
         self.PLOTS = {
             "hist": self._hist,
             "line": self._line,
-            "poly_hist": self._poly_hist,
             "kde": self._kde,
             "ecdf": self._ecdf,
             "scatter": self._scatter,
@@ -65,7 +66,7 @@ class LineProcessor(BaseProcessor):
         }
 
     def _post_process_density(
-        self, plot_data, hist_type: HistTypes, facet_index: list[int]
+        self, plot_data, hist_type: HistType, facet_index: list[int]
     ):
         plot_data = np.asarray(plot_data)
         output = np.zeros(plot_data.shape)
@@ -79,7 +80,7 @@ class LineProcessor(BaseProcessor):
             bottoms[t_indexes, :] = b[:, :]
         return output, bottoms
 
-    def _post_process_density_type(self, data, hist_type: HistTypes):
+    def _post_process_density_type(self, data, hist_type: HistType):
         if hist_type == "fill":
             og = np.asarray(data)
             t_sum = og.sum(axis=0)
@@ -109,13 +110,13 @@ class LineProcessor(BaseProcessor):
         loc_dict: dict[str, int],
         zorder_dict: dict[str, int],
         hatch: dict[str, str],
-        hist_type: HistTypes = "bar",
+        hist_type: HistType = "bar",
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
-        bin_limits: list[float, float] | None = None,
+        bin_limits: HistBinLimits = None,
         linewidth: float | int = 2,
         nbins=None,
-        stat="density",
+        stat: HistStat = "density",
         agg_func: Agg | None = None,
         unique_id: str | None = None,
         ytransform: Transform = None,
@@ -136,7 +137,9 @@ class LineProcessor(BaseProcessor):
 
         bins = None
         if bin_limits == "common":
-            bins = np.histogram_bin_edges(get_transform(transform)(data[column]), bins=nbins)
+            bins = np.histogram_bin_edges(
+                get_transform(transform)(data[column]), bins=nbins
+            )
 
         groups = data.groups(levels)
         if unique_id is not None:
@@ -145,7 +148,9 @@ class LineProcessor(BaseProcessor):
             if unique_id is not None:
                 if bins is None:
                     bins = np.histogram_bin_edges(
-                        get_transform(transform)(data[group_indexes[group_key], column]),
+                        get_transform(transform)(
+                            data[group_indexes[group_key], column]
+                        ),
                         bins=nbins,
                         range=bin_limits,
                     )
@@ -156,7 +161,7 @@ class LineProcessor(BaseProcessor):
                     temp_list = []
                 for index, j in enumerate(subgroup):
                     temp_data = np.sort(data[unique_groups[group_key + (j,)], column])
-                    poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
+                    poly = hist(get_transform(transform)(temp_data), bins, stat)
                     if agg_func is not None:
                         temp_list[index] = poly
                     else:
@@ -177,7 +182,7 @@ class LineProcessor(BaseProcessor):
                         bins=nbins,
                         range=bin_limits,
                     )
-                poly = _calc_hist(get_transform(transform)(temp_data), bins, stat)
+                poly = hist(get_transform(transform)(temp_data), bins, stat)
                 plot_data.append(poly)
                 plot_bins.append(bins)
                 group_labels.append(group_key)
@@ -466,9 +471,13 @@ class LineProcessor(BaseProcessor):
         if isinstance(tol, tuple):
             min_data, max_data = tol
             if min_data >= data[column].min():
-                raise ValueError(f"tol[0] must be less than the minimum value of {column}")
+                raise ValueError(
+                    f"tol[0] must be less than the minimum value of {column}"
+                )
             if max_data <= data[column].max():
-                raise ValueError(f"tol[1] must be greater than the maximum value of {column}")
+                raise ValueError(
+                    f"tol[1] must be greater than the maximum value of {column}"
+                )
 
         if unique_id is not None:
             unique_groups = data.groups(levels + (unique_id,))
@@ -667,8 +676,8 @@ class LineProcessor(BaseProcessor):
                     )
         nones = [None] * len(y_data)
         output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
+            x_data=y_data,
+            y_data=x_data,
             error_data=error_data,
             facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
             marker=nones,
@@ -685,119 +694,6 @@ class LineProcessor(BaseProcessor):
             direction="horizontal",
             group_labels=group_labels,
             zorder=self._process_dict(groups, zorder_dict, unique_groups, agg_func),
-        )
-        return output
-
-    def _poly_hist(
-        self,
-        data: DataHolder,
-        y: str,
-        x: str,
-        levels: Levels,
-        color_dict: dict[str, str],
-        loc_dict: dict[str, int],
-        linestyle_dict: dict[str, str],
-        linewidth: float | int,
-        unique_id: str | None = None,
-        density: bool = True,
-        bin_limits: list[float, float] | None = None,
-        nbins: int = 50,
-        func: Agg = "mean",
-        err_func: Error = "sem",
-        fit_func=None,
-        alpha: AlphaRange = 1.0,
-        xtransform: Transform = None,
-        ytransform: Transform = None,
-    ) -> LinePlotData:
-        x_data = []
-        y_data = []
-        error_data = []
-        facet_index = []
-        mks = []
-        lcs = []
-        lss = []
-        mfcs = []
-        mecs = []
-
-        y = y if x is None else x
-        transform = ytransform if xtransform is None else xtransform
-        transform = get_transform(transform)
-        if bin_limits is None:
-            bins = np.linspace(
-                transform(data[y]).min(), transform(data[y]).max(), num=nbins + 1
-            )
-            x = np.linspace(
-                transform(data[y]).min(), transform(data[y]).max(), num=nbins
-            )
-        else:
-            x = np.linspace(bin[0], bin[1], num=nbins)
-            bins = np.linspace(bin[0], bin[1], num=nbins + 1)
-
-        if err_func is not None:
-            fill_between = True
-
-        groups = data.groups(levels)
-        if unique_id is not None:
-            func = get_transform(func)
-            if err_func is not None:
-                err_func = get_transform(err_func)
-            for i, indexes in groups.items():
-                subgroups = np.unique(data[indexes, unique_id])
-                temp_list = np.zeros((len(subgroups), bins))
-                for index, j in enumerate(subgroups):
-                    temp = np.where(data[unique_id] == j)[0]
-                    temp_data = np.sort(transform(data[temp, y]))
-                    poly, _ = np.histogram(temp_data, bins)
-                    if density:
-                        poly = poly / poly.sum()
-                    if fit_func is not None:
-                        poly = fit_func(x, poly)
-                    temp_list[index] = poly
-                mean_data = func(temp_list, axis=0)
-                x_data.append(x)
-                y_data.append(mean_data)
-                facet_index.append(loc_dict[i])
-                mks.append(None)
-                lcs.append(color_dict[i])
-                lss.append(linestyle_dict[i])
-                mfcs.append("none")
-                mecs.append("none")
-                if err_func is not None:
-                    error_data.append(err_func(temp_list, axis=0))
-                else:
-                    error_data.append(None)
-        else:
-            for i, indexes in groups.items():
-                temp = np.sort(transform(data[indexes, y]))
-                poly, _ = np.histogram(temp, bins)
-                if fit_func is not None:
-                    poly = fit_func(x, poly)
-                if density:
-                    poly = poly / poly.sum()
-                x_data.append(x)
-                y_data.append(poly)
-                facet_index.append(loc_dict[i])
-                mks.append(None)
-                lcs.append(color_dict[i])
-                lss.append(linestyle_dict[i])
-                mfcs.append("none")
-                mecs.append("none")
-        output = LinePlotData(
-            x_data=x_data,
-            y_data=y_data,
-            error_data=error_data,
-            facet_index=facet_index,
-            marker=mks,
-            linecolor=lcs,
-            linewidth=linewidth,
-            linestyle=lss,
-            markerfacecolor=mfcs,
-            markeredgecolor=mecs,
-            markersize=None,
-            fill_between=fill_between,
-            linealpha=alpha,
-            fillalpha=alpha,
-            direction="vertical",
         )
         return output
 

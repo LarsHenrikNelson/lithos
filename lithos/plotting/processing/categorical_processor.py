@@ -31,6 +31,7 @@ from ..types import (
     Transform,
     ViolinPlotData,
     CapStyle,
+    JitterType,
 )
 
 from .base_processor import BaseProcessor
@@ -99,6 +100,7 @@ class CategoricalProcessor(BaseProcessor):
         edge_alpha: AlphaRange = 1.0,
         seed: int = 42,
         markersize: float | int = 2,
+        jitter_type: JitterType = "fill",
         x: str = None,
         ytransform: Transform = None,
         unique_id: str | None = None,
@@ -123,10 +125,14 @@ class CategoricalProcessor(BaseProcessor):
             unique_groups = data.groups(levels + (unique_id,))
 
         jitter_values = np.zeros(data.shape[0])
-
+        
         for group_key, indexes in groups.items():
             temp_jitter = process_jitter(
-                data[indexes, column], loc_dict[group_key], width, rng=rng
+                data[indexes, column],
+                loc_dict[group_key],
+                width,
+                rng=rng,
+                jitter_type=jitter_type,
             )
             jitter_values[indexes] = temp_jitter
 

@@ -3,8 +3,9 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from ..plot_utils import _process_colors, create_dict
 from .. import matplotlib_plotter as mpl
+from ..plot_utils import _process_colors, create_dict
+from ..processing import CategoricalProcessor
 from ..types import (
     BW,
     Agg,
@@ -14,11 +15,11 @@ from ..types import (
     ColorParameters,
     CountPlotTypes,
     Error,
+    JitterType,
     KDEType,
     SavePath,
 )
 from .base_class import BasePlot
-from ..processing import CategoricalProcessor
 
 
 class CategoricalPlot(BasePlot):
@@ -56,6 +57,7 @@ class CategoricalPlot(BasePlot):
         markercolor: ColorParameters = "glasbey_category10",
         marker: str | dict[str, str] = "o",
         edgecolor: ColorParameters = "white",
+        jitter_type: JitterType = "fill",
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
         width: float | int = 0.9,
@@ -77,6 +79,7 @@ class CategoricalPlot(BasePlot):
                 "seed": seed,
                 "unique_id": unique_id,
                 "legend": legend,
+                "jitter_type": jitter_type
             }
         )
 

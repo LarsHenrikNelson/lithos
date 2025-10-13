@@ -821,7 +821,6 @@ class Plotter:
                             zorder=z,
                         )
                     else:
-                        y, x = x, y
                         ax[fi].fill_betweenx(
                             x,
                             y - err1,
@@ -831,7 +830,8 @@ class Plotter:
                             edgecolor="none",
                             zorder=z,
                         )
-                        y, x = x, y
+                if direction == "horizontal":
+                    y, x = x, y
                 ax[fi].plot(
                     x,
                     y,

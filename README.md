@@ -202,11 +202,12 @@ Below is jitter plot with several custom settings.
 * For summary plot you can pass an aggregating function as string for a built-in aggregating function. The built-in aggregating function can be accessed by using ```CategoricalPlot.aggregating_funcs``` or ```LinePlot.aggregrating_funcs```. You can also pass you own custom function or callable.
 * For summary plot you can pass an error function as string for a built-in error function. The built-in error function can be accessed by using ```CategoricalPlot.error_funcs``` or ```LinePlot.error_funcs```. You can also pass you own custom function or callable.
 * If you pass unique_id to jitter plot the nested subgroups will be plotted with different marker types.
+* You can pass one of two different ways to plot jitter. One is "fill" which will fill the width regardless of how many points there are. The other is "dist" which will run a histogram and shape the width to the histogram distribution of the points.
 
 
 ```python
 df = create_synthetic_data(
-    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, distribution="gamma"
+    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, distribution="normal"
 )
 fig, ax = plt.subplots(ncols=2, figsize=(6.4 * 2, 4.8 * 1), layout="constrained")
 plot = (
@@ -225,6 +226,7 @@ plot = (
         width=0.5,
         markersize=8,
         seed=30,
+        jitter_type="fill"
     )
     .summary(
         func="mean",
@@ -256,6 +258,7 @@ plot = (
         width=0.5,
         markersize=8,
         seed=30,
+        jitter_type="dist"
     )
     .summary(
         func="mean",
@@ -564,7 +567,7 @@ plot = (
     )
     .plot_data(y="y")
     .axis_format(ysteps=(8, 1, 7))
-    .axis(ydecimals=2)
+    .axis(xdecimals=2, ydecimals=2)
     .figure(ncols=2)
     .plot(figure=fig, axes=ax[:2])
 )
