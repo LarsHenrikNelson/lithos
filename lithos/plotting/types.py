@@ -58,6 +58,7 @@ class JitterPlotData(PlotData):
     marker: list[str]
     markerfacecolor: list[str]
     markeredgecolor: list[str]
+    markeredgewidth: list[float]
     markersize: list[float]
     alpha: float
     edge_alpha: float

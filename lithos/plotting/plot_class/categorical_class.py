@@ -57,6 +57,7 @@ class CategoricalPlot(BasePlot):
         markercolor: ColorParameters = "glasbey_category10",
         marker: str | dict[str, str] = "o",
         edgecolor: ColorParameters = "white",
+        markeredgewidth: float | int = 1.0,
         jitter_type: JitterType = "fill",
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
@@ -70,6 +71,7 @@ class CategoricalPlot(BasePlot):
         self._plot_prefs.append(
             {
                 "markercolor": markercolor,
+                "markeredgewidth": markeredgewidth,
                 "marker": marker,
                 "edgecolor": edgecolor,
                 "alpha": alpha,
@@ -92,6 +94,7 @@ class CategoricalPlot(BasePlot):
         markercolor: ColorParameters = "glasbey_category10",
         marker: str | dict[str, str] = "o",
         edgecolor: ColorParameters = "none",
+        markeredgewidth: float | int = 1.0,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = None,
         width: float | int = 0.9,
@@ -105,6 +108,7 @@ class CategoricalPlot(BasePlot):
             {
                 "unique_id": unique_id,
                 "markercolor": markercolor,
+                "markeredgewidth": markeredgewidth,
                 "marker": marker,
                 "edgecolor": edgecolor,
                 "alpha": alpha,
