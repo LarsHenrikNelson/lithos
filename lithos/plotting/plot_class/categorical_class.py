@@ -2,6 +2,7 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
+from typing_extensions import Self
 
 from .. import matplotlib_plotter as mpl
 from ..plot_utils import _process_colors, create_dict
@@ -15,16 +16,18 @@ from ..types import (
     ColorParameters,
     CountPlotTypes,
     Error,
+    InputData,
     JitterType,
     KDEType,
+    Kernels,
     SavePath,
 )
 from .base_class import BasePlot
 
 
 class CategoricalPlot(BasePlot):
-    def __init__(self, data: pd.DataFrame | np.ndarray | dict, inplace: bool = False):
-        super().__init__(data, inplace)
+    def __init__(self, data: InputData):
+        super().__init__(data)
 
         if not self.inplace:
             self.inplace = True
@@ -35,12 +38,12 @@ class CategoricalPlot(BasePlot):
 
     def grouping(
         self,
-        group: str | int | float = None,
-        subgroup: str | int | float = None,
+        group: str | int | float | None = None,
+        subgroup: str | int | float | None = None,
         group_order: list[str | int | float] | None = None,
         subgroup_order: list[str | int | float] | None = None,
         group_spacing: float | int = 1.0,
-    ):
+    ) -> Self | None:
         self._grouping = {
             "group": group,
             "subgroup": subgroup,
@@ -49,24 +52,23 @@ class CategoricalPlot(BasePlot):
             "group_spacing": group_spacing,
         }
 
-        if not self.inplace:
-            return self
+        return self
 
     def jitter(
         self,
         markercolor: ColorParameters = "glasbey_category10",
-        marker: str | dict[str, str] = "o",
+        marker: str | dict[str | int, str] = "o",
         edgecolor: ColorParameters = "white",
         markeredgewidth: float | int = 1.0,
         jitter_type: JitterType = "fill",
         alpha: AlphaRange = 1.0,
-        edge_alpha: AlphaRange = None,
+        edge_alpha: AlphaRange | None = None,
         width: float | int = 0.9,
         seed: int = 42,
         markersize: float = 5.0,
         unique_id: str | None = None,
         legend: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("jitter")
         self._plot_prefs.append(
             {
@@ -81,28 +83,27 @@ class CategoricalPlot(BasePlot):
                 "seed": seed,
                 "unique_id": unique_id,
                 "legend": legend,
-                "jitter_type": jitter_type
+                "jitter_type": jitter_type,
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def jitteru(
         self,
         unique_id: str | int | float,
         markercolor: ColorParameters = "glasbey_category10",
-        marker: str | dict[str, str] = "o",
+        marker: str | dict[str | int, str] = "o",
         edgecolor: ColorParameters = "none",
         markeredgewidth: float | int = 1.0,
         alpha: AlphaRange = 1.0,
-        edge_alpha: AlphaRange = None,
+        edge_alpha: AlphaRange | None = None,
         width: float | int = 0.9,
         duplicate_offset=0.0,
         markersize: float = 5.0,
         agg_func: Agg | None = None,
         legend: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("jitteru")
         self._plot_prefs.append(
             {
@@ -121,8 +122,7 @@ class CategoricalPlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def summary(
         self,
@@ -135,7 +135,7 @@ class CategoricalPlot(BasePlot):
         color: ColorParameters = "black",
         alpha: float = 1.0,
         legend: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("summary")
         self._plot_prefs.append(
             {
@@ -151,14 +151,13 @@ class CategoricalPlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def summaryu(
         self,
         unique_id,
         func: Agg = "mean",
-        agg_func: Agg = None,
+        agg_func: Agg | None = None,
         agg_width: float = 1.0,
         capsize: int = 0,
         capstyle: CapStyle = "round",
@@ -168,7 +167,7 @@ class CategoricalPlot(BasePlot):
         color: ColorParameters = "glasbey_category10",
         alpha: float = 1.0,
         legend: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("summaryu")
         self._plot_prefs.append(
             {
@@ -187,8 +186,7 @@ class CategoricalPlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def box(
         self,
@@ -202,7 +200,7 @@ class CategoricalPlot(BasePlot):
         showmeans: bool = False,
         show_ci: bool = False,
         legend: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("box")
         self._plot_prefs.append(
             {
@@ -219,8 +217,7 @@ class CategoricalPlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def violin(
         self,
@@ -233,14 +230,14 @@ class CategoricalPlot(BasePlot):
         kde_length: int = 128,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
-        kernel: KDEType = "gaussian",
+        kernel: Kernels = "gaussian",
         bw: BW = "silverman",
         tol: float | int = 1e-3,
-        KDEType: Literal["tree", "fft"] = "fft",
+        KDEType: KDEType = "fft",
         style: Literal["left", "right", "alternate", "full"] = "full",
         unique_style: Literal["split", "overlap"] = "overlap",
         legend: bool = False,
-    ):
+    ) -> Self | None:
         if unique_id is not None and agg_func is None:
             style = "full"
         self._plot_methods.append("violin")
@@ -265,8 +262,7 @@ class CategoricalPlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def percent(
         self,
@@ -283,7 +279,7 @@ class CategoricalPlot(BasePlot):
         include_bins: list[bool] | None = None,
         invert: bool = False,
         legend: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("percent")
         if isinstance(cutoff, (float, int)):
             cutoff = [cutoff]
@@ -310,8 +306,7 @@ class CategoricalPlot(BasePlot):
         else:
             self.plot_format["axis"]["ylim"] = [0, 100]
 
-        if not self.inplace:
-            return self
+        return self
 
     def bar(
         self,
@@ -326,7 +321,7 @@ class CategoricalPlot(BasePlot):
         agg_func: Agg | None = None,
         unique_id: str | None = None,
         legend: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("bar")
         self._plot_prefs.append(
             {
@@ -344,8 +339,7 @@ class CategoricalPlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def process_data(self):
         processor = CategoricalProcessor(mpl.MARKERS, mpl.HATCHES)
@@ -354,7 +348,7 @@ class CategoricalPlot(BasePlot):
     def _plot_processed_data(
         self,
         savefig: bool = False,
-        path: SavePath = None,
+        path: SavePath = "",
         filename: str = "",
         filetype: str = "svg",
         **kwargs,

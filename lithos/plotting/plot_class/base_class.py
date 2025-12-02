@@ -3,6 +3,7 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
+from typing_extensions import Self
 
 from ...utils import (
     DataHolder,
@@ -11,6 +12,7 @@ from ...utils import (
 from ..types import (
     Agg,
     Error,
+    InputData,
     SavePath,
     Transform,
 )
@@ -21,7 +23,7 @@ class BasePlot:
     error_funcs = Error
     transform_funcs = Transform
 
-    def __init__(self, data: dict | pd.DataFrame | np.ndarray, inplace: bool = False):
+    def __init__(self, data: InputData, inplace: bool = False):
         self.inplace = inplace
         self.plot_list = []
         self._plot_methods = []
@@ -51,6 +53,9 @@ class BasePlot:
             self.grid()
             self.transform()
 
+    def grouping(self):
+        raise NotImplementedError("Must implement grouping method.")
+
     def add_axline(
         self,
         linetype: Literal["hline", "vline"],
@@ -60,7 +65,7 @@ class BasePlot:
         linecolor="black",
         linewidth=1.5,
         zorder=1,
-    ):
+    ) -> Self | None:
         if linetype not in ["hline", "vline"]:
             raise AttributeError("linetype must by hline or vline")
         if isinstance(lines, (float, int)):
@@ -92,7 +97,7 @@ class BasePlot:
         ylabel_rotation: Literal["horizontal", "vertical"] | float = "vertical",
         xtick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
         ytick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
-    ):
+    ) -> Self | None:
         if fontweight is not None:
             title_fontweight = fontweight
             label_fontweight = fontweight
@@ -117,19 +122,19 @@ class BasePlot:
 
     def axis(
         self,
-        ylim: list | None = None,
-        xlim: list | None = None,
-        yaxis_lim: list | None = None,
-        xaxis_lim: list | None = None,
+        ylim: list | tuple | None = None,
+        xlim: list | tuple | None = None,
+        yaxis_lim: list | tuple | None = None,
+        xaxis_lim: list | tuple | None = None,
         yscale: Literal["linear", "log", "symlog"] = "linear",
         xscale: Literal["linear", "log", "symlog"] = "linear",
-        ydecimals: int = None,
-        xdecimals: int = None,
+        ydecimals: int | None = None,
+        xdecimals: int | None = None,
         xformat: Literal["f", "e"] = "f",
         yformat: Literal["f", "e"] = "f",
-        yunits: Literal["degree", "radianwradian"] | None = None,
-        xunits: Literal["degree", "radianwradian"] | None = None,
-    ):
+        yunits: Literal["degree", "radian", "wradian"] | None = None,
+        xunits: Literal["degree", "radian", "wradian"] | None = None,
+    ) -> Self | None:
         if ylim is None:
             ylim = (None, None)
         if xlim is None:
@@ -156,7 +161,7 @@ class BasePlot:
 
     def axis_format(
         self,
-        linewidth: float = 2,
+        linewidth: float | dict[str, float] = 2,
         tickwidth: float = 2,
         ticklength: float = 5.0,
         minor_tickwidth: float = 1.5,
@@ -168,7 +173,7 @@ class BasePlot:
         truncate_xaxis: bool = False,
         truncate_yaxis: bool = False,
         style: Literal["default", "lithos"] = "lithos",
-    ):
+    ) -> Self | None:
         if isinstance(ysteps, int):
             ysteps = (ysteps, 0, ysteps)
         if isinstance(xsteps, int):
@@ -206,11 +211,11 @@ class BasePlot:
         margins=0.05,
         aspect: int | float | None = None,
         figsize: None | tuple[int, int] = None,
-        gridspec_kw: dict[str, str | int | float] = None,
-        nrows: int = None,
-        ncols: int = None,
+        gridspec_kw: dict[str, str | int | float] | None = None,
+        nrows: int | None = None,
+        ncols: int | None = None,
         projection: Literal["rectilinear", "polar"] = "rectilinear",
-    ):
+    ) -> Self | None:
         figure = {
             "gridspec_kw": gridspec_kw,
             "margins": margins,
@@ -234,7 +239,7 @@ class BasePlot:
         xminor_grid: int | float = 0,
         linestyle: str | tuple = "solid",
         minor_linestyle: str | tuple = "solid",
-    ):
+    ) -> Self | None:
         grid = {
             "ygrid": ygrid,
             "xgrid": xgrid,
@@ -248,7 +253,7 @@ class BasePlot:
         if not self.inplace:
             return self
 
-    def clear_plots(self):
+    def clear_plots(self) -> Self | None:
         self._plot_methods = []
         self._plot_prefs = []
 
@@ -258,20 +263,21 @@ class BasePlot:
     def plot(
         self,
         savefig: bool = False,
-        path: SavePath = None,
+        path: SavePath = "",
         filename: str = "",
         filetype: str = "svg",
         backend: str = "matplotlib",
         save_metadata: bool = False,
         **kwargs,
-    ):
+    ) -> Self | None:
         if path == "" or path is None:
             path = Path().cwd()
-        else:
+        elif isinstance(path, str):
             path = Path(path)
-        filename = self._plot_data["y"] if filename == "" else filename
-        self._plot_processed_data(savefig, path, filename, filetype, **kwargs)
-        if save_metadata:
+        filename_output = self._plot_data["y"] if filename == "" else filename
+        filename_output = filename_output if filename_output is not None else ""
+        self._plot_processed_data(savefig, path, filename_output, filetype, **kwargs)
+        if save_metadata and isinstance(path, (Path)):
             path = path / f"{filename}.txt"
             self.save_metadata(path)
 
@@ -284,7 +290,7 @@ class BasePlot:
         back_transform_yticks: bool = False,
         xtransform: Transform | None = None,
         back_transform_xticks: bool = False,
-    ):
+    ) -> Self | None:
         self._plot_transforms = {}
         self._plot_transforms["ytransform"] = ytransform
         if callable(ytransform):
@@ -301,7 +307,7 @@ class BasePlot:
         if not self.inplace:
             return self
 
-    def get_format(self):
+    def get_format(self) -> dict:
         return self.plot_format
 
     def plot_data(
@@ -312,7 +318,7 @@ class BasePlot:
         xlabel: str = "",
         title: str = "",
         figure_title: str = "",
-    ):
+    ) -> Self | None:
         if x is None and y is None:
             raise AttributeError("Must specify either x or y")
         self._plot_data = {
@@ -373,16 +379,23 @@ class BasePlot:
         self.inplace = False
         return self
 
-    def load_metadata(self, metadata_path: str | dict | Path):
+    def load_metadata(self, metadata_path: str | dict | Path)-> Self | None:
         metadata = metadata_utils.load_metadata(metadata_path)
         if not self.inplace:
             self = self._set_metadata_from_dict(metadata)
             return self
 
-    def set_metadata_directory(self, metadata_dir: str | dict | Path):
+    def set_metadata_directory(self, metadata_dir: str | Path):
         metadata_utils.set_metadata_dir(metadata_dir)
 
-    def _plot_processed_data(self):
+    def _plot_processed_data(
+        self,
+        savefig: bool = False,
+        path: SavePath = "",
+        filename: str = "",
+        filetype: str = "svg",
+        **kwargs,
+    ):
         raise NotImplementedError("Subclasses must implement _plot_processed_data()")
 
 

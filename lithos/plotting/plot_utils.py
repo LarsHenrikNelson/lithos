@@ -1,14 +1,18 @@
 from fractions import Fraction
+from typing import Any
 
 import colorcet as cc
 import matplotlib as mpl
 import numpy as np
 from numpy.random import default_rng
 
-from .types import Group, Subgroup, UniqueGroups, JitterType
+from .types import Group, JitterType, Subgroup, UniqueGroups, ProcessingOutput
 
 
-def create_dict(grouping: str | int | dict, unique_groups: list) -> dict:
+def create_dict(
+    grouping: ProcessingOutput,
+    unique_groups: list,
+) -> dict:
     """
     Create a dictionary based on the grouping and unique groups.
     The function assumes that the group and subgroup passed to the plot class
@@ -40,7 +44,7 @@ def create_dict(grouping: str | int | dict, unique_groups: list) -> dict:
     return output_dict
 
 
-def _get_colormap(colormap: str | None):
+def _get_colormap(colormap: str | None) -> str | list:
     if colormap is None:
         colormap = "glasbey_category10"
     if colormap in cc.palette:
@@ -56,14 +60,16 @@ def _get_colormap(colormap: str | None):
         )
 
 
-def _process_colormap(color: str, groups: list):
-    color = color.split("-")
-    if color[0] in cc.palette or color[0] in mpl.colormaps:
-        color_palette = _get_colormap(color[0])
+def _process_colormap(color: str, groups: list | Group | UniqueGroups) -> dict:
+    color_list = color.split("-")
+    if color_list[0] in cc.palette or color_list[0] in mpl.colormaps:
+        color_palette = _get_colormap(color_list[0])
     else:
         raise ValueError("Colormap not recognized")
-    if len(color) == 2:
-        one, two = color[1].split(":")
+    if len(color_list) == 2:
+        if groups is None:
+            raise ValueError("If len(colors) > 1, groups must not be None")
+        one, two = color_list[1].split(":")
         one = max(0, int(one))
         two = min(255, int(two))
         num = len(groups)
@@ -74,7 +80,11 @@ def _process_colormap(color: str, groups: list):
     return output_color
 
 
-def _process_string_color(color: str, group_order: list, subgroup_order: list):
+def _process_string_color(
+    color: str,
+    group_order: list | Group | UniqueGroups | None,
+    subgroup_order: list | Group | UniqueGroups | None,
+) -> ProcessingOutput:
     if color in mpl.colors.CSS4_COLORS:
         return color
     elif color in mpl.colors.BASE_COLORS:
@@ -87,17 +97,19 @@ def _process_string_color(color: str, group_order: list, subgroup_order: list):
         return color
     elif color is None or color in cc.palette or color in mpl.colormaps or ":" in color:
         group = subgroup_order if subgroup_order is not None else group_order
-        color = _process_colormap(color, group)
-        return color
+        if group is None:
+            raise ValueError("group_order or subgroup_order must not be None")
+        color_output = _process_colormap(color, group)
+        return color_output
     else:
         raise ValueError("Color not recognized, must be str, 'none', or None")
 
 
 def _process_colors(
     color: str | list | dict | None,
-    group_order: list | None = None,
-    subgroup_order: list | None = None,
-):
+    group_order: list | Group | UniqueGroups | None = None,
+    subgroup_order: list | Group | UniqueGroups | None = None,
+) -> ProcessingOutput:   
     """
     This function prepocesses the color parameter so that the color specified by the
     user is compatible with the create_dict function. If the color is a str that is not
@@ -116,27 +128,38 @@ def _process_colors(
         str | dict: Color output that can be a string or dictionary
     """
     if isinstance(color, str):
-        color = _process_string_color(
+        color_output = _process_string_color(
             color, group_order=group_order, subgroup_order=subgroup_order
         )
+        return color_output
+    elif isinstance(color, dict):
         return color
-    if isinstance(color, dict):
-        return color
-    if isinstance(color, Group):
-        return {key: value for key, value in zip(group_order, color.group)}
-    if isinstance(color, Subgroup):
-        return {key: value for key, value in zip(subgroup_order, color.subgroup)}
-    if isinstance(color, UniqueGroups):
+
+    elif isinstance(color, Group):
+        if group_order is None:
+            raise ValueError("If Group is used group_order must not be None")
+        return {key: value for key, value in zip(group_order, color)}
+    elif isinstance(color, Subgroup):
+        if subgroup_order is None:
+            raise ValueError("If Subgroup is used subgroup_order must not be None")
+        return {key: value for key, value in zip(subgroup_order, color)}
+    elif isinstance(color, UniqueGroups):
+        if group_order is None:
+            raise ValueError("group_order must be not be None")
+        if subgroup_order is None:
+            raise ValueError("group_order must be not be None")
         output = {}
         index = 0
         for g in group_order:
             for s in subgroup_order:
-                output[(g, s)] = color.unique_groups[index]
+                output[(g, s)] = color[index]
                 index += 1
         return output
+    else:
+        ValueError("Unknown color processing issue")
 
 
-def radian_ticks(ticks, rotate=False):
+def radian_ticks(ticks: list | np.ndarray, rotate=False):
     pi_symbol = "\u03c0"
     mm = [int(180 * i / np.pi) for i in ticks]
     if rotate:
@@ -178,7 +201,9 @@ def process_duplicates(values, output=None):
     return output
 
 
-def process_jitter(values, loc, width, rng=None, seed=42, jitter_type: JitterType = "fill"):
+def process_jitter(
+    values, loc, width, rng=None, seed=42, jitter_type: JitterType = "fill"
+):
     if rng is None:
         rng = default_rng(seed)
     try:
@@ -198,7 +223,7 @@ def process_jitter(values, loc, width, rng=None, seed=42, jitter_type: JitterTyp
                 temp += loc
             else:
                 if jitter_type == "dist":
-                    mod = c/count_max
+                    mod = c / count_max
                     w = width * mod
                 else:
                     w = width
@@ -343,7 +368,7 @@ def process_args(arg, group, subgroup):
 
 
 def process_scatter_args(
-    arg, data, levels, group_order, subgroup_order, unique_groups, arg_cycle=None
+    arg: Any, data, levels, group_order, subgroup_order, unique_groups, arg_cycle=None
 ):
     if isinstance(arg, dict):
         output = create_dict(arg, unique_groups)
@@ -381,7 +406,7 @@ def process_scatter_args(
     return output
 
 
-def _discrete_cycler(arg, data, arg_cycle):
+def _discrete_cycler(arg, data, arg_cycle) -> list:
     grps = np.unique(data[arg])
     ntimes = data.shape[0] // len(arg_cycle)
     markers = arg_cycle
@@ -389,7 +414,7 @@ def _discrete_cycler(arg, data, arg_cycle):
         markers = markers * (ntimes + 1)
         markers = markers[: data.shape[0]]
     mapping = {key: value for key, value in zip(grps, markers)}
-    output = [mapping(key) for key in data[arg]]
+    output = [mapping[key] for key in data[arg]]
     return output
 
 

@@ -1,4 +1,5 @@
 from typing import Literal
+from typing_extensions import Self
 
 import pandas as pd
 
@@ -14,6 +15,7 @@ from ..types import (
     HistBinLimits,
     HistStat,
     HistType,
+    InputData,
     KDEType,
     Kernels,
     SavePath,
@@ -27,8 +29,8 @@ class LinePlot(BasePlot):
         "bootstrap": {"size": 1000, "repititions": 1000, "seed": 42},
     }
 
-    def __init__(self, data: pd.DataFrame, inplace: bool = False):
-        super().__init__(data, inplace)
+    def __init__(self, data: InputData):
+        super().__init__(data)
 
         if not self.inplace:
             self.inplace = True
@@ -45,7 +47,7 @@ class LinePlot(BasePlot):
         subgroup_order: list[str | int | float] | None = None,
         facet: bool = False,
         facet_title: bool = False,
-    ):
+    ) -> Self | None:
         self._grouping = {
             "group": group,
             "subgroup": subgroup,
@@ -55,8 +57,7 @@ class LinePlot(BasePlot):
             "facet_title": facet_title,
         }
 
-        if not self.inplace:
-            return self
+        return self
 
     def line(
         self,
@@ -75,7 +76,7 @@ class LinePlot(BasePlot):
         func: Agg | None = None,
         err_func: Error | None = None,
         index: str | None = None,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("line")
         self._plot_prefs.append(
             {
@@ -97,8 +98,7 @@ class LinePlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def aggline(
         self,
@@ -118,7 +118,7 @@ class LinePlot(BasePlot):
         fillalpha: AlphaRange = 0.5,
         sort=True,
         unique_id=None,
-    ):
+    ) -> Self | None:
         if fillcolor is None:
             fillcolor = linecolor
         self._plot_methods.append("aggline")
@@ -143,8 +143,7 @@ class LinePlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def kde(
         self,
@@ -165,7 +164,7 @@ class LinePlot(BasePlot):
         agg_func: Agg | None = None,
         err_func: Error = None,
         KDEType: KDEType = "fft",
-    ):
+    ) -> Self | None:
         if fill_under and fill_between:
             raise AttributeError("Cannot fill under and between at the same time")
         if fillcolor is None:
@@ -193,8 +192,7 @@ class LinePlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def hist(
         self,
@@ -211,7 +209,7 @@ class LinePlot(BasePlot):
         err_func: Error = None,
         agg_func: Agg | None = None,
         unique_id=None,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("hist")
         self._plot_prefs.append(
             {
@@ -235,8 +233,7 @@ class LinePlot(BasePlot):
             self.plot_format["grid"]["ygrid"] = True
             self.plot_format["grid"]["xgrid"] = True
 
-        if not self.inplace:
-            return self
+        return self
 
     def ecdf(
         self,
@@ -252,7 +249,7 @@ class LinePlot(BasePlot):
         err_func: Error = None,
         ecdf_type: Literal["spline", "bootstrap", "none"] = "none",
         ecdf_args=None,
-    ):
+    ) -> Self | None:
         if ecdf_args is None and agg_func is not None:
             ecdf_args = {"size": 1000, "repititions": 1000, "seed": 42}
             ecdf_type = "bootstrap"
@@ -280,19 +277,18 @@ class LinePlot(BasePlot):
 
         self.plot_format["axis"]["ylim"] = [0.0, 1.0]
 
-        if not self.inplace:
-            return self
+        return self
 
     def scatter(
         self,
         marker: str = ".",
         markercolor: ColorParameters | tuple[str, str] = "glasbey_category10",
         edgecolor: ColorParameters = "white",
-        markersize: float | str = 36,
+        markersize: float | str | tuple[str | int, str] = 36,
         linewidth: float = 1.5,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
-    ):
+    ) -> Self | None:
         self._plot_methods.append("scatter")
         self._plot_prefs.append(
             {
@@ -306,8 +302,7 @@ class LinePlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def fit(
         self,
@@ -320,11 +315,11 @@ class LinePlot(BasePlot):
         fill_between=True,
         alpha: AlphaRange = 1.0,
         unique_id: str | None = None,
-        fit_args: dict = None,
+        fit_args: dict | None = None,
         ci_func: Literal["ci", "pi", "bootstrap_ci"] = "ci",
-        agg_func: Agg = "mean",
+        agg_func: Agg | None = "mean",
         err_func: Error = "sem",
-    ):
+    ) -> Self | None:
         self._plot_methods.append("fit")
         self._plot_prefs.append(
             {
@@ -344,8 +339,7 @@ class LinePlot(BasePlot):
             }
         )
 
-        if not self.inplace:
-            return self
+        return self
 
     def process_data(self):
         processor = LineProcessor(mpl.MARKERS, mpl.HATCHES)
@@ -354,7 +348,7 @@ class LinePlot(BasePlot):
     def _plot_processed_data(
         self,
         savefig: bool = False,
-        path: SavePath = None,
+        path: SavePath = "",
         filename: str = "",
         filetype: str = "svg",
         **kwargs,

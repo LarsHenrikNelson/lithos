@@ -1,7 +1,9 @@
-from pathlib import Path
 import ast
+from pathlib import Path
+from typing import Callable
 
 from ..plotting.types import Group, Subgroup, UniqueGroups
+
 
 def home_dir():
     p = Path.home()
@@ -103,7 +105,7 @@ def metadata_to_string(metadata, level=0):
                 temp = prepend + str(val) + postend
                 output.append(temp)
         output.append(f"{' '*level*2}" + "),\n")
-    elif isinstance(metadata, callable):
+    elif isinstance(metadata, Callable):
         temp = (" " * level * 2) + "callable,\n"
         output.append(temp)
     if level == 0:
@@ -116,15 +118,15 @@ def _process_metadata(metadata: dict):
             for key, value in plot_item.items():
                 if isinstance(value, dict):
                     if "group" in value:
-                        value = Group(**value)
+                        value = Group(*value["group"])
                         plot_item[key] = value
                     elif "subgroup" in value:
-                        value = Subgroup(**value)
+                        value = Subgroup(*value["subgroup"])
                     elif "unique_groups" in value:
-                        value = UniqueGroups(**value)
+                        value = UniqueGroups(*value["unique_groups"])
     return metadata
 
-def load_metadata(metadata_path: str | Path):
+def load_metadata(metadata_path: str | dict | Path):
     if not isinstance(metadata_path, (str, dict, Path)):
         raise AttributeError("metadata_path must be a string, dict, or Path")
     if isinstance(metadata_path, str):
@@ -133,8 +135,6 @@ def load_metadata(metadata_path: str | Path):
             file_path = file_path / f"{metadata_path}"
         else:
             file_path = Path(metadata_path)
-    else:
-        file_path = Path(metadata_path)
     file_path = Path(file_path)
     file_path = file_path.with_suffix(".txt")
     if file_path.exists():

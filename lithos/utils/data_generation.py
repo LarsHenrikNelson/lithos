@@ -36,8 +36,8 @@ def create_synthetic_data(
     distribution: Literal["normal", "lognormal", "gamma", "timeseries"] = "normal",
     loc: float = 1.2,
     scale: float = 1.0,
-):
-    unique_grouping = None if n_unique_ids == 0 else []
+) -> dict[str | int, list[int | float | str] | np.ndarray]:
+    unique_grouping: list[int | str] = []
 
     rng = default_rng(seed)
 

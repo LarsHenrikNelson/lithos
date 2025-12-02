@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Annotated, Literal, TypeAlias, NamedTuple
+from typing import Annotated, Callable, Literal, NamedTuple, TypeAlias
 
 import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -140,33 +141,55 @@ BW: TypeAlias = float | Literal["ISJ", "silverman", "scott"]
 KDEType: TypeAlias = Literal["fft", "tree"]
 Levels: TypeAlias = str | int | float
 
+ProcessingOutput: TypeAlias = (
+    None
+    | str
+    | dict
+    | tuple[int | float, int | float, int | float]
+    | tuple[int | float, int | float, int | float, int | float]
+    | tuple[tuple[int | float, int | float, int | float] | str, int | float]
+    | tuple[tuple[int | float, int | float, int | float, int | float], int | float]
+)
 
-@dataclass
-class ValueRange:
-    lo: float
-    hi: float
-
-
-class Group(NamedTuple):
-    group: list
-
-
-class Subgroup(NamedTuple):
-    subgroup: list
-
-
-class UniqueGroups(NamedTuple):
-    unique_groups: list
+InputData: TypeAlias = (
+    dict[str | int, list[int | float | str] | np.ndarray] | pd.DataFrame | np.ndarray
+)
 
 
-AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]
+class Group(tuple):
+    def __new__(cls, *items):
+        return super().__new__(cls, items)
+
+    def _asdict(self):
+        return {"group": tuple(self)}
+
+
+class Subgroup(tuple):
+    def __new__(cls, *items):
+        return super().__new__(cls, items)
+
+        def _asdict(self):
+            return {"subgroup": tuple(self)}
+
+
+class UniqueGroups(tuple):
+    def __new__(cls, *items):
+        return super().__new__(cls, items)
+
+    def _asdict(self):
+        return {"unique_groups": (self)}
+
+
+AlphaRange: TypeAlias = Annotated[float, "Value between 0.0 and 1.0"]
 CountPlotTypes: TypeAlias = Literal["percent", "count"]
-ColorParameters: TypeAlias = str | dict[str, str] | None
+ColorParameters: TypeAlias = (
+    str | dict[str | int, str] | Group | Subgroup | UniqueGroups | None
+)
 TransformFuncs: TypeAlias = Literal[
     "log10", "log2", "ln", "inverse", "ninverse", "sqrt"
 ]
 AggFuncs: TypeAlias = Literal[
-    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean"
+    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean", "count"
 ]
 ErrorFuncs: TypeAlias = Literal[
     "sem",
@@ -180,15 +203,15 @@ ErrorFuncs: TypeAlias = Literal[
     "mad",
     "gstd",
 ]
-Error: TypeAlias = ErrorFuncs | callable | None
-Agg: TypeAlias = AggFuncs | callable
+Error: TypeAlias = ErrorFuncs | Callable | None
+Agg: TypeAlias = AggFuncs | Callable
 Transform: TypeAlias = TransformFuncs | None
 BinType: TypeAlias = Literal["density", "percent"]
 CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
 SavePath: TypeAlias = str | Path | BytesIO | StringIO
-FitFunc: TypeAlias = callable | Literal["linear", "sine", "polynomial"]
+FitFunc: TypeAlias = Callable | Literal["linear", "sine", "polynomial"]
 CIFunc: TypeAlias = Literal["ci", "pi", "none"]
-HistType: TypeAlias  = Literal["bar", "step", "stack", "fill"]
+HistType: TypeAlias = Literal["bar", "step", "stack", "fill"]
 JitterType: TypeAlias = Literal["fill", "dist"]
 HistBinLimits: TypeAlias = tuple[float, float] | Literal["common"] | None
 HistStat: TypeAlias = Literal["density", "probability", "count"]
