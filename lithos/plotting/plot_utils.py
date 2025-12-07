@@ -10,7 +10,7 @@ from .types import Group, JitterType, Subgroup, UniqueGroups, ProcessingOutput
 
 
 def create_dict(
-    grouping: ProcessingOutput,
+    grouping: ProcessingOutput | Any,
     unique_groups: list,
 ) -> dict:
     """
@@ -109,7 +109,7 @@ def _process_colors(
     color: str | list | dict | None,
     group_order: list | Group | UniqueGroups | None = None,
     subgroup_order: list | Group | UniqueGroups | None = None,
-) -> ProcessingOutput:   
+) -> ProcessingOutput:
     """
     This function prepocesses the color parameter so that the color specified by the
     user is compatible with the create_dict function. If the color is a str that is not
@@ -459,7 +459,9 @@ def _process_positions(group_spacing, group_order, subgroup_order=None):
     return loc_dict, width
 
 
-def _create_groupings(data, group, subgroup, group_order, subgroup_order):
+def _create_groupings(
+    data, group, subgroup, group_order, subgroup_order
+) -> tuple[list, list, list, tuple]:
     if group is None:
         unique_groups = [("",)]
         group_order = [""]

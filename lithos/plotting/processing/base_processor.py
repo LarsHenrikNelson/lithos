@@ -7,6 +7,7 @@ from ..plot_utils import (
     _create_groupings,
 )
 from ...utils import DataHolder
+from ..types import Agg, Grouping, Subgrouping
 
 
 class BaseProcessor:
@@ -15,11 +16,13 @@ class BaseProcessor:
         self.HATCHES = hatches
         self._plot_dict = {}
         self.zorder = 0
+        self.PLOTS = {}
 
     def _set_zorder(self):
         adder = self.zorder * len(self._plot_dict["zorder_dict"]) + 1
         zorder_dict = {
-            key: 1+(value + adder)/100 for key, value in self._plot_dict["zorder_dict"].items()
+            key: 1 + (value + adder) / 100
+            for key, value in self._plot_dict["zorder_dict"].items()
         }
         self.zorder += 1
         return zorder_dict
@@ -90,6 +93,17 @@ class BaseProcessor:
         )
         return output_args
 
+    def process_groups(
+        self,
+        data: DataHolder,
+        group: int | str,
+        subgroup: int | str,
+        group_order: Grouping,
+        subgroup_order: Subgrouping,
+        **kwargs,
+    ):
+        raise NotImplementedError("Must implement process_groups.")
+
     def __call__(
         self,
         data,
@@ -108,20 +122,21 @@ class BaseProcessor:
                 args = self.preprocess_args(pdict)
             else:
                 args = self.preprocess_scatter(pdict, data)
-            temp = self.PLOTS[p](
-                data=data,
-                y=y,
-                x=x,
-                loc_dict=self._plot_dict["loc_dict"],
-                levels=levels,
-                zorder_dict=self._set_zorder(),
-                **transforms,
-                **args,
-            )
-            processed_data.append(temp)
+            if p in self.PLOTS:
+                temp = self.PLOTS[p](
+                    data=data,
+                    y=y,
+                    x=x,
+                    loc_dict=self._plot_dict["loc_dict"],
+                    levels=levels,
+                    zorder_dict=self._set_zorder(),
+                    **transforms,
+                    **args,
+                )
+                processed_data.append(temp)
         return processed_data, self._plot_dict
 
-    def _process_dict(self, groups, dict, subgroups=None, agg: str | None = None):
+    def _process_dict(self, groups, dict, subgroups=None, agg: Agg | None = None):
         if subgroups is None or agg is not None:
             output = [dict[g] for g in groups.keys()]
         else:

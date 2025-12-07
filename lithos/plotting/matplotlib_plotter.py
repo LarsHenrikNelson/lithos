@@ -103,6 +103,9 @@ class Plotter:
                 self.axes = [axes]
             self.fig = figure
 
+    def create_figure(self):
+        raise NotImplementedError("Implement create_figure.")
+
     def _process_color(self, color, alpha):
         if color is None:
             color = "none"
@@ -173,7 +176,7 @@ class Plotter:
 
     def _set_lims(
         self,
-        ax: plt.Axes.axes,
+        ax: plt.Axes,
         lim: tuple[float | int, float | int],
         ticks,
         axis: Literal["x", "y"] = "x",
@@ -205,7 +208,7 @@ class Plotter:
 
     def _format_ticklabels(
         self,
-        ax: plt.Axes.axes,
+        ax: plt.Axes,
         ticks,
         decimals: int,
         axis: Literal["y", "x"] = "x",
@@ -302,7 +305,7 @@ class Plotter:
 
     def set_axis(
         self,
-        ax: plt.Axes.axes,
+        ax: plt.Axes,
         decimals: int,
         axis: Literal["x", "y"] = "x",
         style: Literal["default", "lithos"] = "lithos",
@@ -631,7 +634,7 @@ class Plotter:
         facecolors: list[str],
         edgecolors: list[str],
         alpha: float,
-        linealpha: float,
+        edge_alpha: float,
         fliers: bool,
         linewidth: float,
         width: float,
@@ -646,24 +649,24 @@ class Plotter:
             props = {
                 "boxprops": {
                     "facecolor": (self._process_color(fcs, alpha)),
-                    "edgecolor": (self._process_color(ecs, linealpha)),
+                    "edgecolor": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
                 "medianprops": {
-                    "color": (self._process_color(ecs, linealpha)),
+                    "color": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
                 "whiskerprops": {
-                    "color": (self._process_color(ecs, linealpha)),
+                    "color": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
                 "capprops": {
-                    "color": (self._process_color(ecs, linealpha)),
+                    "color": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
             }
             if showmeans:
-                props["meanprops"] = {"color": (self._process_color(ecs, linealpha))}
+                props["meanprops"] = {"color": (self._process_color(ecs, edge_alpha))}
             _ = ax[0].boxplot(
                 y,
                 positions=x,

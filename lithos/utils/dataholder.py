@@ -3,7 +3,6 @@ import pandas as pd
 
 
 class DataHolder:
-
     def __init__(self, data):
         if isinstance(data, dict):
             for key, value in data.items():
@@ -39,7 +38,7 @@ class DataHolder:
         if isinstance(index, tuple):
             return self._data[index[0], index[1]]
         elif isinstance(index, (list, np.ndarray)):
-            return zip([self.data[i] for i in index])
+            return zip([self._data[i] for i in index])
         elif isinstance(index, int):
             return self._data[:, index]
 
@@ -50,9 +49,13 @@ class DataHolder:
             ):
                 return self._data.loc[index[0], index[1]]
             else:
-                return self._data.iloc[index[0], self._data.columns.get_loc(index[1])]
+                if isinstance(index[1], (tuple, list, np.ndarray)):
+                    locs = [self._data.columns.get_loc(i) for i in index[1]]
+                else:
+                    locs = index[1]
+                return self._data.iloc[index[0], locs]
         elif isinstance(index, (list, np.ndarray)):
-            return zip([self.data[i] for i in index])
+            return zip([self._data[i] for i in index])
         elif isinstance(index, str):
             return self._data[index]
 
@@ -60,7 +63,7 @@ class DataHolder:
         if isinstance(index, tuple):
             return self._data[index[1]][index[0]]
         elif isinstance(index, (list, np.ndarray)):
-            return zip([self.data[i] for i in index])
+            return zip([self._data[i] for i in index])
         elif isinstance(index, str):
             return self._data[index]
         else:
@@ -115,7 +118,7 @@ class DataHolder:
         self._groupby_cache[levels] = yy
         return yy
 
-    def groups(self, levels):
+    def groups(self, levels: tuple) -> dict:
         if levels in self._groups_cache:
             return self._groups_cache[levels]
         if len(levels) == 0:
@@ -132,3 +135,6 @@ class DataHolder:
                 new_groups[key] = value
         self._groups_cache[levels] = new_groups
         return new_groups
+
+    def to_pd(self) -> pd.DataFrame:
+        return pd.DataFrame(self._data)

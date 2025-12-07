@@ -59,7 +59,7 @@ class JitterPlotData(PlotData):
     marker: list[str]
     markerfacecolor: list[str]
     markeredgecolor: list[str]
-    markeredgewidth: list[float]
+    markeredgewidth: list[float] | float | str
     markersize: list[float]
     alpha: float
     edge_alpha: float
@@ -102,7 +102,7 @@ class BoxPlotData(PlotData):
     facecolors: list[str]
     edgecolors: list[str]
     alpha: float
-    linealpha: float
+    edge_alpha: float
     fliers: bool
     linewidth: float
     width: float
@@ -139,7 +139,8 @@ Kernels: TypeAlias = Literal[
 
 BW: TypeAlias = float | Literal["ISJ", "silverman", "scott"]
 KDEType: TypeAlias = Literal["fft", "tree"]
-Levels: TypeAlias = str | int | float
+Levels: TypeAlias = tuple
+
 
 ProcessingOutput: TypeAlias = (
     None
@@ -179,6 +180,18 @@ class UniqueGroups(tuple):
     def _asdict(self):
         return {"unique_groups": (self)}
 
+
+Grouping: TypeAlias = list[str | int | float] | tuple[str | int | float] | Group | None
+Subgrouping: TypeAlias = (
+    list[str | int | float] | tuple[str | int | float] | Subgroup | None
+)
+UniqueGrouping: TypeAlias = (
+    list[str | int | float] | tuple[str | int | float] | UniqueGroups | None
+)
+
+NBins: TypeAlias = (
+    int | Literal["auto", "fd", "doane", "scott", "stone", "rice", "sturges", "sqrt"]
+)
 
 AlphaRange: TypeAlias = Annotated[float, "Value between 0.0 and 1.0"]
 CountPlotTypes: TypeAlias = Literal["percent", "count"]

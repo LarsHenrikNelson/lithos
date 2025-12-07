@@ -19,6 +19,10 @@ from ..types import (
     KDEType,
     Kernels,
     SavePath,
+    Grouping,
+    Subgrouping,
+    UniqueGrouping,
+    NBins,
 )
 from .base_class import BasePlot
 
@@ -32,22 +36,16 @@ class LinePlot(BasePlot):
     def __init__(self, data: InputData):
         super().__init__(data)
 
-        if not self.inplace:
-            self.inplace = True
-            self.grouping()
-            self.inplace = False
-        else:
-            self.grouping()
-
     def grouping(
         self,
         group: str | int | None = None,
         subgroup: str | int | None = None,
-        group_order: list[str | int | float] | None = None,
-        subgroup_order: list[str | int | float] | None = None,
+        group_order: Grouping = None,
+        subgroup_order: Subgrouping = None,
         facet: bool = False,
         facet_title: bool = False,
-    ) -> Self | None:
+        **kwargs,
+    ) -> Self:
         self._grouping = {
             "group": group,
             "subgroup": subgroup,
@@ -76,7 +74,7 @@ class LinePlot(BasePlot):
         func: Agg | None = None,
         err_func: Error | None = None,
         index: str | None = None,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("line")
         self._plot_prefs.append(
             {
@@ -118,7 +116,7 @@ class LinePlot(BasePlot):
         fillalpha: AlphaRange = 0.5,
         sort=True,
         unique_id=None,
-    ) -> Self | None:
+    ) -> Self:
         if fillcolor is None:
             fillcolor = linecolor
         self._plot_methods.append("aggline")
@@ -164,7 +162,7 @@ class LinePlot(BasePlot):
         agg_func: Agg | None = None,
         err_func: Error = None,
         KDEType: KDEType = "fft",
-    ) -> Self | None:
+    ) -> Self:
         if fill_under and fill_between:
             raise AttributeError("Cannot fill under and between at the same time")
         if fillcolor is None:
@@ -205,11 +203,14 @@ class LinePlot(BasePlot):
         linealpha: float = 1.0,
         bin_limits: HistBinLimits = None,
         stat: HistStat = "count",
-        nbins=50,
+        nbins: NBins = 50,
         err_func: Error = None,
         agg_func: Agg | None = None,
         unique_id=None,
-    ) -> Self | None:
+    ) -> Self:
+        if agg_func is not None and isinstance(nbins, str):
+            raise ValueError("nbins must be int if agg_func is not None.")
+
         self._plot_methods.append("hist")
         self._plot_prefs.append(
             {
@@ -249,7 +250,7 @@ class LinePlot(BasePlot):
         err_func: Error = None,
         ecdf_type: Literal["spline", "bootstrap", "none"] = "none",
         ecdf_args=None,
-    ) -> Self | None:
+    ) -> Self:
         if ecdf_args is None and agg_func is not None:
             ecdf_args = {"size": 1000, "repititions": 1000, "seed": 42}
             ecdf_type = "bootstrap"
@@ -288,7 +289,7 @@ class LinePlot(BasePlot):
         linewidth: float = 1.5,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("scatter")
         self._plot_prefs.append(
             {
@@ -319,7 +320,7 @@ class LinePlot(BasePlot):
         ci_func: Literal["ci", "pi", "bootstrap_ci"] = "ci",
         agg_func: Agg | None = "mean",
         err_func: Error = "sem",
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("fit")
         self._plot_prefs.append(
             {

@@ -21,6 +21,9 @@ from ..types import (
     KDEType,
     Kernels,
     SavePath,
+    Grouping,
+    Subgrouping,
+    UniqueGrouping,
 )
 from .base_class import BasePlot
 
@@ -29,21 +32,15 @@ class CategoricalPlot(BasePlot):
     def __init__(self, data: InputData):
         super().__init__(data)
 
-        if not self.inplace:
-            self.inplace = True
-            self.grouping()
-            self.inplace = False
-        else:
-            self.grouping()
-
     def grouping(
         self,
         group: str | int | float | None = None,
         subgroup: str | int | float | None = None,
-        group_order: list[str | int | float] | None = None,
-        subgroup_order: list[str | int | float] | None = None,
+        group_order: Grouping = None,
+        subgroup_order: Subgrouping = None,
         group_spacing: float | int = 1.0,
-    ) -> Self | None:
+        **kwargs,
+    ) -> Self:
         self._grouping = {
             "group": group,
             "subgroup": subgroup,
@@ -66,9 +63,9 @@ class CategoricalPlot(BasePlot):
         width: float | int = 0.9,
         seed: int = 42,
         markersize: float = 5.0,
-        unique_id: str | None = None,
+        unique_id: str | int | None = None,
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("jitter")
         self._plot_prefs.append(
             {
@@ -103,7 +100,7 @@ class CategoricalPlot(BasePlot):
         markersize: float = 5.0,
         agg_func: Agg | None = None,
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("jitteru")
         self._plot_prefs.append(
             {
@@ -135,7 +132,7 @@ class CategoricalPlot(BasePlot):
         color: ColorParameters = "black",
         alpha: float = 1.0,
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("summary")
         self._plot_prefs.append(
             {
@@ -167,7 +164,7 @@ class CategoricalPlot(BasePlot):
         color: ColorParameters = "glasbey_category10",
         alpha: float = 1.0,
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("summaryu")
         self._plot_prefs.append(
             {
@@ -196,11 +193,11 @@ class CategoricalPlot(BasePlot):
         width: float = 0.9,
         linewidth=1,
         alpha: AlphaRange = 0.5,
-        linealpha: AlphaRange = 1.0,
+        edge_alpha: AlphaRange = 1.0,
         showmeans: bool = False,
         show_ci: bool = False,
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("box")
         self._plot_prefs.append(
             {
@@ -210,7 +207,7 @@ class CategoricalPlot(BasePlot):
                 "width": width,
                 "alpha": alpha,
                 "linewidth": linewidth,
-                "linealpha": linealpha,
+                "edge_alpha": edge_alpha,
                 "showmeans": showmeans,
                 "show_ci": show_ci,
                 "legend": legend,
@@ -228,7 +225,7 @@ class CategoricalPlot(BasePlot):
         edge_alpha: AlphaRange = 1.0,
         width: float = 0.9,
         kde_length: int = 128,
-        unique_id: str | None = None,
+        unique_id: str | int | None = None,
         agg_func: Agg | None = None,
         kernel: Kernels = "gaussian",
         bw: BW = "silverman",
@@ -237,7 +234,7 @@ class CategoricalPlot(BasePlot):
         style: Literal["left", "right", "alternate", "full"] = "full",
         unique_style: Literal["split", "overlap"] = "overlap",
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         if unique_id is not None and agg_func is None:
             style = "full"
         self._plot_methods.append("violin")
@@ -274,12 +271,12 @@ class CategoricalPlot(BasePlot):
         barwidth: float = 0.9,
         linewidth=1,
         alpha: float = 0.5,
-        linealpha=1.0,
+        edge_alpha=1.0,
         axis_type: BinType = "density",
         include_bins: list[bool] | None = None,
         invert: bool = False,
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("percent")
         if isinstance(cutoff, (float, int)):
             cutoff = [cutoff]
@@ -292,7 +289,7 @@ class CategoricalPlot(BasePlot):
                 "linewidth": linewidth,
                 "barwidth": barwidth,
                 "alpha": alpha,
-                "linealpha": linealpha,
+                "edge_alpha": edge_alpha,
                 "axis_type": axis_type,
                 "invert": invert,
                 "include_bins": include_bins,
@@ -316,12 +313,12 @@ class CategoricalPlot(BasePlot):
         barwidth: float = 0.9,
         linewidth=1,
         alpha: float = 0.5,
-        linealpha=1.0,
+        edge_alpha=1.0,
         func: Agg = "mean",
         agg_func: Agg | None = None,
-        unique_id: str | None = None,
+        unique_id: str | int | None = None,
         legend: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_methods.append("bar")
         self._plot_prefs.append(
             {
@@ -331,7 +328,7 @@ class CategoricalPlot(BasePlot):
                 "barwidth": barwidth,
                 "linewidth": linewidth,
                 "alpha": alpha,
-                "linealpha": linealpha,
+                "edge_alpha": edge_alpha,
                 "func": func,
                 "legend": legend,
                 "unique_id": unique_id,
@@ -339,6 +336,43 @@ class CategoricalPlot(BasePlot):
             }
         )
 
+        return self
+
+    def paired(
+        self,
+        unique_id: str | int,
+        index: str | int,
+        order: list[str | int] | tuple[str | int] | None = None,
+        width: float | int = 0.9,
+        marker: str = "o",
+        markerfacecolor: ColorParameters | tuple[str, str] = None,
+        markeredgecolor: ColorParameters | tuple[str, str] = None,
+        markersize: float | str = 1,
+        alpha: AlphaRange = 1.0,
+        linecolor: ColorParameters = "glasbey_category10",
+        linealpha: AlphaRange = 1.0,
+        linestyle: str = "-",
+        linewidth: int = 2,
+        legend: bool = False,
+    ):
+        self._plot_methods.append("line")
+        self._plot_prefs.append(
+            {
+                "marker": marker,
+                "order": order,
+                "width": width,
+                "index": index,
+                "markerfacecolor": markerfacecolor,
+                "markeredgecolor": markeredgecolor,
+                "markersize": markersize,
+                "alpha": alpha,
+                "linecolor": linecolor,
+                "linestyle": linestyle,
+                "linewidth": linewidth,
+                "unique_id": unique_id,
+                "linealpha": linealpha,
+            }
+        )
         return self
 
     def process_data(self):

@@ -22,8 +22,10 @@ from ..types import (
     RectanglePlotData,
     ScatterPlotData,
     Transform,
+    NBins,
 )
 from .base_processor import BaseProcessor
+from ..types import Grouping, Subgrouping
 
 
 class LineProcessor(BaseProcessor):
@@ -40,7 +42,15 @@ class LineProcessor(BaseProcessor):
         }
 
     def process_groups(
-        self, data, group, subgroup, group_order, subgroup_order, facet, facet_title
+        self,
+        data: DataHolder,
+        group: int | str,
+        subgroup: int | str,
+        group_order: Grouping,
+        subgroup_order: Subgrouping,
+        facet: bool = False,
+        facet_title: bool = False,
+        **kwargs,
     ):
         group_order, subgroup_order, unique_groups, levels = _create_groupings(
             data, group, subgroup, group_order, subgroup_order
@@ -115,7 +125,7 @@ class LineProcessor(BaseProcessor):
         linealpha: AlphaRange = 1.0,
         bin_limits: HistBinLimits = None,
         linewidth: float | int = 2,
-        nbins=None,
+        nbins: NBins = 50,
         stat: HistStat = "density",
         agg_func: Agg | None = None,
         unique_id: str | None = None,
@@ -134,6 +144,9 @@ class LineProcessor(BaseProcessor):
         group_labels = []
 
         unique_groups = None
+
+        if agg_func is not None and isinstance(nbins, str):
+            raise ValueError("nbins must be integer if agg_func is not None.")
 
         bins = None
         if bin_limits == "common":

@@ -9,13 +9,7 @@ from ...utils import (
     DataHolder,
     metadata_utils,
 )
-from ..types import (
-    Agg,
-    Error,
-    InputData,
-    SavePath,
-    Transform,
-)
+from ..types import Agg, Error, Grouping, InputData, SavePath, Subgrouping, Transform
 
 
 class BasePlot:
@@ -23,8 +17,7 @@ class BasePlot:
     error_funcs = Error
     transform_funcs = Transform
 
-    def __init__(self, data: InputData, inplace: bool = False):
-        self.inplace = inplace
+    def __init__(self, data: InputData):
         self.plot_list = []
         self._plot_methods = []
         self._plot_prefs = []
@@ -36,24 +29,22 @@ class BasePlot:
         self.plot_format = {}
         self._plot_data = {}
 
-        if not self.inplace:
-            self.inplace = True
-            self.labels()
-            self.axis()
-            self.axis_format()
-            self.figure()
-            self.grid()
-            self.transform()
-            self.inplace = False
-        else:
-            self.labels()
-            self.axis()
-            self.axis_format()
-            self.figure()
-            self.grid()
-            self.transform()
+        self.grouping()
+        self.labels()
+        self.axis()
+        self.axis_format()
+        self.figure()
+        self.grid()
+        self.transform()
 
-    def grouping(self):
+    def grouping(
+        self,
+        group: str | int | None = None,
+        subgroup: str | int | None = None,
+        group_order: Grouping = None,
+        subgroup_order: Subgrouping = None,
+        **kwargs,
+    ):
         raise NotImplementedError("Must implement grouping method.")
 
     def add_axline(
@@ -65,7 +56,7 @@ class BasePlot:
         linecolor="black",
         linewidth=1.5,
         zorder=1,
-    ) -> Self | None:
+    ) -> Self:
         if linetype not in ["hline", "vline"]:
             raise AttributeError("linetype must by hline or vline")
         if isinstance(lines, (float, int)):
@@ -80,8 +71,7 @@ class BasePlot:
             "zorder": zorder,
         }
 
-        if not self.inplace:
-            return self
+        return self
 
     def labels(
         self,
@@ -97,7 +87,7 @@ class BasePlot:
         ylabel_rotation: Literal["horizontal", "vertical"] | float = "vertical",
         xtick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
         ytick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
-    ) -> Self | None:
+    ) -> Self:
         if fontweight is not None:
             title_fontweight = fontweight
             label_fontweight = fontweight
@@ -117,8 +107,7 @@ class BasePlot:
             "ytick_rotation": ytick_rotation,
         }
         self.plot_format["labels"] = label_props
-        if not self.inplace:
-            return self
+        return self
 
     def axis(
         self,
@@ -134,7 +123,7 @@ class BasePlot:
         yformat: Literal["f", "e"] = "f",
         yunits: Literal["degree", "radian", "wradian"] | None = None,
         xunits: Literal["degree", "radian", "wradian"] | None = None,
-    ) -> Self | None:
+    ) -> Self:
         if ylim is None:
             ylim = (None, None)
         if xlim is None:
@@ -156,8 +145,7 @@ class BasePlot:
         }
         self.plot_format["axis"] = axis_settings
 
-        if not self.inplace:
-            return self
+        return self
 
     def axis_format(
         self,
@@ -173,7 +161,7 @@ class BasePlot:
         truncate_xaxis: bool = False,
         truncate_yaxis: bool = False,
         style: Literal["default", "lithos"] = "lithos",
-    ) -> Self | None:
+    ) -> Self:
         if isinstance(ysteps, int):
             ysteps = (ysteps, 0, ysteps)
         if isinstance(xsteps, int):
@@ -203,8 +191,7 @@ class BasePlot:
 
         self.plot_format["axis_format"] = axis_format
 
-        if not self.inplace:
-            return self
+        return self
 
     def figure(
         self,
@@ -215,7 +202,7 @@ class BasePlot:
         nrows: int | None = None,
         ncols: int | None = None,
         projection: Literal["rectilinear", "polar"] = "rectilinear",
-    ) -> Self | None:
+    ) -> Self:
         figure = {
             "gridspec_kw": gridspec_kw,
             "margins": margins,
@@ -228,8 +215,7 @@ class BasePlot:
 
         self.plot_format["figure"] = figure
 
-        if not self.inplace:
-            return self
+        return self
 
     def grid(
         self,
@@ -239,7 +225,7 @@ class BasePlot:
         xminor_grid: int | float = 0,
         linestyle: str | tuple = "solid",
         minor_linestyle: str | tuple = "solid",
-    ) -> Self | None:
+    ) -> Self:
         grid = {
             "ygrid": ygrid,
             "xgrid": xgrid,
@@ -250,15 +236,13 @@ class BasePlot:
         }
         self.plot_format["grid"] = grid
 
-        if not self.inplace:
-            return self
+        return self
 
-    def clear_plots(self) -> Self | None:
+    def clear_plots(self) -> Self:
         self._plot_methods = []
         self._plot_prefs = []
 
-        if not self.inplace:
-            return self
+        return self
 
     def plot(
         self,
@@ -269,7 +253,7 @@ class BasePlot:
         backend: str = "matplotlib",
         save_metadata: bool = False,
         **kwargs,
-    ) -> Self | None:
+    ) -> Self:
         if path == "" or path is None:
             path = Path().cwd()
         elif isinstance(path, str):
@@ -281,8 +265,7 @@ class BasePlot:
             path = path / f"{filename}.txt"
             self.save_metadata(path)
 
-        if not self.inplace:
-            return self
+        return self
 
     def transform(
         self,
@@ -290,7 +273,7 @@ class BasePlot:
         back_transform_yticks: bool = False,
         xtransform: Transform | None = None,
         back_transform_xticks: bool = False,
-    ) -> Self | None:
+    ) -> Self:
         self._plot_transforms = {}
         self._plot_transforms["ytransform"] = ytransform
         if callable(ytransform):
@@ -304,8 +287,7 @@ class BasePlot:
         else:
             self._plot_transforms["back_transform_xticks"] = back_transform_xticks
 
-        if not self.inplace:
-            return self
+        return self
 
     def get_format(self) -> dict:
         return self.plot_format
@@ -318,9 +300,10 @@ class BasePlot:
         xlabel: str = "",
         title: str = "",
         figure_title: str = "",
-    ) -> Self | None:
+    ) -> Self:
         if x is None and y is None:
-            raise AttributeError("Must specify either x or y")
+            raise ValueError("Must specify either x or y")
+
         self._plot_data = {
             "y": y,
             "x": x,
@@ -330,8 +313,7 @@ class BasePlot:
             "figure_title": figure_title,
         }
 
-        if not self.inplace:
-            return self
+        return self
 
     def metadata(self):
         output = {
@@ -353,37 +335,25 @@ class BasePlot:
             if key in plot_dict:
                 plot_dict[key] = value
 
-    def _set_metadata_from_dict(self, metadata: dict):
+    def _set_metadata_from_dict(self, metadata: dict) -> Self:
         self._plot_data = metadata["data"]
         for key in metadata["format"]:
             self._load_plot_prefs(self.plot_format[key], metadata["format"][key])
         self._load_plot_prefs(self._plot_transforms, metadata["transforms"])
 
-        # Not super happy with this code but it works for now
-        if not self.inplace:
-            self.inplace = True
-            self.grouping(**metadata["grouping"])
-
-            # Must loop through metadata and not set class variables otherwise it will
-            # overwrite the instance and get stuck before the loop even runs.
-            for pfunc, ppref in zip(metadata["plot_methods"], metadata["plot_prefs"]):
-                method = getattr(self, pfunc)
-                method(**ppref)
-        else:
-            self.grouping(**metadata["grouping"])
-            # Must loop through metadata and not set class variables otherwise it will
-            # overwrite the instance and get stuck before the loop even runs.
-            for pfunc, ppref in zip(metadata["plot_methods"], metadata["plot_prefs"]):
-                method = getattr(self, pfunc)
-                method(**ppref)
-        self.inplace = False
+        # Not super happy with this code but it works for not
+        self = self.grouping(**metadata["grouping"])
+        # Must loop through metadata and not set class variables otherwise it will
+        # overwrite the instance and get stuck before the loop even runs.
+        for pfunc, ppref in zip(metadata["plot_methods"], metadata["plot_prefs"]):
+            method = getattr(self, pfunc)
+            self = method(**ppref)
         return self
 
-    def load_metadata(self, metadata_path: str | dict | Path)-> Self | None:
+    def load_metadata(self, metadata_path: str | dict | Path) -> Self:
         metadata = metadata_utils.load_metadata(metadata_path)
-        if not self.inplace:
-            self = self._set_metadata_from_dict(metadata)
-            return self
+        self = self._set_metadata_from_dict(metadata)
+        return self
 
     def set_metadata_directory(self, metadata_dir: str | Path):
         metadata_utils.set_metadata_dir(metadata_dir)
