@@ -4,8 +4,12 @@ import KDEpy
 import numpy as np
 import numpy.typing as npt
 
+from ..plotting.types import BW
 
-def _kde_length(data, kde_obj, tol: float | int | tuple = 0.1, kde_length: int | None = None):
+
+def _kde_length(
+    data, kde_obj, tol: float | int | tuple = 0.1, kde_length: int | None = None
+):
     if isinstance(tol, tuple):
         min_data, max_data = tol
     else:
@@ -31,8 +35,8 @@ def kde(
         "tricube",
         "cosine",
     ] = "gaussian",
-    bw: Literal["ISJ", "silverman", "scott"] = "ISJ",
-    x: Optional[np.array] = None,
+    bw: BW = "ISJ",
+    x: Optional[np.ndarray] = None,
     kde_length: int | None = None,
     tol: float | int | tuple = 1e-3,
     KDEType: Literal["fft", "tree"] = "fft",

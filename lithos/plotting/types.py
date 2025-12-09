@@ -6,12 +6,14 @@ from typing import Annotated, Callable, Literal, NamedTuple, TypeAlias
 import numpy as np
 import pandas as pd
 
+Direction: TypeAlias = Literal["vertical", "horizontal"]
+
 
 @dataclass
 class PlotData:
     group_labels: list[str]
     zorder: list[int]
-    direction: Literal["vertical", "horizontal"]
+    direction: Direction
 
 
 @dataclass
@@ -50,6 +52,22 @@ class LinePlotData(PlotData):
     fillalpha: float | None = None
     fill_under: bool = False
     plot_type: str = "line"
+
+
+@dataclass
+class MarkerLinePlotData(PlotData):
+    x_data: list
+    y_data: list
+    facet_index: list[int]
+    linecolor: list[str | None] | None = None
+    linewidth: list[float | None] | None = None
+    linestyle: list[str | None] | None = None
+    linealpha: float | None = None
+    marker: list[str | None] | None = None
+    markersize: list[float] | None = None
+    markerfacecolor: list[str | None] | None = None
+    markeredgecolor: list[str | None] | None = None
+    plot_type: str = "marker_line"
 
 
 @dataclass
@@ -103,7 +121,7 @@ class BoxPlotData(PlotData):
     edgecolors: list[str]
     alpha: float
     edge_alpha: float
-    fliers: bool
+    fliers: bool | str
     linewidth: float
     width: float
     show_ci: bool

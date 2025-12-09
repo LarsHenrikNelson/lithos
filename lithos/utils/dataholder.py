@@ -52,7 +52,7 @@ class DataHolder:
                 if isinstance(index[1], (tuple, list, np.ndarray)):
                     locs = [self._data.columns.get_loc(i) for i in index[1]]
                 else:
-                    locs = index[1]
+                    locs = self._data.columns.get_loc(index[1])
                 return self._data.iloc[index[0], locs]
         elif isinstance(index, (list, np.ndarray)):
             return zip([self._data[i] for i in index])

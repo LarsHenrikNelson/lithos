@@ -164,7 +164,11 @@ class LinePlot(BasePlot):
         KDEType: KDEType = "fft",
     ) -> Self:
         if fill_under and fill_between:
-            raise AttributeError("Cannot fill under and between at the same time")
+            raise ValueError("Cannot fill under and between at the same time")
+
+        if kde_length is None and agg_func is not None:
+            raise ValueError("kde_length must be provided is agg_func is provide")
+
         if fillcolor is None:
             fillcolor = linecolor
         self._plot_methods.append("kde")

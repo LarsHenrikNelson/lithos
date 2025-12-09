@@ -1,4 +1,5 @@
 from typing import Literal
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -347,15 +348,17 @@ class CategoricalPlot(BasePlot):
         marker: str = "o",
         markerfacecolor: ColorParameters | tuple[str, str] = None,
         markeredgecolor: ColorParameters | tuple[str, str] = None,
-        markersize: float | str = 1,
+        markeredgewidth: float = 1.0,
+        markersize: float | str = 5,
         alpha: AlphaRange = 1.0,
         linecolor: ColorParameters = "glasbey_category10",
         linealpha: AlphaRange = 1.0,
         linestyle: str = "-",
         linewidth: int = 2,
         legend: bool = False,
+        agg_func: Agg | None = None,
     ):
-        self._plot_methods.append("line")
+        self._plot_methods.append("paired")
         self._plot_prefs.append(
             {
                 "marker": marker,
@@ -364,6 +367,7 @@ class CategoricalPlot(BasePlot):
                 "index": index,
                 "markerfacecolor": markerfacecolor,
                 "markeredgecolor": markeredgecolor,
+                "markeredgewidth": markeredgewidth,
                 "markersize": markersize,
                 "alpha": alpha,
                 "linecolor": linecolor,
@@ -371,6 +375,7 @@ class CategoricalPlot(BasePlot):
                 "linewidth": linewidth,
                 "unique_id": unique_id,
                 "linealpha": linealpha,
+                "agg_func": agg_func,
             }
         )
         return self

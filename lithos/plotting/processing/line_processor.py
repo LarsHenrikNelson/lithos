@@ -76,7 +76,7 @@ class LineProcessor(BaseProcessor):
         }
 
     def _post_process_density(
-        self, plot_data, hist_type: HistType, facet_index: list[int]
+        self, plot_data, hist_type: HistType, facet_index: list[int] | np.ndarray
     ):
         plot_data = np.asarray(plot_data)
         output = np.zeros(plot_data.shape)
@@ -765,7 +765,9 @@ class LineProcessor(BaseProcessor):
                     x_temp = [x for x in seq if not (x in seen or seen.add(x))]
                     x_output = np.zeros((len(uids), len(x_temp)))
                     y_output = np.zeros((len(uids), len(x_temp)))
-                for index, j in enumerate(uids):
+                for uid_index, j in enumerate(uids):
+                    if unique_groups is None:
+                        raise ValueError("unique_groups must not be None")
                     sub_indexes = unique_groups[group_key + (j,)]
                     temp_y = np.asarray(data[sub_indexes, y])
                     if func is None:
@@ -781,8 +783,8 @@ class LineProcessor(BaseProcessor):
                         err_data.append(None)
                     else:
                         temp_x = np.asarray(data[sub_indexes, x])
-                        y_output[index, :] = get_transform(ytransform)(temp_y)
-                        x_output[index, :] = get_transform(ytransform)(temp_x)
+                        y_output[uid_index, :] = get_transform(ytransform)(temp_y)
+                        x_output[uid_index, :] = get_transform(ytransform)(temp_x)
                 if func is not None:
                     y_data.append(get_transform(func)(y_output, axis=0))
                     x_data.append(get_transform(func)(x_output, axis=0))
