@@ -77,21 +77,21 @@ class DataHolder:
         elif self._container_type == "dict":
             return self._dict_index(index)
 
-    def min(self, index):
+    def min(self, index) -> float | int:
         return np.min(self.__getitem__(index))
 
-    def max(self, index):
+    def max(self, index) -> float | int:
         return np.max(self.__getitem__(index))
 
     @property
-    def size(self):
+    def size(self) -> int | None:
         if self._container_type == "numpy" or self._container_type == "pandas":
             return self._data.size
         elif self._container_type == "dict":
             return len(next(iter(self._data.values()))) * len(self._data.keys())
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int, int]:
         if self._container_type == "numpy" or self._container_type == "pandas":
             return self._data.shape
         else:
@@ -100,13 +100,13 @@ class DataHolder:
     def __len__(self):
         return self.size
 
-    def get_data(self, levels, ids):
+    def get_data(self, levels, ids) -> np.ndarray:
         bool_array = np.full(self.shape[0], True)
         for i, j in zip(levels, ids):
             bool_array = bool_array & (self[i] == j)
         return bool_array
 
-    def groupby(self, y, columns, sort=True):
+    def groupby(self, y, columns, sort=True) -> dict[tuple, list]:
         if not isinstance(y, tuple):
             y = (y,)
         levels = columns + y

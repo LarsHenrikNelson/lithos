@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random import default_rng
 
 
-def timeseries_dict(loc, scale, n):
+def timeseries_dict(loc: float | int, scale: float | int, n: int) -> np.ndarray:
     rng = default_rng()
     x1 = np.linspace(0, 50, n)
     x2 = np.linspace(0, 25, n)

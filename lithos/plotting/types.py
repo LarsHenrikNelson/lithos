@@ -143,6 +143,18 @@ class ViolinPlotData(PlotData):
     plot_type: str = "violin"
 
 
+PlotTypes: TypeAlias = (
+    ViolinPlotData
+    | BoxPlotData
+    | MarkerLinePlotData
+    | SummaryPlotData
+    | JitterPlotData
+    | ScatterPlotData
+    | LinePlotData
+    | RectanglePlotData
+)
+
+
 Kernels: TypeAlias = Literal[
     "gaussian",
     "exponential",

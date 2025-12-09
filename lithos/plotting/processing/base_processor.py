@@ -18,7 +18,7 @@ class BaseProcessor:
         self.zorder = 0
         self.PLOTS = {}
 
-    def _set_zorder(self):
+    def _set_zorder(self) -> dict:
         adder = self.zorder * len(self._plot_dict["zorder_dict"]) + 1
         zorder_dict = {
             key: 1 + (value + adder) / 100
@@ -27,7 +27,7 @@ class BaseProcessor:
         self.zorder += 1
         return zorder_dict
 
-    def preprocess_args(self, args: dict):
+    def preprocess_args(self, args: dict) -> dict:
         output_args = {}
         style_args = {"marker", "linestyle", "hatch"}
         width_args = {"width", "barwidth"}
@@ -47,7 +47,7 @@ class BaseProcessor:
                 output_args[key] = value
         return output_args
 
-    def preprocess_scatter(self, args: dict, data: DataHolder):
+    def preprocess_scatter(self, args: dict, data: DataHolder) -> dict:
         output_args = {}
         for key, value in args.items():
             if "color" in key:
@@ -136,7 +136,9 @@ class BaseProcessor:
                 processed_data.append(temp)
         return processed_data, self._plot_dict
 
-    def _process_dict(self, groups, dict, subgroups=None, agg: Agg | None = None):
+    def _process_dict(
+        self, groups, dict, subgroups=None, agg: Agg | None = None
+    ) -> list:
         if subgroups is None or agg is not None:
             output = [dict[g] for g in groups.keys()]
         else:

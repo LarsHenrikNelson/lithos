@@ -160,19 +160,24 @@ class LineProcessor(BaseProcessor):
         for group_key, group_indexes in groups.items():
             if unique_id is not None:
                 if bins is None:
+                    t = get_transform(transform)(data[group_indexes, column])
+                    if bin_limits is None:
+                        limits = (t.max(), t.min())
                     bins = np.histogram_bin_edges(
-                        get_transform(transform)(
-                            data[group_indexes[group_key], column]
-                        ),
+                        t,
                         bins=nbins,
-                        range=bin_limits,
+                        range=limits,
                     )
                 subgroup = np.unique(data[group_indexes, unique_id])
                 if agg_func is not None:
+                    if isinstance(nbins, str):
+                        nbins = 50
                     temp_list = np.zeros((len(subgroup), nbins))
                 else:
                     temp_list = []
                 for index, j in enumerate(subgroup):
+                    if unique_groups is None:
+                        raise ValueError("unique_groups must not be None")
                     temp_data = np.sort(data[unique_groups[group_key + (j,)], column])
                     poly = hist(get_transform(transform)(temp_data), bins, stat)
                     if agg_func is not None:
@@ -190,10 +195,13 @@ class LineProcessor(BaseProcessor):
             else:
                 temp_data = np.sort(data[groups[group_key], column])
                 if bins is None:
+                    t = get_transform(transform)(data[group_indexes, column])
+                    if bin_limits is None:
+                        limits = (t.max(), t.min())
                     bins = np.histogram_bin_edges(
-                        get_transform(transform)(data[group_indexes, column]),
+                        t,
                         bins=nbins,
-                        range=bin_limits,
+                        range=limits,
                     )
                 poly = hist(get_transform(transform)(temp_data), bins, stat)
                 plot_data.append(poly)
@@ -246,13 +254,13 @@ class LineProcessor(BaseProcessor):
                 fillcolor=self._process_dict(
                     groups, facecolor, unique_groups, agg_func
                 ),
-                linewidth=linewidth,
+                linewidth=[linewidth for _ in plot_data],
                 linestyle=["-" for _ in plot_data],
                 markerfacecolor=nones,
                 markeredgecolor=nones,
-                markersize=[0 for _ in plot_data],
+                markersize=0,
                 fill_between=False,
-                fill_under=[True for _ in plot_data],
+                fill_under=True,
                 linealpha=linealpha,
                 fillalpha=fillalpha,
                 direction=axis,
@@ -327,18 +335,18 @@ class LineProcessor(BaseProcessor):
         x: str,
         y: str,
         levels: Levels,
-        marker: str | dict[str, str],
+        marker: dict,
         markersize: float | int,
-        markerfacecolor: str | dict[str, str],
-        markeredgecolor: str | dict[str, str],
-        linestyle: str | dict[str, str],
+        markerfacecolor: dict,
+        markeredgecolor: dict,
+        linestyle: dict,
         linewidth: float | int,
-        linecolor: str | dict[str, str],
-        fillcolor: str | dict[str, str],
+        linecolor: dict,
+        fillcolor: dict,
         linealpha: float | int,
-        loc_dict: dict[str, int],
-        zorder_dict: dict[str, int],
-        func: Agg = None,
+        loc_dict: dict,
+        zorder_dict: dict,
+        func: Agg | None = None,
         err_func: Error = None,
         fill_between: bool = False,
         fillalpha: AlphaRange = 1.0,
@@ -422,7 +430,7 @@ class LineProcessor(BaseProcessor):
             marker=mks,
             linecolor=lcs,
             fillcolor=fcs,
-            linewidth=linewidth,
+            linewidth=[linewidth for _ in y_data],
             linestyle=lss,
             markerfacecolor=mfcs,
             markeredgecolor=mecs,
@@ -456,7 +464,7 @@ class LineProcessor(BaseProcessor):
         kernel: Kernels = "gaussian",
         bw: BW = "ISJ",
         kde_length: int | None = None,
-        tol: float | int | tuple = 1e-3,
+        tol: float | int | tuple[float, float] = 1e-3,
         common_norm: bool = True,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
@@ -538,6 +546,8 @@ class LineProcessor(BaseProcessor):
                     x_array = np.linspace(min_data, max_data, num=kde_length)
                     y_hold = np.zeros((len(subgroups), x_array.size))
                 for hi, s in enumerate(subgroups):
+                    if unique_groups is None:
+                        raise ValueError("unique_groups must not be None.")
                     s_indexes = unique_groups[group_key + (s,)]
                     y_values = np.asarray(data[s_indexes, column]).flatten()
                     temp_size = y_values.size
@@ -582,7 +592,7 @@ class LineProcessor(BaseProcessor):
             marker=nones,
             linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
             fillcolor=self._process_dict(groups, fillcolor, unique_groups, agg_func),
-            linewidth=linewidth,
+            linewidth=[linewidth] * len(y_data),
             linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
             markerfacecolor=nones,
             markeredgecolor=nones,
@@ -658,6 +668,8 @@ class LineProcessor(BaseProcessor):
                     y_ecdf = np.arange(ecdf_args["size"]) / ecdf_args["size"]
                     x_hold = np.zeros((len(subgroups), ecdf_args["size"]))
                 for hi, s in enumerate(subgroups):
+                    if unique_groups is None:
+                        raise ValueError("unique_groups must not be None.")
                     y_values = np.asarray(
                         data[unique_groups[group_key + (s,)], column]
                     ).flatten()
@@ -696,7 +708,7 @@ class LineProcessor(BaseProcessor):
             marker=nones,
             linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
             fillcolor=self._process_dict(groups, fillcolor, unique_groups, agg_func),
-            linewidth=linewidth,
+            linewidth=[linewidth] * len(y_data),
             linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
             markerfacecolor=nones,
             markeredgecolor=nones,
@@ -808,7 +820,7 @@ class LineProcessor(BaseProcessor):
             marker=nones,
             linecolor=self._process_dict(groups, linecolor, unique_groups, func),
             fillcolor=fillcolor,
-            linewidth=linewidth,
+            linewidth=[linewidth] * len(y_data),
             linestyle=self._process_dict(groups, linestyle, unique_groups, func),
             markerfacecolor=nones,
             markeredgecolor=nones,
@@ -842,8 +854,8 @@ class LineProcessor(BaseProcessor):
         fit_args: dict | None = None,
         fill_between: bool = False,
         ci_func: Literal["ci", "pi"] = "ci",
-        agg_func: Agg = None,
-        err_func: Agg = None,
+        agg_func: Agg | None = None,
+        err_func: Agg | None = None,
         **kwargs,
     ):
         x_data = []
@@ -879,6 +891,8 @@ class LineProcessor(BaseProcessor):
                     y_hold = np.zeros((len(uids), 100))
                     x_data.append(x_array)
                 for uindex, j in enumerate(uids):
+                    if unique_groups is None:
+                        raise ValueError("unique_groups must not be None.")
                     sub_indexes = unique_groups[group_key + (j,)]
                     if agg_func is None:
                         temp_y = get_transform(ytransform)(
@@ -929,7 +943,7 @@ class LineProcessor(BaseProcessor):
             marker=nones,
             linecolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
             fillcolor=self._process_dict(groups, linecolor, unique_groups, agg_func),
-            linewidth=linewidth,
+            linewidth=[linewidth] * len(y_data),
             linestyle=self._process_dict(groups, linestyle, unique_groups, agg_func),
             markerfacecolor=nones,
             markeredgecolor=nones,

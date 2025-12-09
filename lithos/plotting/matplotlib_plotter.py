@@ -20,7 +20,7 @@ from ..utils import (
 )
 from .plot_utils import _decimals, radian_ticks
 from .plot_utils import get_ticks
-from .types import SavePath, PlotData, Direction
+from .types import SavePath, PlotData, Direction, PlotTypes
 
 MARKERS = [
     "o",
@@ -75,7 +75,7 @@ class Plotter:
 
     def __init__(
         self,
-        plot_data: list[Type[PlotData]],
+        plot_data: list[PlotTypes],
         plot_dict: dict,
         metadata: dict,
         savefig: bool = False,
@@ -828,12 +828,13 @@ class Plotter:
         linealpha: float | None = None,
         **kwargs,
     ):
-        for x, y, err, ls, lc, fc, mf, me, mk, fi, z in zip(
+        for x, y, err, ls, lc, lw, fc, mf, me, mk, fi, z in zip(
             x_data,
             y_data,
             error_data,
             linestyle,
             linecolor,
+            linewidth,
             fillcolor,
             markerfacecolor,
             markeredgecolor,
@@ -851,8 +852,8 @@ class Plotter:
                         xerr=err,
                         marker=mk,
                         color=lc,
-                        elinewidth=linewidth,
-                        linewidth=linewidth,
+                        elinewidth=lw,
+                        linewidth=lw,
                         linestyle=ls,
                         markerfacecolor=mf,
                         markeredgecolor=me,
@@ -867,8 +868,8 @@ class Plotter:
                         yerr=err,
                         marker=mk,
                         color=lc,
-                        elinewidth=linewidth,
-                        linewidth=linewidth,
+                        elinewidth=lw,
+                        linewidth=lw,
                         linestyle=ls,
                         markerfacecolor=mf,
                         markeredgecolor=me,
@@ -910,7 +911,7 @@ class Plotter:
                     x,
                     y,
                     linestyle=ls,
-                    linewidth=linewidth,
+                    linewidth=lw,
                     color=lc,
                     alpha=linealpha,
                     zorder=z,
@@ -942,7 +943,7 @@ class Plotter:
                     x,
                     y,
                     linestyle=ls,
-                    linewidth=linewidth,
+                    linewidth=lw,
                     color=lc,
                     alpha=linealpha,
                     zorder=z,
@@ -952,7 +953,7 @@ class Plotter:
                     x,
                     y,
                     linestyle=ls,
-                    linewidth=linewidth,
+                    linewidth=lw,
                     color=lc,
                     alpha=linealpha,
                     zorder=z,

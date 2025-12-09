@@ -3,6 +3,7 @@ from typing import Union
 import numpy as np
 from numba import njit
 from numpy.random import default_rng
+from numpy.typing import NDArray
 
 """
 See: https://github.com/aarchiba/kuiper
@@ -91,7 +92,7 @@ def periodic_std(angles: np.ndarray, axis=None) -> float:
 
 def periodic_sem(angles: np.ndarray, axis=None) -> float:
     std = periodic_std(angles)
-    return std / np.sqrt(std.size - 1)
+    return std / np.sqrt(std - 1)
 
 
 @njit(cache=True)
@@ -136,7 +137,7 @@ def h_fpp(H: Union[float, int]) -> float:
         )
 
 
-def h_test(events: np.ndarray) -> tuple[float, float, float]:
+def h_test(events: NDArray[np.float64]) -> tuple[float, int, float]:
     """Apply the H test for uniformity on [0,1).
 
     The H test is an extension of the Z_m^2 or Rayleigh tests for
@@ -186,4 +187,4 @@ def h_test(events: np.ndarray) -> tuple[float, float, float]:
     M = np.argmax(Hcand) + 1
     H = Hcand[M - 1]
     fpp = h_fpp(H)
-    return (H, M, fpp)
+    return H, M, fpp

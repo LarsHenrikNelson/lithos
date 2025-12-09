@@ -40,7 +40,7 @@ def kde(
     kde_length: int | None = None,
     tol: float | int | tuple = 1e-3,
     KDEType: Literal["fft", "tree"] = "fft",
-):
+) -> tuple[np.ndarray, np.ndarray]:
     data = np.asarray(data)
     if KDEType == "fft":
         kde_obj = KDEpy.FFTKDE(kernel=kernel, bw=bw).fit(data)

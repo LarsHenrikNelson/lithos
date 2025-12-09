@@ -3,6 +3,7 @@ from typing import Any
 
 import colorcet as cc
 import matplotlib as mpl
+from matplotlib.colors import ListedColormap
 import numpy as np
 from numpy.random import default_rng
 
@@ -53,7 +54,11 @@ def _get_colormap(colormap: str | None) -> str | list:
         if isinstance(mpl.colormaps[colormap], mpl.colors.LinearSegmentedColormap):
             return [mpl.colormaps[colormap](i) for i in np.linspace(0, 1, 256)]
         else:
-            return mpl.colormaps[colormap].colors
+            t = mpl.colormaps[colormap]
+            if isinstance(t, ListedColormap):
+                return mpl.colormaps[colormap].colors
+            else:
+                raise AttributeError("Colormap does not have colors attribute.")
     else:
         raise ValueError(
             f"Colormap '{colormap}' not found in colorcet or matplotlib colormaps."

@@ -51,7 +51,7 @@ def prediction_intervals(x, y, fit_x, residuals):
     return pi
 
 
-def get_ci_func(ci_func: CIFunc = "ci", **kwargs):
+def get_ci_func(ci_func: CIFunc | None = "ci", **kwargs):
     if ci_func == "ci":
         return confidence_intervals(
             x=kwargs["x"],
@@ -102,7 +102,7 @@ def fit_polynomial(x, y, fit_x=None, degree=2):
         fit_x = np.sort(x)
     fit_y = output(fit_x)
     residuals = y - output(x)
-    ci = get_ci_func(x, y, fit_x, residuals, ci_func=None)
+    ci = get_ci_func(None, x=x, y=y, fit_x=fit_x, residuals=residuals)
     return output, fit_y, fit_x, ci
 
 

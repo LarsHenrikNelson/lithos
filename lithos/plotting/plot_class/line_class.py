@@ -67,7 +67,7 @@ class LinePlot(BasePlot):
         fillcolor: ColorParameters | None = None,
         fill_between: bool = False,
         linestyle: str = "-",
-        linewidth: int = 2,
+        linewidth: float | int = 2,
         linealpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 0.5,
         unique_id: str | None = None,
