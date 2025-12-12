@@ -20,14 +20,14 @@ class TestDataHolderNumpy(DataHolderTestClass):
     def get_column_names(self, x):
         cols = sum(True for i in x[:3] if i > 0)
         if cols == 1:
-            return [2]
+            return (2,)
         elif cols == 2:
             if x[2] == 0:
-                return [2, 3]
+                return (2, 3)
             else:
-                return [2, 3]
+                return (2, 3)
         elif cols == 3:
-            return [2, 3, 4]
+            return (2, 3, 4)
 
     def test_max(
         self,

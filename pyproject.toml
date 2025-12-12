@@ -1,54 +1,52 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "wheel",  "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
 
 [project]
 name = "lithos"
 readme = "README.md"
+license = "BSD-3-Clause"
 description = "Lithos: plotting package for categorical and nested data."
 authors = [{ name = "Lars Henrik Nelson", email = "larshnelson@protonmail.com" }]
 maintainers = [{ name = "Lars Henrik Nelson", email = "larshnelson@protonmail.com" }]
 dynamic = ["version"]
-keywords = ["analysis"]
 classifiers = [
     "Intended Audience :: Science/Research",
-    "Operating System :: MacOS",
-    "Operating System :: POSIX",
-    "Operating System :: Unix",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Multimedia :: Graphics",
+    "Operating System :: OS Independent",
+    "Framework :: Matplotlib",
 ]
 dependencies = [
     "colorcet",
     "KDEpy",
     "matplotlib",
     "numba",
-    "numpy < 2.0",
+    "numpy > 1.24.0",
     "pandas",
     "scipy",
 ]
 requires-python = ">=3.10"
-license = {text = 'GNU General Public License v3 (GPLv3)'}
-
-[tool.setuptools.dynamic]
-version = {attr = "lithos.__version__"}
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q"
-testpaths = [
-    "tests",
-    "integration",
-]
+testpaths = ["tests"]
 
 [project.optional-dependencies]
-testing = ["pytest"]
+testing = ["pytest", "pytest-cov"]
 docs = ["nbconvert"]
 
 [project.urls]
-Downloads = "https://github.com/larshnelson/lithos/"
+Downloads = "https://github.com/LarsHenrikNelson/lithos"
 
-[tool.setuptools]
-packages=["lithos"]
+[tool.setuptools.packages]
+find = {}
+
+[tool.ruff.lint]
+ignore = ["F401", "F403"]

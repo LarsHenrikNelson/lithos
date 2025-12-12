@@ -66,14 +66,14 @@ class StringColumnsDataHolder(DataHolderTestClass):
     def get_column_names(self, x):
         cols = sum(True for i in x[:3] if i > 0)
         if cols == 1:
-            return ["grouping_1"]
+            return ("grouping_1",)
         elif cols == 2:
             if x[2] == 0:
-                return ["grouping_1", "grouping_2"]
+                return ("grouping_1", "grouping_2")
             else:
-                return ["grouping_1", "unique_grouping"]
+                return ("grouping_1", "unique_grouping")
         elif cols == 3:
-            return ["grouping_1", "grouping_2", "unique_grouping"]
+            return ("grouping_1", "grouping_2", "unique_grouping")
 
     def test_max(
         self,

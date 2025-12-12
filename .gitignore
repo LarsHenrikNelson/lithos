@@ -5,3 +5,4 @@ build/
 .continueignore
 .pytest_cache/
 .vscode/
+.coverage

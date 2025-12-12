@@ -1,6 +1,7 @@
 from pathlib import Path
 import ast
 
+from ..plotting.types import Group, Subgroup, UniqueGroups
 
 def home_dir():
     p = Path.home()
@@ -47,7 +48,7 @@ def metadata_to_string(metadata, level=0):
             else:
                 temp_key = key
             output.append(f"{' '*level*2}{temp_key}:\n")
-            if isinstance(metadata[key], (list, tuple, dict)):
+            if isinstance(metadata[key], (list, tuple, dict, Group, Subgroup, UniqueGroups)):
                 temp = metadata_to_string(metadata[key], level + 1)
                 output.extend(temp)
             else:
@@ -78,6 +79,9 @@ def metadata_to_string(metadata, level=0):
                 temp = prepend + str(val) + postend
                 output.append(temp)
         output.append(f"{' '*level*2}" + "],\n")
+    elif isinstance(metadata, (Group, Subgroup, UniqueGroups)):
+        temp = metadata_to_string(metadata._asdict(), level + 1)
+        output.extend(temp)
     elif isinstance(metadata, tuple):
         output.append(f"{' '*level*2}" + "(\n")
         for index, val in enumerate(metadata):
@@ -106,6 +110,19 @@ def metadata_to_string(metadata, level=0):
         output[-1] = "}\n"
     return output
 
+def _process_metadata(metadata: dict):
+    if "plot_prefs" in metadata:
+        for plot_item in metadata["plot_prefs"]:
+            for key, value in plot_item.items():
+                if isinstance(value, dict):
+                    if "group" in value:
+                        value = Group(**value)
+                        plot_item[key] = value
+                    elif "subgroup" in value:
+                        value = Subgroup(**value)
+                    elif "unique_groups" in value:
+                        value = UniqueGroups(**value)
+    return metadata
 
 def load_metadata(metadata_path: str | Path):
     if not isinstance(metadata_path, (str, dict, Path)):
@@ -127,6 +144,7 @@ def load_metadata(metadata_path: str | Path):
         output = ast.literal_eval(lines)
     else:
         raise FileNotFoundError("Metadata file does not exist")
+    output = _process_metadata(output)
     return output
 
 

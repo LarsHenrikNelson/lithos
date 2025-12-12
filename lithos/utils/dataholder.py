@@ -9,8 +9,13 @@ class DataHolder:
             for key, value in data.items():
                 if isinstance(value, list):
                     data[key] = np.array(value)
+        if isinstance(data, np.ndarray):
+            if len(data.shape) == 1:
+                data = data.reshape(-1, 1)
         self._data = data._data if isinstance(data, DataHolder) else data
         self._container_type = self._get_container_type()
+        self._groups_cache = {}
+        self._groupby_cache = {}
 
     def __contains__(self, item):
         if self._container_type == "pandas" or self._container_type == "dict":
@@ -27,7 +32,7 @@ class DataHolder:
             return "dict"
         else:
             raise ValueError(
-                "Only numpy arrays or pandas dataframes/series are accepted."
+                "Only numpy arrays, dict, or pandas dataframes/series are accepted."
             )
 
     def _numpy_index(self, index):
@@ -99,17 +104,31 @@ class DataHolder:
         return bool_array
 
     def groupby(self, y, columns, sort=True):
-        if not isinstance(y, list):
-            y = [y]
-        yy = pd.DataFrame(self._data)[columns + y].groupby(columns, sort=sort)
+        if not isinstance(y, tuple):
+            y = (y,)
+        levels = columns + y
+        if levels in self._groupby_cache:
+            return self._groupby_cache[levels]
+        yy = pd.DataFrame(self._data)[list(columns + y)].groupby(
+            list(columns), sort=sort, as_index=False
+        )
+        self._groupby_cache[levels] = yy
         return yy
 
     def groups(self, levels):
-        temp_groups = pd.DataFrame(self._data).groupby(levels).indices
+        if levels in self._groups_cache:
+            return self._groups_cache[levels]
+        if len(levels) == 0:
+            new_groups = {}
+            new_groups[("",)] = np.arange(self.shape[0])
+            self._groups_cache[levels] = new_groups
+            return new_groups
+        temp_groups = pd.DataFrame(self._data).groupby(list(levels)).indices
         new_groups = {}
         for key, value in temp_groups.items():
             if not isinstance(key, tuple):
                 new_groups[(key,)] = value
             else:
                 new_groups[key] = value
+        self._groups_cache[levels] = new_groups
         return new_groups

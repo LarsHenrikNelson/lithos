@@ -1,6 +1,10 @@
-from . import (
-    plotting,  # noqa: F401
-)
-from .stats import *  # noqa F403
+from importlib.metadata import version, PackageNotFoundError
 
-__version__ = "0.0.1"
+from .plotting import CategoricalPlot, LinePlot
+from .stats import *
+from .plotting.types import Group, Subgroup, UniqueGroups
+
+try:
+    __version__ = version("lithos")
+except PackageNotFoundError:
+    pass

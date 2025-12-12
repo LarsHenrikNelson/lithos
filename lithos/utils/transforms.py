@@ -1,5 +1,3 @@
-from typing import Literal
-
 from scipy import stats
 import numpy as np
 
@@ -40,30 +38,12 @@ def ci(a, axis=None):
 
 def ci_bca(a):
     res = stats.bootstrap(a, np.mean)
-    print(res.confidence_interval)
     return np.array([[res.confidence_interval.high], [res.confidence_interval.low]])
 
 
 def mad(a, axis=None):
     return np.median(np.abs(a - np.median(a, axis=axis)))
 
-
-TRANSFORM = Literal["log10", "log2", "ln", "inverse", "ninverse", "sqrt"]
-AGGREGATE = Literal[
-    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean"
-]
-ERROR = Literal[
-    "sem",
-    "ci",
-    "periodic_std",
-    "periodic_sem",
-    "std",
-    "nanstd",
-    "var",
-    "nanvar",
-    "mad",
-    "gstd",
-]
 
 BACK_TRANSFORM_DICT = {
     "log10": lambda x: 10.0**x,
@@ -101,6 +81,13 @@ FUNC_DICT = {
     "gmean": stats.gmean,
     "hmean": stats.hmean,
     "gstd": stats.gstd,
+    "count": len,
+    "percentile_10": lambda a: np.percentile(a, 10),
+    "percentile_75": lambda a: np.percentile(a, 75),
+    "percentile_25": lambda a: np.percentile(a, 25),
+    "percentile_90": lambda a: np.percentile(a, 90),
+    "percentile_5": lambda a: np.percentile(a, 5),
+    "percentile_95": lambda a: np.percentile(a, 95),
 }
 
 
