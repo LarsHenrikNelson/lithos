@@ -1,5 +1,3 @@
-# TODO: Need to remove all matplotlib functions from this file.
-
 from itertools import cycle
 from typing import Literal
 
@@ -7,6 +5,32 @@ import numpy as np
 from numpy.random import default_rng
 
 from ... import stats
+from ...types.basic_types import (
+    BW,
+    BinType,
+    CapStyle,
+    JitterType,
+    Kernels,
+    Levels,
+    Transform,
+    CategoricalLabels
+)
+from ...types.plot_input import (
+    Agg,
+    AlphaRange,
+    Error,
+    Grouping,
+    Subgrouping,
+    UniqueGrouping,
+)
+from ...types.plot_types import (
+    BoxPlotData,
+    JitterPlotData,
+    MarkerLinePlotData,
+    RectanglePlotData,
+    SummaryPlotData,
+    ViolinPlotData,
+)
 from ...utils import DataHolder, get_transform
 from ..plot_utils import (
     _bin_data,
@@ -15,26 +39,6 @@ from ..plot_utils import (
     create_dict,
     process_duplicates,
     process_jitter,
-)
-from ..types import (
-    BW,
-    Agg,
-    AlphaRange,
-    BinType,
-    BoxPlotData,
-    CapStyle,
-    Error,
-    Grouping,
-    JitterPlotData,
-    JitterType,
-    Kernels,
-    Levels,
-    MarkerLinePlotData,
-    RectanglePlotData,
-    Subgrouping,
-    SummaryPlotData,
-    Transform,
-    ViolinPlotData,
 )
 from .base_processor import BaseProcessor
 
@@ -62,6 +66,7 @@ class CategoricalProcessor(BaseProcessor):
         group_order: Grouping,
         subgroup_order: Subgrouping,
         group_spacing: float = 1.0,
+        labels: CategoricalLabels = "style1",
         **kwargs,
     ):
         group_order, subgroup_order, unique_groups, levels = _create_groupings(
@@ -92,7 +97,9 @@ class CategoricalProcessor(BaseProcessor):
             "levels": levels,
             "zorder_dict": zorder_dict,
             "ticks": x_ticks,
+            "subticks": list(loc_dict.values()),
             "width": width,
+            "labels": labels,
         }
 
     def _jitter(

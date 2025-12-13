@@ -1,31 +1,34 @@
-from typing import Literal
 import warnings
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 from typing_extensions import Self
 
-from .. import matplotlib_plotter as mpl
-from ..plot_utils import _process_colors, create_dict
-from ..processing import CategoricalProcessor
-from ..types import (
+from ...types.basic_types import (
     BW,
-    Agg,
-    AlphaRange,
     BinType,
     CapStyle,
-    ColorParameters,
+    CategoricalLabels,
     CountPlotTypes,
-    Error,
     InputData,
     JitterType,
     KDEType,
     Kernels,
     SavePath,
+)
+from ...types.plot_input import (
+    Agg,
+    AlphaRange,
+    ColorParameters,
+    Error,
     Grouping,
     Subgrouping,
     UniqueGrouping,
 )
+from .. import matplotlib_plotter as mpl
+from ..plot_utils import _process_colors, create_dict
+from ..processing import CategoricalProcessor
 from .base_class import BasePlot
 
 
@@ -40,14 +43,18 @@ class CategoricalPlot(BasePlot):
         group_order: Grouping = None,
         subgroup_order: Subgrouping = None,
         group_spacing: float | int = 1.0,
+        labels: CategoricalLabels = "style1",
         **kwargs,
     ) -> Self:
+        if subgroup is None and labels in {"style2", "style3"}:
+            raise ValueError("Cannot pass labels as style2, style3 if subgroup is None")
         self._grouping = {
             "group": group,
             "subgroup": subgroup,
             "group_order": group_order,
             "subgroup_order": subgroup_order,
             "group_spacing": group_spacing,
+            "labels": labels,
         }
 
         return self

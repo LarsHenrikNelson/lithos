@@ -20,7 +20,8 @@ from ..utils import (
 )
 from .plot_utils import _decimals, radian_ticks
 from .plot_utils import get_ticks
-from .types import SavePath, PlotData, Direction, PlotTypes
+from ..types.basic_types import SavePath, Direction
+from ..types.plot_types import PlotData, PlotTypes
 
 MARKERS = [
     "o",
@@ -1231,10 +1232,34 @@ class CategoricalPlotter(Plotter):
         return fig, [ax]
 
     def set_categorical_axis(self, ax, axis="x"):
+        bottom_labels = None
+        bottom_ticks = None
+        if self.plot_dict["labels"] == "style1":
+            top_labels = self.plot_dict["group_order"]
+            top_ticks = self.plot_dict["ticks"]
+        elif self.plot_dict["labels"] == "style2":
+            top_labels = self.plot_dict["subgroup_order"]
+            top_ticks = self.plot_dict["subticks"]
+            n_repeats = len(top_ticks) // len(top_labels)
+            top_labels = np.tile(top_labels, n_repeats)
+        elif self.plot_dict["labels"] == "style3":
+            top_labels = self.plot_dict["subgroup_order"]
+            bottom_labels = self.plot_dict["group_order"]
+            if axis == "x":
+                bottom_labels = [f"\n{i}" for i in bottom_labels]
+            else:
+                bottom_labels = [f"{i}" for i in bottom_labels]
+            top_ticks = self.plot_dict["subticks"]
+            bottom_ticks = self.plot_dict["ticks"]
+            n_repeats = len(top_ticks) // len(top_labels)
+            top_labels = np.tile(top_labels, n_repeats)
+        else:
+            raise ValueError("Labels must style1, style2, style3.")
+
         if axis == "x":
             ax.set_xticks(
-                ticks=self.plot_dict["ticks"],
-                labels=self.plot_dict["group_order"],
+                ticks=top_ticks,
+                labels=top_labels,
                 rotation=self.plot_format["labels"]["xtick_rotation"],
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["tick_fontweight"],
@@ -1243,10 +1268,20 @@ class CategoricalPlotter(Plotter):
             if self.plot_format["axis_format"]["truncate_xaxis"]:
                 ticks = self.plot_dict["ticks"]
                 ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+            if bottom_labels is not None:
+                sec = ax.secondary_xaxis(location=0)
+                sec.set_xticks(
+                    bottom_ticks,
+                    labels=bottom_labels,
+                    fontfamily=self.plot_format["labels"]["font"],
+                    fontweight=self.plot_format["labels"]["tick_fontweight"],
+                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                )
+                sec.tick_params(axis='x', bottom=False)
         else:
             ax.set_yticks(
-                ticks=self.plot_dict["ticks"],
-                labels=self.plot_dict["group_order"],
+                ticks=top_ticks,
+                labels=top_labels,
                 rotation=self.plot_format["labels"]["xtick_rotation"],
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["tick_fontweight"],
@@ -1255,6 +1290,16 @@ class CategoricalPlotter(Plotter):
             if self.plot_format["axis_format"]["truncate_yaxis"]:
                 ticks = self.plot_dict["ticks"]
                 ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+            if bottom_labels is not None:
+                sec = ax.secondary_yaxis(location="left")
+                sec.set_yticks(
+                    bottom_ticks,
+                    labels=bottom_labels,
+                    fontfamily=self.plot_format["labels"]["font"],
+                    fontweight=self.plot_format["labels"]["tick_fontweight"],
+                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                )
+                sec.tick_params(axis='y', left=False)
 
     def format_plot(self):
         ax = self.axes[0]

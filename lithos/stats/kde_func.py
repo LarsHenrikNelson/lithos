@@ -4,7 +4,7 @@ import KDEpy
 import numpy as np
 import numpy.typing as npt
 
-from ..plotting.types import BW
+from ..types.basic_types import BW
 
 
 def _kde_length(

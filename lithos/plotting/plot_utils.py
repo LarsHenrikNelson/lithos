@@ -7,7 +7,8 @@ from matplotlib.colors import ListedColormap
 import numpy as np
 from numpy.random import default_rng
 
-from .types import Group, JitterType, Subgroup, UniqueGroups, ProcessingOutput
+from ..types.plot_input import Group, Subgroup, UniqueGroups
+from ..types.basic_types import JitterType, ProcessingOutput
 
 
 def create_dict(

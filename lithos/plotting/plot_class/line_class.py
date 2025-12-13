@@ -1,16 +1,10 @@
 from typing import Literal
-from typing_extensions import Self
 
 import pandas as pd
+from typing_extensions import Self
 
-from .. import matplotlib_plotter as mpl
-from ..processing import LineProcessor
-from ..types import (
+from ...types.basic_types import (
     BW,
-    Agg,
-    AlphaRange,
-    ColorParameters,
-    Error,
     FitFunc,
     HistBinLimits,
     HistStat,
@@ -18,12 +12,20 @@ from ..types import (
     InputData,
     KDEType,
     Kernels,
+    NBins,
     SavePath,
+)
+from ...types.plot_input import (
+    Agg,
+    AlphaRange,
+    ColorParameters,
+    Error,
     Grouping,
     Subgrouping,
     UniqueGrouping,
-    NBins,
 )
+from .. import matplotlib_plotter as mpl
+from ..processing import LineProcessor
 from .base_class import BasePlot
 
 

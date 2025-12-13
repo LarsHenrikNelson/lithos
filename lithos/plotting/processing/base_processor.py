@@ -1,13 +1,13 @@
 import numpy as np
 
+from ...types.plot_input import Agg, Grouping, Subgrouping, UniqueGrouping
+from ...utils import DataHolder
 from ..plot_utils import (
+    _create_groupings,
     _process_colors,
     create_dict,
     process_scatter_args,
-    _create_groupings,
 )
-from ...utils import DataHolder
-from ..types import Agg, Grouping, Subgrouping
 
 
 class BaseProcessor:

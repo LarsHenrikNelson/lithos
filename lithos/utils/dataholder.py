@@ -106,7 +106,7 @@ class DataHolder:
             bool_array = bool_array & (self[i] == j)
         return bool_array
 
-    def groupby(self, y, columns, sort=True) -> dict[tuple, list]:
+    def groupby(self, y, columns, sort=True) -> pd.DataFrame:
         if not isinstance(y, tuple):
             y = (y,)
         levels = columns + y

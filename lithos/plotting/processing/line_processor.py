@@ -5,27 +5,31 @@ import numpy as np
 
 from ... import stats
 from ...stats import hist
-from ...utils import DataHolder, get_transform
-from ..plot_utils import _create_groupings, create_dict
-from ..types import (
+from ...types.basic_types import (
     BW,
-    Agg,
-    AlphaRange,
-    Error,
+    BinType,
     FitFunc,
     HistBinLimits,
     HistStat,
     HistType,
+    JitterType,
     Kernels,
     Levels,
-    LinePlotData,
-    RectanglePlotData,
-    ScatterPlotData,
-    Transform,
     NBins,
+    Transform,
 )
+from ...types.plot_input import (
+    Agg,
+    AlphaRange,
+    Error,
+    Grouping,
+    Subgrouping,
+    UniqueGrouping,
+)
+from ...types.plot_types import LinePlotData, RectanglePlotData, ScatterPlotData
+from ...utils import DataHolder, get_transform
+from ..plot_utils import _create_groupings, create_dict
 from .base_processor import BaseProcessor
-from ..types import Grouping, Subgrouping
 
 
 class LineProcessor(BaseProcessor):
@@ -351,8 +355,8 @@ class LineProcessor(BaseProcessor):
         fill_between: bool = False,
         fillalpha: AlphaRange = 1.0,
         agg_func: Agg | None = None,
-        ytransform: Transform = None,
-        xtransform: Transform = None,
+        ytransform: Transform | None = None,
+        xtransform: Transform | None = None,
         unique_id: str | None = None,
         sort=True,
         *args,
@@ -534,8 +538,10 @@ class LineProcessor(BaseProcessor):
                         max_data = max_data + np.abs((max_data * tol))
                         min_data = min_data if min_data != 0 else -1e-10
                         max_data = max_data if max_data != 0 else 1e-10
-                    else:
+                    elif isinstance(tol, tuple) and len(tol) == 2:
                         min_data, max_data = tol
+                    else:
+                        raise ValueError("Cannot determine min and max for linspace.")
                     if KDEType == "fft":
                         if kde_length is None:
                             kde_length = int(np.ceil(np.log2(len(temp_data))))

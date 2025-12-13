@@ -2,7 +2,7 @@ import ast
 from pathlib import Path
 from typing import Callable
 
-from ..plotting.types import Group, Subgroup, UniqueGroups
+from ..types.plot_input import Group, Subgroup, UniqueGroups
 
 
 def home_dir() -> Path:

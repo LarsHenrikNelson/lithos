@@ -4,7 +4,7 @@ from scipy import stats
 from scipy.optimize import curve_fit
 import numpy as np
 from numpy.polynomial import Polynomial
-from ..plotting.types import FitFunc, CIFunc
+from ..types.basic_types import FitFunc, CIFunc
 
 
 def confidence_intervals(x, y, fit_x, residuals):

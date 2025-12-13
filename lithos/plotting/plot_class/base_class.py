@@ -5,11 +5,16 @@ import numpy as np
 import pandas as pd
 from typing_extensions import Self
 
+from ...types.basic_types import (
+    InputData,
+    SavePath,
+    Transform,
+)
+from ...types.plot_input import Agg, Error, Grouping, Subgrouping
 from ...utils import (
     DataHolder,
     metadata_utils,
 )
-from ..types import Agg, Error, Grouping, InputData, SavePath, Subgrouping, Transform
 
 
 class BasePlot:
