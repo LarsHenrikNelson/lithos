@@ -39,9 +39,12 @@ Import the plots and data generator (or use your own data).
 
 
 ```python
-from lithos import CategoricalPlot, LinePlot, Group, Subgroup, UniqueGroups
-from lithos.utils import create_synthetic_data
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from lithos import CategoricalPlot, Group, LinePlot, Subgroup, UniqueGroups
+from lithos.utils import create_synthetic_data
 ```
 
 ### Create some data
@@ -301,7 +304,7 @@ plot = (
     .jitteru(
         unique_id="unique_grouping",
         marker="o",
-        markercolor=Group(("orange", "magenta")),
+        markercolor=Group("orange", "magenta"),
         edgecolor="none",
         alpha=0.5,
         width=0.9,
@@ -424,7 +427,7 @@ plot = (
     )
     .box(
         facecolor="none",
-        edgecolor=UniqueGroups(["blue", "green", "magenta", "red"]),
+        edgecolor=UniqueGroups("blue", "green", "magenta", "red"),
         width=0.8,
         alpha=0.8,
         # showmeans=True, # You can shows means but it looks weird with show_ci
@@ -438,6 +441,77 @@ plot = (
 
     
 ![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/box.png)
+    
+
+
+### Pair plot
+Pair plot is similar to jitteru except that it will plot lines between points and expects to have a the same number of points per unique_id. This is useful for before-after or progressive treatments within a subject. Current the within points are not labeled on the x-axis but you can supply the order the within factor occurs. You can specify lines and markers. Note that jitteru will output the markers as the paired plot but is not designed for within subjects plotting. If you do not pass a grouping variable to CategoricalPlot your unique_ids cannot repeat otherwise non-unique ids will work.
+
+
+```python
+fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
+wtp = 3
+df = create_synthetic_data(
+    n_groups=3, n_unique_ids=30, n_points=wtp, distribution="normal"
+)
+df = pd.DataFrame(df)
+df["order"] = np.tile(np.arange(wtp) + 1, df.shape[0] // wtp)
+plot = (
+    CategoricalPlot(df)
+    .paired(
+        unique_id="unique_grouping",
+        index="order",
+        markerfacecolor="glasbey_category10",
+        markeredgecolor="black",
+        linealpha=0.2,
+    )
+    .paired(
+        unique_id="unique_grouping",
+        index="order",
+        linecolor="black",
+        markerfacecolor="black",
+        markeredgecolor="black",
+        agg_func="mean",
+        marker="d",
+        markersize=10,
+    )
+    .grouping(group="grouping_1")
+    .plot_data(y="y")
+    .plot(figure=fig, axes=ax[0])
+)
+wtp = 2
+df = create_synthetic_data(
+    n_groups=1, n_unique_ids=30, n_points=wtp, distribution="normal"
+)
+df = pd.DataFrame(df)
+df["order"] = np.tile(np.arange(wtp) + 1, df.shape[0] // wtp)
+plot = (
+    CategoricalPlot(df)
+    .paired(
+        unique_id="unique_grouping",
+        index="order",
+        markerfacecolor="glasbey_category10",
+        markeredgecolor="black",
+        linealpha=0.2,
+    )
+    .paired(
+        unique_id="unique_grouping",
+        index="order",
+        linecolor="black",
+        markerfacecolor="black",
+        markeredgecolor="black",
+        agg_func="mean",
+        marker="d",
+        markersize=10,
+    )
+    .plot_data(y="y")
+    .plot(figure=fig, axes=ax[1])
+)
+```
+
+
+    
+![png](https://raw.githubusercontent.com/LarsHenrikNelson/lithos/refs/heads/main/doc/_static/README_files/paired.png)
     
 
 
@@ -745,7 +819,7 @@ fig, ax = plt.subplots(
 plot = (
     LinePlot(data=df1)
     .grouping(group="grouping_1")
-    .line()
+    .line(linewidth=1)
     .plot_data(x="x", y="y")
     .figure(ncols=2)
     .plot(figure=fig, axes=ax[0])
@@ -837,8 +911,8 @@ plot = (
         linecolor={0: "orange", 1: "blue"},
         linestyle="--",
         fill_between=True,
-        err_func='std',
-        ci_func="bootstrap_ci"
+        err_func="std",
+        ci_func="bootstrap_ci",
     )
     .fit(
         unique_id="unique_grouping",
