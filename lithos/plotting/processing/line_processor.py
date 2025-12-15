@@ -166,7 +166,7 @@ class LineProcessor(BaseProcessor):
                 if bins is None:
                     t = get_transform(transform)(data[group_indexes, column])
                     if bin_limits is None:
-                        limits = (t.max(), t.min())
+                        limits = (t.min(), t.max())
                     bins = np.histogram_bin_edges(
                         t,
                         bins=nbins,
@@ -201,7 +201,7 @@ class LineProcessor(BaseProcessor):
                 if bins is None:
                     t = get_transform(transform)(data[group_indexes, column])
                     if bin_limits is None:
-                        limits = (t.max(), t.min())
+                        limits = (t.min(), t.max())
                     bins = np.histogram_bin_edges(
                         t,
                         bins=nbins,
@@ -497,11 +497,11 @@ class LineProcessor(BaseProcessor):
             min_data, max_data = tol
             if min_data >= data[column].min():
                 raise ValueError(
-                    f"tol[0] must be less than the minimum value of {column}"
+                    f"tol[0] must be less than the minimum value of {column}."
                 )
             if max_data <= data[column].max():
                 raise ValueError(
-                    f"tol[1] must be greater than the maximum value of {column}"
+                    f"tol[1] must be greater than the maximum value of {column}."
                 )
 
         if unique_id is not None:
@@ -539,7 +539,7 @@ class LineProcessor(BaseProcessor):
                         min_data = min_data if min_data != 0 else -1e-10
                         max_data = max_data if max_data != 0 else 1e-10
                     elif isinstance(tol, tuple) and len(tol) == 2:
-                        min_data, max_data = tol
+                        min_data, max_data = tol[0], tol[1]
                     else:
                         raise ValueError("Cannot determine min and max for linspace.")
                     if KDEType == "fft":

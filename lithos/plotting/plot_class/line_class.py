@@ -169,7 +169,7 @@ class LinePlot(BasePlot):
             raise ValueError("Cannot fill under and between at the same time")
 
         if kde_length is None and agg_func is not None:
-            raise ValueError("kde_length must be provided is agg_func is provide")
+            kde_length = 256
 
         if fillcolor is None:
             fillcolor = linecolor
@@ -216,6 +216,10 @@ class LinePlot(BasePlot):
     ) -> Self:
         if agg_func is not None and isinstance(nbins, str):
             raise ValueError("nbins must be int if agg_func is not None.")
+
+        if isinstance(bin_limits, (tuple, list)):
+            if bin_limits[1] < bin_limits[0]:
+                raise ValueError("bin_limits[1] must be greater than bin_limits[0]")
 
         self._plot_methods.append("hist")
         self._plot_prefs.append(
