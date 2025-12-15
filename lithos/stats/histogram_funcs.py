@@ -1,8 +1,10 @@
 from numba import njit
 import numpy as np
 
+from ..types.basic_types import HistStat, BinType
 
-def hist(data, bins, stat):
+
+def hist(data: np.ndarray, bins: np.ndarray, stat: HistStat) -> np.ndarray | None:
     if stat == "probability":
         data, _ = np.histogram(data, bins)
         return data / data.sum()
@@ -13,8 +15,15 @@ def hist(data, bins, stat):
         data, _ = np.histogram(data, bins, density=True)
         return data
 
+
 @njit(cache=True)
-def bin_y_by_x(x: np.ndarray, y: np.ndarray, steps: int, min_value: float | None, max_value: float | None):
+def bin_y_by_x(
+    x: np.ndarray,
+    y: np.ndarray,
+    steps: int,
+    min_value: float | None,
+    max_value: float | None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Bins array y by array x. X and Y are expected to be parallel time series data. Where
     x is something like phase and y is something like amplitude.
 
@@ -30,7 +39,7 @@ def bin_y_by_x(x: np.ndarray, y: np.ndarray, steps: int, min_value: float | None
         min_value = x.min()
     if max_value is None:
         max_value = x.max()
-    output_bins = np.linspace(min_value, max_value+1e-6, num=steps + 1)
+    output_bins = np.linspace(min_value, max_value + 1e-6, num=steps + 1)
     binned_data = np.zeros(steps)
     for i in range(steps):
         subset = y[(x < output_bins[i + 1]) & (x >= output_bins[i])]

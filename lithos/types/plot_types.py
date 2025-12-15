@@ -1,16 +1,16 @@
 from dataclasses import dataclass
-from io import BytesIO, StringIO
-from pathlib import Path
-from typing import Annotated, Literal, TypeAlias, NamedTuple
+from typing import TypeAlias
 
 import numpy as np
+
+from .basic_types import Direction
 
 
 @dataclass
 class PlotData:
     group_labels: list[str]
     zorder: list[int]
-    direction: Literal["vertical", "horizontal"]
+    direction: Direction
 
 
 @dataclass
@@ -18,7 +18,7 @@ class RectanglePlotData(PlotData):
     heights: list[float]
     bottoms: list[float]
     bins: list[float]
-    binwidths: list[float]
+    binwidths: list
     fillcolors: list[str]
     edgecolors: list[str]
     fill_alpha: float
@@ -52,13 +52,29 @@ class LinePlotData(PlotData):
 
 
 @dataclass
+class MarkerLinePlotData(PlotData):
+    x_data: list
+    y_data: list
+    facet_index: list[int]
+    linecolor: list[str | None] | None = None
+    linewidth: list[float | None] | None = None
+    linestyle: list[str | None] | None = None
+    linealpha: float | None = None
+    marker: list[str | None] | None = None
+    markersize: list[float] | None = None
+    markerfacecolor: list[str | None] | None = None
+    markeredgecolor: list[str | None] | None = None
+    plot_type: str = "marker_line"
+
+
+@dataclass
 class JitterPlotData(PlotData):
     x_data: list[np.ndarray]
     y_data: list[np.ndarray]
     marker: list[str]
     markerfacecolor: list[str]
     markeredgecolor: list[str]
-    markeredgewidth: list[float]
+    markeredgewidth: list[float] | float | str
     markersize: list[float]
     alpha: float
     edge_alpha: float
@@ -101,8 +117,8 @@ class BoxPlotData(PlotData):
     facecolors: list[str]
     edgecolors: list[str]
     alpha: float
-    linealpha: float
-    fliers: bool
+    edge_alpha: float
+    fliers: bool | str
     linewidth: float
     width: float
     show_ci: bool
@@ -124,89 +140,13 @@ class ViolinPlotData(PlotData):
     plot_type: str = "violin"
 
 
-Kernels: TypeAlias = Literal[
-    "gaussian",
-    "exponential",
-    "box",
-    "tri",
-    "epa",
-    "biweight",
-    "triweight",
-    "tricube",
-    "cosine",
-]
-
-BW: TypeAlias = float | Literal["ISJ", "silverman", "scott"]
-KDEType: TypeAlias = Literal["fft", "tree"]
-Levels: TypeAlias = str | int | float
-
-
-@dataclass
-class ValueRange:
-    lo: float
-    hi: float
-
-
-class Group(NamedTuple):
-    group: list
-
-
-class Subgroup(NamedTuple):
-    subgroup: list
-
-
-class UniqueGroups(NamedTuple):
-    unique_groups: list
-
-
-AlphaRange: TypeAlias = Annotated[float, ValueRange(0.0, 1.0)]
-CountPlotTypes: TypeAlias = Literal["percent", "count"]
-ColorParameters: TypeAlias = str | dict[str, str] | None
-TransformFuncs: TypeAlias = Literal[
-    "log10", "log2", "ln", "inverse", "ninverse", "sqrt"
-]
-AggFuncs: TypeAlias = Literal[
-    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean"
-]
-ErrorFuncs: TypeAlias = Literal[
-    "sem",
-    "ci",
-    "periodic_std",
-    "periodic_sem",
-    "std",
-    "nanstd",
-    "var",
-    "nanvar",
-    "mad",
-    "gstd",
-]
-Error: TypeAlias = ErrorFuncs | callable | None
-Agg: TypeAlias = AggFuncs | callable
-Transform: TypeAlias = TransformFuncs | None
-BinType: TypeAlias = Literal["density", "percent"]
-CapStyle: TypeAlias = Literal["butt", "round", "projecting"]
-SavePath: TypeAlias = str | Path | BytesIO | StringIO
-FitFunc: TypeAlias = callable | Literal["linear", "sine", "polynomial"]
-CIFunc: TypeAlias = Literal["ci", "pi", "none"]
-HistType: TypeAlias  = Literal["bar", "step", "stack", "fill"]
-JitterType: TypeAlias = Literal["fill", "dist"]
-HistBinLimits: TypeAlias = tuple[float, float] | Literal["common"] | None
-HistStat: TypeAlias = Literal["density", "probability", "count"]
-
-
-class MarkerLine(NamedTuple):
-    marker: str
-    markestyle: str
-    markersize: float
-    markerfacecolor: ColorParameters | tuple[str, str] = None
-    markerfacedge: ColorParameters | tuple[str, str] = None
-
-
-class FillBetweenLine(NamedTuple):
-    fill_alpha: AlphaRange = 0.5
-    fillcolor: ColorParameters | tuple[str, str] = "glaseby_category10"
-
-
-class FillUnderLine(NamedTuple):
-    fill_alpha: AlphaRange = 1.0
-    fillcolor: ColorParameters | tuple[str, str] = "glaseby_category10"
+PlotTypes: TypeAlias = (
+    ViolinPlotData
+    | BoxPlotData
+    | MarkerLinePlotData
+    | SummaryPlotData
+    | JitterPlotData
+    | ScatterPlotData
+    | LinePlotData
+    | RectanglePlotData
+)

@@ -6,7 +6,9 @@ from numpy.random import default_rng
 from scipy import interpolate
 
 
-def ecdf(x, ecdf_type: Literal["bootstrap", "spline", "none"] = "none", **kwargs):
+def ecdf(
+    x, ecdf_type: Literal["bootstrap", "spline", "none"] = "none", **kwargs
+) -> tuple[np.ndarray, np.ndarray]:
     if ecdf_type == "none":
         x = np.sort(x)
         y = np.arange(x.size) / x.size
@@ -22,14 +24,14 @@ def ecdf(x, ecdf_type: Literal["bootstrap", "spline", "none"] = "none", **kwargs
 
 
 def spline_ecdf(
-    x,
-    size,
+    x: list | np.ndarray,
+    size: int,
     bc_type: Literal[
         "not-a-knot",
         "clamped",
         "natural",
     ] = "not-a-knot",
-):
+) -> tuple[np.ndarray, np.ndarray]:
     j_sort = np.sort(x)
     y = np.arange(j_sort.size) / j_sort.size
     cs = interpolate.CubicSpline(y, j_sort, bc_type=bc_type)

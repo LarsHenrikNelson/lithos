@@ -1,10 +1,12 @@
+from typing import Callable
+
 from scipy import stats
 import numpy as np
 
 from ..stats import periodic_mean, periodic_std, periodic_sem
 
 
-def round_sig(x, sig=2):
+def round_sig(x, sig=2) -> float | int:
     if np.isnan(x):
         return np.nan
     elif x == 0:
@@ -15,9 +17,11 @@ def round_sig(x, sig=2):
             return round(x, 0)
         else:
             return round(x, sig - int(temp) - 1)
+    else:
+        return np.nan
 
 
-def sem(a, axis=None):
+def sem(a, axis=None) -> float:
     if len(a.shape) == 2:
         shape = a.shape[0]
     else:
@@ -26,7 +30,7 @@ def sem(a, axis=None):
     return np.std(a, axis=axis) / denominator
 
 
-def ci(a, axis=None):
+def ci(a, axis=None) -> float:
     if a.ndim == 2:
         length = a.shape[1] - 1
     else:
@@ -36,12 +40,12 @@ def ci(a, axis=None):
     return margin_of_error
 
 
-def ci_bca(a):
+def ci_bca(a) -> np.ndarray:
     res = stats.bootstrap(a, np.mean)
     return np.array([[res.confidence_interval.high], [res.confidence_interval.low]])
 
 
-def mad(a, axis=None):
+def mad(a, axis=None) -> float:
     return np.median(np.abs(a - np.median(a, axis=axis)))
 
 
@@ -91,7 +95,7 @@ FUNC_DICT = {
 }
 
 
-def get_transform(input):
+def get_transform(input) -> Callable:
     if input in FUNC_DICT:
         return FUNC_DICT[input]
     elif callable(input):
@@ -100,7 +104,7 @@ def get_transform(input):
         return lambda a, axis=None: a
 
 
-def get_backtransform(input):
+def get_backtransform(input) -> Callable:
     if input in BACK_TRANSFORM_DICT:
         return BACK_TRANSFORM_DICT[input]
     elif callable(input):

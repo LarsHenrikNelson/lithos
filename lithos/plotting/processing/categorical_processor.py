@@ -1,5 +1,3 @@
-# TODO: Need to remove all matplotlib functions from this file.
-
 from itertools import cycle
 from typing import Literal
 
@@ -7,33 +5,41 @@ import numpy as np
 from numpy.random import default_rng
 
 from ... import stats
+from ...types.basic_types import (
+    BW,
+    BinType,
+    CapStyle,
+    JitterType,
+    Kernels,
+    Levels,
+    Transform,
+    CategoricalLabels
+)
+from ...types.plot_input import (
+    Agg,
+    AlphaRange,
+    Error,
+    Grouping,
+    Subgrouping,
+    UniqueGrouping,
+)
+from ...types.plot_types import (
+    BoxPlotData,
+    JitterPlotData,
+    MarkerLinePlotData,
+    RectanglePlotData,
+    SummaryPlotData,
+    ViolinPlotData,
+)
 from ...utils import DataHolder, get_transform
 from ..plot_utils import (
     _bin_data,
-    process_duplicates,
-    process_jitter,
+    _create_groupings,
     _process_positions,
     create_dict,
-    _create_groupings,
+    process_duplicates,
+    process_jitter,
 )
-from ..types import (
-    BW,
-    Agg,
-    AlphaRange,
-    BinType,
-    BoxPlotData,
-    Error,
-    Kernels,
-    Levels,
-    RectanglePlotData,
-    JitterPlotData,
-    SummaryPlotData,
-    Transform,
-    ViolinPlotData,
-    CapStyle,
-    JitterType,
-)
-
 from .base_processor import BaseProcessor
 
 
@@ -49,10 +55,19 @@ class CategoricalProcessor(BaseProcessor):
             "violin": self._violin,
             "percent": self._percent,
             "bar": self._bar,
+            "paired": self._paired,
         }
 
     def process_groups(
-        self, data, group, subgroup, group_order, subgroup_order, group_spacing
+        self,
+        data: DataHolder,
+        group: int | str,
+        subgroup: int | str,
+        group_order: Grouping,
+        subgroup_order: Subgrouping,
+        group_spacing: float = 1.0,
+        labels: CategoricalLabels = "style1",
+        **kwargs,
     ):
         group_order, subgroup_order, unique_groups, levels = _create_groupings(
             data, group, subgroup, group_order, subgroup_order
@@ -82,27 +97,29 @@ class CategoricalProcessor(BaseProcessor):
             "levels": levels,
             "zorder_dict": zorder_dict,
             "ticks": x_ticks,
+            "subticks": list(loc_dict.values()),
             "width": width,
+            "labels": labels,
         }
 
     def _jitter(
         self,
         data: DataHolder,
         y: str,
-        levels: list[str | int],
+        levels: tuple,
         loc_dict: dict[str, float],
         width: float,
         markercolor: dict[str, str],
         marker: dict[str, str],
         edgecolor: dict[str, str],
-        markeredgewidth: dict[str, str],
+        markeredgewidth: str | float,
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         seed: int = 42,
         markersize: float | int = 2,
         jitter_type: JitterType = "fill",
-        x: str = None,
+        x: str | None = None,
         ytransform: Transform = None,
         unique_id: str | None = None,
         *args,
@@ -126,7 +143,7 @@ class CategoricalProcessor(BaseProcessor):
             unique_groups = data.groups(levels + (unique_id,))
 
         jitter_values = np.zeros(data.shape[0])
-        
+
         for group_key, indexes in groups.items():
             temp_jitter = process_jitter(
                 data[indexes, column],
@@ -138,7 +155,7 @@ class CategoricalProcessor(BaseProcessor):
             jitter_values[indexes] = temp_jitter
 
         for group_key, indexes in groups.items():
-            if unique_id is None:
+            if unique_groups is None:
                 x_data.append(jitter_values[indexes])
                 y_data.append(transform(data[indexes, column]))
                 group_labels.append(group_key)
@@ -172,20 +189,20 @@ class CategoricalProcessor(BaseProcessor):
         self,
         data: DataHolder,
         y: str,
-        levels: Levels,
+        levels: tuple,
         unique_id: str,
         loc_dict: dict[str, float],
         width: float,
         markercolor: dict[str, str],
         marker: str,
         edgecolor: dict[str, str],
-        markeredgewidth: dict[str, str],
+        markeredgewidth: float,
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         duplicate_offset: float = 0.0,
         markersize: int = 2,
-        x: str = None,
+        x: str | None = None,
         agg_func: Agg | None = None,
         ytransform: Transform = None,
         *args,
@@ -222,19 +239,17 @@ class CategoricalProcessor(BaseProcessor):
                 else:
                     temp_group = group_key + (ui_group,)
                 sub_indexes = unique_groups[temp_group]
-                x = np.full(len(sub_indexes), dist[index])
+                temp_x = np.full(len(sub_indexes), dist[index])
                 if duplicate_offset > 0.0:
                     output = (
                         process_duplicates(data[sub_indexes, column])
                         * duplicate_offset
                         * temp
                     )
-                    x += output
-                if agg_func is None:
-                    x = get_transform(agg_func)(x)
-                else:
-                    x = x[0]
-                x_data.append(x)
+                    temp_x += output
+                if agg_func is not None:
+                    temp_x = temp_x[0]
+                x_data.append(temp_x)
                 y_data.append(
                     get_transform(agg_func)(transform(data[sub_indexes, column]))
                 )
@@ -261,7 +276,7 @@ class CategoricalProcessor(BaseProcessor):
         self,
         data: DataHolder,
         y: str,
-        levels: Levels,
+        levels: tuple,
         loc_dict: dict[str, float],
         func: Agg,
         capsize: float,
@@ -271,7 +286,7 @@ class CategoricalProcessor(BaseProcessor):
         zorder_dict: dict[str, int],
         color: dict[str, str],
         alpha: AlphaRange,
-        x: str = None,
+        x: str | None = None,
         err_func: Error | None = None,
         ytransform: Transform = None,
         *args,
@@ -317,7 +332,7 @@ class CategoricalProcessor(BaseProcessor):
         self,
         data: DataHolder,
         y: str,
-        levels: Levels,
+        levels: tuple,
         unique_id: str,
         loc_dict: dict[str, float],
         func: Agg,
@@ -328,7 +343,7 @@ class CategoricalProcessor(BaseProcessor):
         color: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
-        x: str = None,
+        x: str | None = None,
         agg_func: Agg | None = None,
         err_func: Error = None,
         agg_width: float = 1.0,
@@ -410,7 +425,7 @@ class CategoricalProcessor(BaseProcessor):
         self,
         data: DataHolder,
         y: str,
-        levels: Levels,
+        levels: tuple,
         loc_dict: dict[str, float],
         facecolor: dict[str, str],
         edgecolor: dict[str, str],
@@ -418,11 +433,11 @@ class CategoricalProcessor(BaseProcessor):
         fliers: str = "",
         width: float = 1.0,
         linewidth: float | int = 1,
-        x: str = None,
+        x: str | None = None,
         showmeans: bool = False,
         show_ci: bool = False,
         alpha: AlphaRange = 1.0,
-        linealpha: AlphaRange = 1.0,
+        edge_alpha: AlphaRange = 1.0,
         ytransform: Transform = None,
         *args,
         **kwargs,
@@ -446,7 +461,7 @@ class CategoricalProcessor(BaseProcessor):
             facecolors=self._process_dict(groups, facecolor),
             edgecolors=self._process_dict(groups, edgecolor),
             alpha=alpha,
-            linealpha=linealpha,
+            edge_alpha=edge_alpha,
             fliers=fliers,
             linewidth=linewidth,
             width=width,
@@ -462,7 +477,7 @@ class CategoricalProcessor(BaseProcessor):
         self,
         data: DataHolder,
         y: str,
-        levels: Levels,
+        levels: tuple,
         loc_dict: dict[str, float],
         facecolor,
         edgecolor: dict[str, str],
@@ -478,7 +493,7 @@ class CategoricalProcessor(BaseProcessor):
         bw: BW = "ISJ",
         kde_length: int | None = None,
         tol: float | int = 1e-3,
-        x: str = None,
+        x: str | None = None,
         KDEType="fft",
         agg_func: Agg | None = None,
         unique_style: Literal["split", "overlap"] = "overlap",
@@ -519,6 +534,7 @@ class CategoricalProcessor(BaseProcessor):
                 group_labels.append(group_key)
             else:
                 subgroups = np.unique(data[group_indexes, unique_id])
+                kde_len_temp = len(group_indexes) if kde_length is None else kde_length
                 if agg_func is not None:
                     temp_data = data[group_indexes, column]
                     min_data = get_transform(transform)(temp_data.min())
@@ -527,8 +543,8 @@ class CategoricalProcessor(BaseProcessor):
                     max_data = max_data + np.abs((max_data * tol))
                     min_data = min_data if min_data != 0 else -1e-10
                     max_data = max_data if max_data != 0 else 1e-10
-                    x_array = np.linspace(min_data, max_data, num=kde_length)
-                    y_hold = np.zeros((len(subgroups), kde_length))
+                    x_array = np.linspace(min_data, max_data, num=kde_len_temp)
+                    y_hold = np.zeros((len(subgroups), kde_len_temp))
                 for hi, s in enumerate(subgroups):
                     if unique_style == "split":
                         if len(subgroups) > 1:
@@ -541,6 +557,8 @@ class CategoricalProcessor(BaseProcessor):
                     else:
                         dist = np.full(len(subgroups), loc_dict[group_key])
                         uwidth = width
+                    if unique_groups is None:
+                        raise ValueError("Unique_groups cannot be None.")
                     s_indexes = unique_groups[group_key + (s,)]
                     y_values = np.asarray(data[s_indexes, column]).flatten()
                     if agg_func is None:
@@ -550,7 +568,7 @@ class CategoricalProcessor(BaseProcessor):
                             kernel=kernel,
                             tol=tol,
                             KDEType=KDEType,
-                            kde_length=kde_length,
+                            kde_length=kde_len_temp,
                         )
                         y_data.append((y_kde / y_kde.max()) * uwidth)
                         x_data.append(x_kde)
@@ -564,7 +582,7 @@ class CategoricalProcessor(BaseProcessor):
                             tol=tol,
                             x=x_array,
                             KDEType=KDEType,
-                            kde_length=kde_length,
+                            kde_length=kde_len_temp,
                         )
                         y_hold[hi, :] = y_kde
                 if agg_func is not None:
@@ -594,14 +612,107 @@ class CategoricalProcessor(BaseProcessor):
             )
         return output
 
-    def _paired_plot():
-        pass
+    def _paired(
+        self,
+        data: DataHolder,
+        unique_id: str,
+        loc_dict: dict[str, float],
+        levels: tuple,
+        index: int | str,
+        y: str,
+        width: float,
+        marker: str | dict[str, str],
+        markersize: float | int,
+        markerfacecolor: str | dict[str, str],
+        markeredgecolor: str | dict[str, str],
+        markeredgewidth: float,
+        linecolor: str | dict[str, str],
+        linestyle: str | dict[str, str],
+        linewidth: float | int,
+        linealpha: float | int,
+        zorder_dict: dict[str, int],
+        order: list[str | int] | tuple[str | int] | None = None,
+        x: str | None = None,
+        ytransform: Transform = None,
+        agg_func: Agg | None = None,
+        *args,
+        **kwargs,
+    ):
+        n_pairs, pairs_counts = np.unique(data[index], return_counts=True)
+        n_ids, ids_counts = np.unique(data[unique_id], return_counts=True)
+        if not np.all(pairs_counts[0] == pairs_counts):
+            raise AttributeError("Some pairs may have missing or extra values.")
+        if n_ids.size * n_pairs.size != data.shape[0] and len(levels) == 0:
+            raise ValueError(
+                "A grouping variable must be passed to CategoricalPlot is there are repeated unique_ids."
+            )
+
+        column = y if x is None else x
+        direction = "vertical" if x is None else "horizontal"
+
+        transform = get_transform(ytransform)
+        temp = width / 2
+
+        x_data = []
+        y_data = []
+        group_labels = []
+
+        if order is None:
+            order = np.unique(data[index])
+
+        if data.shape[0] % len(order) > 0:
+            raise ValueError(
+                "Some unique_ids are missing values. N rows divide number of pairings must equal 0."
+            )
+
+        temp = data.to_pd()
+        temp = DataHolder(
+            temp.pivot(
+                columns=index, index=levels + (unique_id,), values=column
+            ).reset_index()
+        )
+
+        groups = temp.groups(levels)
+        for group_key, locs in groups.items():
+            y_temp = get_transform(transform)(temp[locs, order].to_numpy())
+            left = loc_dict[group_key] - width / 2
+            right = loc_dict[group_key] + width / 2
+            vals = len(order) * 2 + 1
+            dist = np.linspace(left, right, num=vals)
+            dist = dist[1::2]
+            if agg_func is not None:
+                y_temp = get_transform(agg_func)(y_temp, axis=0)
+                x_temp = dist
+            else:
+                x_temp = np.tile(dist, y_temp.shape[0]).reshape(y_temp.shape)
+            y_data.append(y_temp.T)
+            x_data.append(x_temp.T)
+            group_labels.append(group_key)
+
+        output = MarkerLinePlotData(
+            x_data=x_data,
+            y_data=y_data,
+            facet_index=self._process_dict(groups, loc_dict),
+            marker=self._process_dict(groups, marker),
+            linecolor=self._process_dict(groups, linecolor),
+            linewidth=len(x_data) * [linewidth],
+            linestyle=self._process_dict(groups, linestyle),
+            markerfacecolor=self._process_dict(groups, markerfacecolor),
+            markeredgecolor=self._process_dict(groups, markeredgecolor),
+            markersize=[markersize] * len(x_data),
+            linealpha=linealpha,
+            direction=direction,
+            group_labels=group_labels,
+            zorder=self._process_dict(groups, zorder_dict),
+        )
+
+        return output
 
     def _bar(
         self,
         data: DataHolder,
         y: str,
-        levels: list[str],
+        levels: tuple,
         loc_dict: dict,
         facecolor: dict[str, str],
         edgecolor: dict[str, str],
@@ -609,10 +720,10 @@ class CategoricalProcessor(BaseProcessor):
         barwidth: float,
         linewidth: float | int,
         alpha: float | int,
-        linealpha: float | int,
+        edge_alpha: float | int,
         zorder_dict: dict[str, int],
         func: Agg,
-        x: str = None,
+        x: str | None = None,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
         ytransform: Transform = None,
@@ -660,6 +771,8 @@ class CategoricalProcessor(BaseProcessor):
                     output = np.zeros(len(unique_ids_sub))
 
                 for index, ui_group in enumerate(unique_ids_sub):
+                    if unique_groups is None:
+                        raise ValueError("Unique_groups cannot be None.")
                     s_indexes = unique_groups[group_key + (ui_group,)]
                     y_values = get_transform(ytransform)(data[s_indexes, column])
                     if agg_func is None:
@@ -686,7 +799,7 @@ class CategoricalProcessor(BaseProcessor):
             fillcolors=self._process_dict(groups, facecolor, unique_groups, agg_func),
             edgecolors=self._process_dict(groups, edgecolor, unique_groups, agg_func),
             fill_alpha=alpha,
-            edge_alpha=linealpha,
+            edge_alpha=edge_alpha,
             hatches=hatches,
             linewidth=linewidth,
             direction=direction,
@@ -699,19 +812,19 @@ class CategoricalProcessor(BaseProcessor):
         self,
         data: DataHolder,
         y: str,
-        levels: Levels,
+        levels: tuple,
         loc_dict: dict[str, float],
         facecolor: dict[str, str],
         edgecolor: dict[str, str],
-        cutoff: None | float | int | list[float | int],
+        cutoff: None | list[float | int],
         include_bins: list[bool],
         zorder_dict: dict[str, int],
         barwidth: float = 1.0,
         linewidth: float | int = 1,
         alpha: AlphaRange = 1.0,
-        linealpha: AlphaRange = 1.0,
-        hatch: str | None = None,
-        x: str = None,
+        edge_alpha: AlphaRange = 1.0,
+        hatch: bool = False,
+        x: str | None = None,
         unique_id: str | None = None,
         invert: bool = False,
         axis_type: BinType = "density",
@@ -742,10 +855,10 @@ class CategoricalProcessor(BaseProcessor):
 
         plot_bins = sum(include_bins)
 
-        if list(hatch.values())[0] is True:
-            hs = self.HATCHES[:plot_bins]
-        else:
+        if not hatch:
             hs = [None] * plot_bins
+        elif hatch:
+            hs = self.HATCHES[:plot_bins]
 
         heights = []
         bottoms = []
@@ -781,6 +894,8 @@ class CategoricalProcessor(BaseProcessor):
                 else:
                     dist = [0]
                 for index, ui_group in enumerate(unique_ids_sub):
+                    if unique_groups is None:
+                        raise ValueError("Unique_groups cannot be None.")
                     top, bottom = _bin_data(
                         data[unique_groups[group_key + (ui_group,)], column],
                         bins,
@@ -805,7 +920,7 @@ class CategoricalProcessor(BaseProcessor):
             fillcolors=fillcolors,
             edgecolors=edgecolors,
             fill_alpha=alpha,
-            edge_alpha=linealpha,
+            edge_alpha=edge_alpha,
             hatches=hatches,
             linewidth=linewidth,
             direction=direction,

@@ -1,14 +1,18 @@
 import io
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Type
 from dataclasses import asdict
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 from matplotlib._enums import CapStyle
 from matplotlib.colors import to_rgba
 import matplotlib as mpl
+from matplotlib.axes import Axes
+from matplotlib.projections.polar import PolarAxes
+from matplotlib.figure import Figure
 
 from ..utils import (
     get_backtransform,
@@ -16,7 +20,8 @@ from ..utils import (
 )
 from .plot_utils import _decimals, radian_ticks
 from .plot_utils import get_ticks
-from .types import SavePath
+from ..types.basic_types import SavePath, Direction
+from ..types.plot_types import PlotData, PlotTypes
 
 MARKERS = [
     "o",
@@ -71,15 +76,15 @@ class Plotter:
 
     def __init__(
         self,
-        plot_data: list,
-        plot_dict: dict[str],
-        metadata: dict[dict[str]],
+        plot_data: list[PlotTypes],
+        plot_dict: dict,
+        metadata: dict,
         savefig: bool = False,
         path: SavePath = "",
         filetype: str = "svg",
-        filename: str | Path = "",
-        axes: mpl.axes.Axes | list[mpl.axes.Axes] = None,
-        figure: mpl.figure.Figure = None,
+        filename: str = "",
+        axes: Axes | PolarAxes | list[Axes | PolarAxes] | None = None,
+        figure: Figure | None = None,
     ):
         self.plot_data = plot_data
         self.plot_format = metadata["format"]
@@ -101,7 +106,15 @@ class Plotter:
                 self.axes = axes
             else:
                 self.axes = [axes]
+
             self.fig = figure
+        if self.fig is None:
+            raise ValueError("self.fig cannot be None.")
+
+    def create_figure(self) -> tuple[Figure, list[Axes]]:
+        raise NotImplementedError(
+            "Implement create_figure. Must return Figure and list[Axes]."
+        )
 
     def _process_color(self, color, alpha):
         if color is None:
@@ -173,7 +186,7 @@ class Plotter:
 
     def _set_lims(
         self,
-        ax: plt.Axes.axes,
+        ax: Axes | PolarAxes,
         lim: tuple[float | int, float | int],
         ticks,
         axis: Literal["x", "y"] = "x",
@@ -205,7 +218,7 @@ class Plotter:
 
     def _format_ticklabels(
         self,
-        ax: plt.Axes.axes,
+        ax: Axes | PolarAxes,
         ticks,
         decimals: int,
         axis: Literal["y", "x"] = "x",
@@ -302,7 +315,7 @@ class Plotter:
 
     def set_axis(
         self,
-        ax: plt.Axes.axes,
+        ax: Axes | PolarAxes,
         decimals: int,
         axis: Literal["x", "y"] = "x",
         style: Literal["default", "lithos"] = "lithos",
@@ -346,7 +359,7 @@ class Plotter:
     def _set_minorticks(
         self,
         ax,
-        ticks: np.ndarray[float | int],
+        ticks: np.ndarray,
         nticks: int,
         transform: str,
         axis: Literal["y", "x"],
@@ -420,8 +433,59 @@ class Plotter:
             return self._plot_box
         elif plot_type == "violin":
             return self._plot_violin
+        elif plot_type == "marker_line":
+            return self._marker_line
         else:
             raise ValueError(f"Unsupported plot function: {plot_type}")
+
+    def format_plot(self):
+        raise NotImplementedError("format_plot() not implemented")
+
+    def _marker_line(
+        self,
+        ax: list,
+        x_data: list,
+        y_data: list,
+        linecolor: list,
+        linewidth: list,
+        linestyle: list,
+        linealpha: float,
+        marker: list,
+        markersize: list,
+        markerfacecolor: list,
+        markeredgecolor: list,
+        facet_index: list,
+        zorder: list,
+        direction: Direction = "horizontal",
+        **kwargs,
+    ):
+        for x, y, ls, lc, lw, fc, ec, m, ms, fi, z in zip(
+            x_data,
+            y_data,
+            linestyle,
+            linecolor,
+            linewidth,
+            markerfacecolor,
+            markeredgecolor,
+            marker,
+            markersize,
+            facet_index,
+            zorder,
+        ):
+            if direction == "horizontal":
+                y, x = x, y
+            ax[0].plot(
+                x,
+                y,
+                linestyle=ls,
+                linewidth=lw,
+                color=self._process_color(lc, linealpha),
+                marker=m,
+                markeredgecolor=ec,
+                markerfacecolor=fc,
+                markersize=ms,
+                zorder=z,
+            )
 
     def _plot_rectangles(
         self,
@@ -435,10 +499,10 @@ class Plotter:
         edge_alpha: float,
         hatches: list[str],
         linewidth: float,
-        ax: mpl.axes.Axes | list[mpl.axes.Axes] | np.ndarray[mpl.axes.Axes],
+        ax: list[Axes | PolarAxes],
         zorder: list[int],
         facet_index: list[int] | None = None,
-        direction: Literal["x", "y"] = "x",
+        direction: Direction = "vertical",
         **kwargs,
     ):
         if facet_index is None:
@@ -490,12 +554,12 @@ class Plotter:
         markerfacecolor: list[str],
         markeredgecolor: list[str],
         markeredgewidth: list[float],
-        markersize: float,
+        markersize: list[float],
         alpha: float,
         edge_alpha: float,
         zorder: list[int],
-        ax: plt.Axes,
-        direction: str,
+        ax: np.ndarray | list,
+        direction: Direction = "vertical",
         **kwargs,
     ):
         for x, y, mk, mf, me, ms, z in zip(
@@ -524,13 +588,13 @@ class Plotter:
         marker: str,
         markerfacecolor: list[str],
         markeredgecolor: list[str],
-        markersize: float,
+        markersize: list,
         alpha: float,
         edge_alpha: float,
         linewidth: float,
         facet_index: list[int],
         zorder: list[int],
-        ax: plt.Axes,
+        ax: list | np.ndarray,
         **kwargs,
     ):
         for x, y, mk, mf, me, ms, facet, z in zip(
@@ -575,8 +639,8 @@ class Plotter:
         capstyle: str,
         capsize: float,
         zorder: list[int],
-        ax: plt.Axes,
-        direction: str,
+        ax: list | np.ndarray,
+        direction: Direction = "vertical",
         **kwargs,
     ):
         for xd, yd, e, c, w, z in zip(
@@ -631,39 +695,39 @@ class Plotter:
         facecolors: list[str],
         edgecolors: list[str],
         alpha: float,
-        linealpha: float,
+        edge_alpha: float,
         fliers: bool,
         linewidth: float,
         width: float,
         show_ci: bool,
         showmeans: bool,
         zorder: list[int],
-        ax: plt.Axes,
-        direction: str,
+        ax: list | np.ndarray,
+        direction: Direction = "vertical",
         **kwargs,
     ):
         for x, y, fcs, ecs, z in zip(x_data, y_data, facecolors, edgecolors, zorder):
             props = {
                 "boxprops": {
                     "facecolor": (self._process_color(fcs, alpha)),
-                    "edgecolor": (self._process_color(ecs, linealpha)),
+                    "edgecolor": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
                 "medianprops": {
-                    "color": (self._process_color(ecs, linealpha)),
+                    "color": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
                 "whiskerprops": {
-                    "color": (self._process_color(ecs, linealpha)),
+                    "color": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
                 "capprops": {
-                    "color": (self._process_color(ecs, linealpha)),
+                    "color": (self._process_color(ecs, edge_alpha)),
                     "linewidth": linewidth,
                 },
             }
             if showmeans:
-                props["meanprops"] = {"color": (self._process_color(ecs, linealpha))}
+                props["meanprops"] = {"color": (self._process_color(ecs, edge_alpha))}
             _ = ax[0].boxplot(
                 y,
                 positions=x,
@@ -689,9 +753,9 @@ class Plotter:
         edge_alpha: float,
         linewidth: float,
         zorder: list[int],
-        ax: plt.Axes,
+        ax: list | np.ndarray,
         style: str,
-        direction: str,
+        direction: Direction = "vertical",
         **kwargs,
     ):
         if style in {"left", "right"}:
@@ -744,19 +808,19 @@ class Plotter:
 
     def _plot_line(
         self,
-        ax: plt.Axes,
+        ax: list | np.ndarray,
         x_data: list,
         y_data: list,
         error_data: list,
         facet_index: list[int],
         zorder: list[int],
-        marker: list[str | None] | None = None,
-        linecolor: list[str | None] | None = None,
-        fillcolor: list[str | None] | None = None,
-        linewidth: list[float | None] | None = None,
-        linestyle: list[str | None] | None = None,
-        markerfacecolor: list[str | None] | None = None,
-        markeredgecolor: list[str | None] | None = None,
+        marker: list[str | None],
+        linecolor: list[str | None],
+        fillcolor: list[str | None],
+        linewidth: list[float | None],
+        linestyle: list[str | None],
+        markerfacecolor: list[str | None],
+        markeredgecolor: list[str | None],
         fill_between: bool = False,
         fill_under: bool = False,
         direction: Literal["x", "y"] = "y",
@@ -765,12 +829,13 @@ class Plotter:
         linealpha: float | None = None,
         **kwargs,
     ):
-        for x, y, err, ls, lc, fc, mf, me, mk, fi, z in zip(
+        for x, y, err, ls, lc, lw, fc, mf, me, mk, fi, z in zip(
             x_data,
             y_data,
             error_data,
             linestyle,
             linecolor,
+            linewidth,
             fillcolor,
             markerfacecolor,
             markeredgecolor,
@@ -788,8 +853,8 @@ class Plotter:
                         xerr=err,
                         marker=mk,
                         color=lc,
-                        elinewidth=linewidth,
-                        linewidth=linewidth,
+                        elinewidth=lw,
+                        linewidth=lw,
                         linestyle=ls,
                         markerfacecolor=mf,
                         markeredgecolor=me,
@@ -804,8 +869,8 @@ class Plotter:
                         yerr=err,
                         marker=mk,
                         color=lc,
-                        elinewidth=linewidth,
-                        linewidth=linewidth,
+                        elinewidth=lw,
+                        linewidth=lw,
                         linestyle=ls,
                         markerfacecolor=mf,
                         markeredgecolor=me,
@@ -847,7 +912,7 @@ class Plotter:
                     x,
                     y,
                     linestyle=ls,
-                    linewidth=linewidth,
+                    linewidth=lw,
                     color=lc,
                     alpha=linealpha,
                     zorder=z,
@@ -879,7 +944,7 @@ class Plotter:
                     x,
                     y,
                     linestyle=ls,
-                    linewidth=linewidth,
+                    linewidth=lw,
                     color=lc,
                     alpha=linealpha,
                     zorder=z,
@@ -889,7 +954,7 @@ class Plotter:
                     x,
                     y,
                     linestyle=ls,
-                    linewidth=linewidth,
+                    linewidth=lw,
                     color=lc,
                     alpha=linealpha,
                     zorder=z,
@@ -920,6 +985,9 @@ class Plotter:
         self._plot()
         self.format_plot()
 
+        if self.fig is None:
+            raise ValueError("self.fig must not be None.")
+
         if self._savefig:
             self.savefig(
                 path=self.path,
@@ -932,7 +1000,7 @@ class Plotter:
     def savefig(
         self,
         path: SavePath,
-        fig: mpl.figure.Figure,
+        fig: Figure,
         filename: str | None = None,
         filetype: str | None = None,
         transparent: bool = False,
@@ -953,7 +1021,7 @@ class Plotter:
 
 
 class LinePlotter(Plotter):
-    def create_figure(self):
+    def create_figure(self) -> tuple[Figure, list[Axes]]:
         if (
             self.plot_format["figure"]["nrows"] is None
             and self.plot_format["figure"]["ncols"] is None
@@ -999,7 +1067,7 @@ class LinePlotter(Plotter):
             ax = [ax]
         return fig, ax
 
-    def format_rectilinear(self, ax: mpl.axes.Axes, xdecimals: int, ydecimals: int):
+    def format_rectilinear(self, ax: Axes | PolarAxes, xdecimals: int, ydecimals: int):
         ax.autoscale()
         for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
             if lw == 0:
@@ -1029,7 +1097,7 @@ class LinePlotter(Plotter):
             rotation=self.plot_format["labels"]["xlabel_rotation"],
         )
 
-    def format_polar(self, ax: mpl.axes.Axes):
+    def format_polar(self, ax: PolarAxes):
         if (
             self.plot_format["axis"]["xunits"] == "radian"
             or self.plot_format["axis"]["xunits"] == "wradian"
@@ -1094,30 +1162,14 @@ class LinePlotter(Plotter):
     def format_plot(self):
         for p in self.plot_data:
             if p.plot_type == "kde" or p.plot_type == "hist":
-                if self.plot_data["x"] is not None:
+                if self.plot_labels["x"] is not None:
                     if self.plot_format["axis"]["ylim"] is None:
                         self.plot_format["axis"]["ylim"] = [0, None]
                 else:
                     if self.plot_format["axis"]["xlim"] is None:
                         self.plot_format["axis"]["xlim"] = [0, None]
-
-        if (
-            self.plot_format["axis"]["ydecimals"] is None
-            and "y" in self.plot_data
-            and self.plot_data["y"] is not None
-        ):
-            ydecimals = _decimals(self.data[self.plot_data["y"]])
-        else:
-            ydecimals = self.plot_format["axis"]["ydecimals"]
-        if (
-            self.plot_format["axis"]["xdecimals"] is None
-            and "x" in self.plot_data
-            and self.plot_data["x"] is not None
-        ):
-            xdecimals = _decimals(self.data[self.plot_data["x"]])
-        else:
-            xdecimals = self.plot_format["axis"]["xdecimals"]
-        # num_plots = len(self.plot_dict["group_order"])
+        ydecimals = self.plot_format["axis"]["ydecimals"]
+        xdecimals = self.plot_format["axis"]["xdecimals"]
         for index, sub_ax in enumerate(self.axes[: len(self.plot_dict["group_order"])]):
             self._set_grid(sub_ax)
             if self.plot_format["figure"]["projection"] == "rectilinear":
@@ -1162,6 +1214,8 @@ class LinePlotter(Plotter):
                 )
 
         if self.plot_labels["figure_title"] != "":
+            if self.fig is None:
+                raise ValueError("self.fig must not be None.")
             self.fig.suptitle(
                 self.plot_labels["figure_title"],
                 fontsize=self.plot_format["labels"]["titlesize"],
@@ -1169,7 +1223,7 @@ class LinePlotter(Plotter):
 
 
 class CategoricalPlotter(Plotter):
-    def create_figure(self):
+    def create_figure(self) -> tuple[Figure, list[Axes]]:
         fig, ax = plt.subplots(
             subplot_kw=dict(box_aspect=self.plot_format["figure"]["aspect"]),
             figsize=self.plot_format["figure"]["figsize"],
@@ -1178,10 +1232,34 @@ class CategoricalPlotter(Plotter):
         return fig, [ax]
 
     def set_categorical_axis(self, ax, axis="x"):
+        bottom_labels = None
+        bottom_ticks = None
+        if self.plot_dict["labels"] == "style1":
+            top_labels = self.plot_dict["group_order"]
+            top_ticks = self.plot_dict["ticks"]
+        elif self.plot_dict["labels"] == "style2":
+            top_labels = self.plot_dict["subgroup_order"]
+            top_ticks = self.plot_dict["subticks"]
+            n_repeats = len(top_ticks) // len(top_labels)
+            top_labels = np.tile(top_labels, n_repeats)
+        elif self.plot_dict["labels"] == "style3":
+            top_labels = self.plot_dict["subgroup_order"]
+            bottom_labels = self.plot_dict["group_order"]
+            if axis == "x":
+                bottom_labels = [f"\n{i}" for i in bottom_labels]
+            else:
+                bottom_labels = [f"{i}" for i in bottom_labels]
+            top_ticks = self.plot_dict["subticks"]
+            bottom_ticks = self.plot_dict["ticks"]
+            n_repeats = len(top_ticks) // len(top_labels)
+            top_labels = np.tile(top_labels, n_repeats)
+        else:
+            raise ValueError("Labels must style1, style2, style3.")
+
         if axis == "x":
             ax.set_xticks(
-                ticks=self.plot_dict["ticks"],
-                labels=self.plot_dict["group_order"],
+                ticks=top_ticks,
+                labels=top_labels,
                 rotation=self.plot_format["labels"]["xtick_rotation"],
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["tick_fontweight"],
@@ -1190,10 +1268,20 @@ class CategoricalPlotter(Plotter):
             if self.plot_format["axis_format"]["truncate_xaxis"]:
                 ticks = self.plot_dict["ticks"]
                 ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+            if bottom_labels is not None:
+                sec = ax.secondary_xaxis(location=0)
+                sec.set_xticks(
+                    bottom_ticks,
+                    labels=bottom_labels,
+                    fontfamily=self.plot_format["labels"]["font"],
+                    fontweight=self.plot_format["labels"]["tick_fontweight"],
+                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                )
+                sec.tick_params(axis='x', bottom=False)
         else:
             ax.set_yticks(
-                ticks=self.plot_dict["ticks"],
-                labels=self.plot_dict["group_order"],
+                ticks=top_ticks,
+                labels=top_labels,
                 rotation=self.plot_format["labels"]["xtick_rotation"],
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["tick_fontweight"],
@@ -1202,6 +1290,16 @@ class CategoricalPlotter(Plotter):
             if self.plot_format["axis_format"]["truncate_yaxis"]:
                 ticks = self.plot_dict["ticks"]
                 ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+            if bottom_labels is not None:
+                sec = ax.secondary_yaxis(location="left")
+                sec.set_yticks(
+                    bottom_ticks,
+                    labels=bottom_labels,
+                    fontfamily=self.plot_format["labels"]["font"],
+                    fontweight=self.plot_format["labels"]["tick_fontweight"],
+                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                )
+                sec.tick_params(axis='y', left=False)
 
     def format_plot(self):
         ax = self.axes[0]

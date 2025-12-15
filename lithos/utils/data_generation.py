@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random import default_rng
 
 
-def timeseries_dict(loc, scale, n):
+def timeseries_dict(loc: float | int, scale: float | int, n: int) -> np.ndarray:
     rng = default_rng()
     x1 = np.linspace(0, 50, n)
     x2 = np.linspace(0, 25, n)
@@ -36,8 +36,8 @@ def create_synthetic_data(
     distribution: Literal["normal", "lognormal", "gamma", "timeseries"] = "normal",
     loc: float = 1.2,
     scale: float = 1.0,
-):
-    unique_grouping = None if n_unique_ids == 0 else []
+) -> dict[str | int, list[int | float | str] | np.ndarray]:
+    unique_grouping: list[int | str] = []
 
     rng = default_rng(seed)
 
