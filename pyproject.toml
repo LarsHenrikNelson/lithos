@@ -39,12 +39,22 @@ minversion = "6.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
 
-[project.optional-dependencies]
-testing = ["pytest", "pytest-cov"]
-docs = ["nbconvert"]
-
 [project.urls]
 Downloads = "https://github.com/LarsHenrikNelson/lithos"
+
+[dependency-groups]
+dev = [
+  {include-group = "test"},
+  {include-group = "docs"}
+]
+test = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
+docs = [
+    "ipykernel>=7.1.0",
+    "nbconvert>=7.16.6",
+]
 
 [tool.setuptools.packages]
 find = {}
