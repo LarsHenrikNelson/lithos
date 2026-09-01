@@ -27,10 +27,10 @@ dependencies = [
     "KDEpy",
     "matplotlib",
     "numba",
-    "numpy > 1.24.0",
+    "numpy>1.24.0",
     "pandas",
     "scipy",
-    "typing-extensions"
+    "typing-extensions",
 ]
 requires-python = ">=3.10"
 
