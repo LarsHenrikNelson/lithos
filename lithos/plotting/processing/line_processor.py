@@ -128,7 +128,7 @@ class LineProcessor(BaseProcessor):
         fillalpha: AlphaRange = 1.0,
         linealpha: AlphaRange = 1.0,
         bin_limits: HistBinLimits = None,
-        linewidth: float | int = 2,
+        linewidth: float = 2,
         nbins: NBins = 50,
         stat: HistStat = "density",
         agg_func: Agg | None = None,
@@ -197,7 +197,7 @@ class LineProcessor(BaseProcessor):
                     group_labels.append(group_key)
                     count += 1
             else:
-                temp_data = np.sort(data[groups[group_key], column])
+                temp_data = np.sort(data[group_indexes, column])
                 if bins is None:
                     t = get_transform(transform)(data[group_indexes, column])
                     if bin_limits is None:
@@ -276,18 +276,18 @@ class LineProcessor(BaseProcessor):
     def _scatter(
         self,
         data,
-        y,
-        x,
-        marker,
-        markercolor,
-        edgecolor,
-        markersize,
-        alpha,
-        edge_alpha,
-        linewidth,
+        y: str,
+        x: str,
+        marker: str,
+        markercolor: dict[str, str],
+        edgecolor: dict[str, str],
+        markersize: dict[str, float],
+        alpha: float,
+        edge_alpha: float,
+        linewidth: float,
         facetgroup,
         zorder_dict: dict[str, int],
-        loc_dict: dict[str, int],
+        loc_dict: dict[str, float],
         xtransform: Transform = None,
         ytransform: Transform = None,
         *args,
@@ -295,13 +295,13 @@ class LineProcessor(BaseProcessor):
     ) -> ScatterPlotData:
         x_data = []
         y_data = []
-        mks = []
-        mksizes = []
-        mfcs = []
-        mecs = []
-        facet = []
-        group_labels = []
-        zorder = []
+        mks: list[str] = []
+        mksizes: list[list[float]] = []
+        mfcs: list[list[str]] = []
+        mecs: list[list[str]] = []
+        facet: list[float] = []
+        group_labels: list[str] = []
+        zorder: list[int] = []
 
         for key, value in loc_dict.items():
             indexes = np.array(
@@ -313,7 +313,7 @@ class LineProcessor(BaseProcessor):
             mfcs.append([markercolor[i] for i in indexes])
             mecs.append([edgecolor[i] for i in indexes])
             mksizes.append([markersize[i] for i in indexes])
-            facet.append(loc_dict[key])
+            facet.append(value)
             group_labels.append(key)
             zorder.append(zorder_dict[key])
         output = ScatterPlotData(
@@ -340,14 +340,14 @@ class LineProcessor(BaseProcessor):
         y: str,
         levels: Levels,
         marker: dict,
-        markersize: float | int,
+        markersize: float,
         markerfacecolor: dict,
         markeredgecolor: dict,
         linestyle: dict,
-        linewidth: float | int,
+        linewidth: float,
         linecolor: dict,
         fillcolor: dict,
-        linealpha: float | int,
+        linealpha: float,
         loc_dict: dict,
         zorder_dict: dict,
         func: Agg | None = None,
@@ -384,7 +384,7 @@ class LineProcessor(BaseProcessor):
         if unique_id is None:
             if err_func is not None:
                 agg_dict = {
-                    col: (y, lambda x: get_transform(err_func)((ytransform(x))))
+                    col: (y, lambda x: get_transform(err_func)(ytransform(x)))
                     for col in [y]
                 }
                 err_data = DataHolder(
@@ -459,16 +459,16 @@ class LineProcessor(BaseProcessor):
         fillcolor: str | dict[str, str],
         loc_dict: dict[str, int],
         linestyle: str | dict[str, str],
-        linewidth: float | int,
-        linealpha: float | int,
-        fillalpha: float | int,
+        linewidth: float,
+        linealpha: float,
+        fillalpha: float,
         fill_between: bool,
         fill_under: bool,
         zorder_dict: dict[str, int],
         kernel: Kernels = "gaussian",
         bw: BW = "ISJ",
         kde_length: int | None = None,
-        tol: float | int | tuple[float, float] = 1e-3,
+        tol: float | tuple[float, float] = 1e-3,
         common_norm: bool = True,
         unique_id: str | None = None,
         agg_func: Agg | None = None,
@@ -488,7 +488,7 @@ class LineProcessor(BaseProcessor):
         unique_groups = None
 
         column = y if x is None else x
-        direction = direction = "vertical" if y is None else "horizontal"
+        direction = "vertical" if y is None else "horizontal"
         transform = ytransform if xtransform is None else xtransform
 
         groups = data.groups(levels)
@@ -534,8 +534,8 @@ class LineProcessor(BaseProcessor):
                         temp_data = data[group_indexes, column]
                         min_data = get_transform(transform)(temp_data.min())
                         max_data = get_transform(transform)(temp_data.max())
-                        min_data = min_data - np.abs((min_data * tol))
-                        max_data = max_data + np.abs((max_data * tol))
+                        min_data = min_data - np.abs(min_data * tol)
+                        max_data = max_data + np.abs(max_data * tol)
                         min_data = min_data if min_data != 0 else -1e-10
                         max_data = max_data if max_data != 0 else 1e-10
                     elif isinstance(tol, tuple) and len(tol) == 2:
@@ -619,12 +619,12 @@ class LineProcessor(BaseProcessor):
         y: str,
         x: str,
         levels: Levels,
-        linewidth: float | int,
+        linewidth: float,
         linecolor: str | dict[str, str],
         fillcolor: str | dict[str, str],
         loc_dict: dict[str, int],
         linestyle: str | dict[str, str],
-        linealpha: float | int,
+        linealpha: float,
         zorder_dict: dict[str, int],
         fill_between: bool = False,
         fillalpha: AlphaRange = 1.0,
@@ -738,7 +738,7 @@ class LineProcessor(BaseProcessor):
         loc_dict: dict[str, int],
         linestyle: dict[str, str],
         zorder_dict: dict[str, int],
-        linewidth: float | int = 2,
+        linewidth: float = 2,
         unique_id: str | None = None,
         linealpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 0.5,
@@ -851,7 +851,7 @@ class LineProcessor(BaseProcessor):
         loc_dict: dict[str, int],
         linestyle: dict[str, str],
         zorder_dict: dict[str, int],
-        linewidth: float | int = 2,
+        linewidth: float = 2,
         unique_id: str | None = None,
         linealpha: AlphaRange = 1.0,
         fillalpha: AlphaRange = 0.5,

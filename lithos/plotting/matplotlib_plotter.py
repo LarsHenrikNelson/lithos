@@ -1,27 +1,26 @@
 import io
-from pathlib import Path
-from typing import Literal, Type
 from dataclasses import asdict
+from pathlib import Path
+from typing import ClassVar, Literal
 
+import matplotlib as mpl
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.typing import NDArray
 from matplotlib._enums import CapStyle
-from matplotlib.colors import to_rgba
-import matplotlib as mpl
 from matplotlib.axes import Axes
-from matplotlib.projections.polar import PolarAxes
+from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
+from matplotlib.projections.polar import PolarAxes
+from numpy.typing import NDArray
 
+from ..types.basic_types import Direction, SavePath
+from ..types.plot_types import PlotData, PlotTypes
 from ..utils import (
     get_backtransform,
     get_transform,
 )
-from .plot_utils import _decimals, radian_ticks
-from .plot_utils import get_ticks
-from ..types.basic_types import SavePath, Direction
-from ..types.plot_types import PlotData, PlotTypes
+from .plot_utils import _decimals, get_ticks, radian_ticks
 
 MARKERS = [
     "o",
@@ -57,7 +56,7 @@ HATCHES = [
 
 
 class Plotter:
-    filetypes = {
+    filetypes: ClassVar[set[str]] = {
         "eps",
         "jpeg",
         "jpg",
@@ -226,10 +225,7 @@ class Plotter:
     ):
         if axis == "y":
             if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
-                if (
-                    "back_transform_yticks" in self.plot_transforms
-                    and self.plot_transforms["back_transform_yticks"]
-                ):
+                if self.plot_transforms.get("back_transform_yticks"):
                     tick_labels = get_backtransform(self.plot_transforms["ytransform"])(
                         ticks
                     )
@@ -270,10 +266,7 @@ class Plotter:
                 )
         else:
             if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
-                if (
-                    "back_transform_xticks" in self.plot_transforms
-                    and self.plot_transforms["back_transform_xticks"]
-                ):
+                if self.plot_transforms.get("back_transform_xticks"):
                     tick_labels = get_backtransform(self.plot_transforms["xtransform"])(
                         ticks
                     )
@@ -507,7 +500,6 @@ class Plotter:
     ):
         if facet_index is None:
             facet_index = [0] * len(heights)
-        index = 0
         for t, b, loc, bw, fc, ec, ht, facet, z in zip(
             heights,
             bottoms,
@@ -543,7 +535,6 @@ class Plotter:
                     hatch=ht,
                     zorder=z,
                 )
-            index += 1
         return ax
 
     def _plot_jitter(
@@ -651,7 +642,7 @@ class Plotter:
                 e, w = w / 2, e
                 capsize1, capsize2 = 0, capsize
             else:
-                e, w = e, w / 2
+                w = w / 2
                 capsize1, capsize2 = capsize, 0
             _, caplines, bars = ax[0].errorbar(
                 x=xd,
@@ -1041,10 +1032,10 @@ class LinePlotter(Plotter):
             self.plot_format["figure"]["figsize"] = (6.4 * ncols, 4.8 * nrows)
         if self.plot_dict["facet"]:
             fig, ax = plt.subplots(
-                subplot_kw=dict(
-                    box_aspect=self.plot_format["figure"]["aspect"],
-                    projection=self.plot_format["figure"]["projection"],
-                ),
+                subplot_kw={
+                    "box_aspect": self.plot_format["figure"]["aspect"],
+                    "projection": self.plot_format["figure"]["projection"],
+                },
                 figsize=self.plot_format["figure"]["figsize"],
                 gridspec_kw=self.plot_format["figure"]["gridspec_kw"],
                 ncols=ncols,
@@ -1057,10 +1048,10 @@ class LinePlotter(Plotter):
             ax = ax[: len(self.plot_dict["group_order"])]
         else:
             fig, ax = plt.subplots(
-                subplot_kw=dict(
-                    box_aspect=self.plot_format["figure"]["aspect"],
-                    projection=self.plot_format["figure"]["projection"],
-                ),
+                subplot_kw={
+                    "box_aspect": self.plot_format["figure"]["aspect"],
+                    "projection": self.plot_format["figure"]["projection"],
+                },
                 figsize=self.plot_format["figure"]["figsize"],
                 layout="constrained",
             )
@@ -1128,7 +1119,7 @@ class LinePlotter(Plotter):
         ticks = ax.get_yticks()
         decimals = self.plot_format["axis"]["ydecimals"]
         if self.plot_format["axis_format"]["style"] == "lithos":
-            lim, _, ticks = get_ticks(
+            _, _, ticks = get_ticks(
                 lim=self.plot_format["axis"]["ylim"],
                 axis_lim=self.plot_format["axis"]["yaxis_lim"],
                 ticks=ticks,
@@ -1225,7 +1216,7 @@ class LinePlotter(Plotter):
 class CategoricalPlotter(Plotter):
     def create_figure(self) -> tuple[Figure, list[Axes]]:
         fig, ax = plt.subplots(
-            subplot_kw=dict(box_aspect=self.plot_format["figure"]["aspect"]),
+            subplot_kw={"box_aspect": self.plot_format["figure"]["aspect"]},
             figsize=self.plot_format["figure"]["figsize"],
             layout="constrained",
         )
@@ -1277,7 +1268,7 @@ class CategoricalPlotter(Plotter):
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
                     fontsize=self.plot_format["labels"]["ticklabel_size"],
                 )
-                sec.tick_params(axis='x', bottom=False)
+                sec.tick_params(axis="x", bottom=False)
         else:
             ax.set_yticks(
                 ticks=top_ticks,
@@ -1299,7 +1290,7 @@ class CategoricalPlotter(Plotter):
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
                     fontsize=self.plot_format["labels"]["ticklabel_size"],
                 )
-                sec.tick_params(axis='y', left=False)
+                sec.tick_params(axis="y", left=False)
 
     def format_plot(self):
         ax = self.axes[0]

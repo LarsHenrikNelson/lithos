@@ -9,11 +9,11 @@ from ...types.basic_types import (
     BW,
     BinType,
     CapStyle,
+    CategoricalLabels,
     JitterType,
     Kernels,
     Levels,
     Transform,
-    CategoricalLabels
 )
 from ...types.plot_input import (
     Agg,
@@ -117,7 +117,7 @@ class CategoricalProcessor(BaseProcessor):
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         seed: int = 42,
-        markersize: float | int = 2,
+        markersize: float = 2,
         jitter_type: JitterType = "fill",
         x: str | None = None,
         ytransform: Transform = None,
@@ -223,7 +223,7 @@ class CategoricalProcessor(BaseProcessor):
         if unique_id is not None:
             unique_groups = data.groups(levels + (unique_id,))
 
-        for group_key in groups.keys():
+        for group_key in groups:
             unique_ids_sub = np.unique(data[groups[group_key], unique_id])
             if len(unique_ids_sub) > 1:
                 left = loc_dict[group_key] - width / 2
@@ -282,7 +282,7 @@ class CategoricalProcessor(BaseProcessor):
         capsize: float,
         capstyle: CapStyle,
         barwidth: float,
-        linewidth: float | int,
+        linewidth: float,
         zorder_dict: dict[str, int],
         color: dict[str, str],
         alpha: AlphaRange,
@@ -336,10 +336,10 @@ class CategoricalProcessor(BaseProcessor):
         unique_id: str,
         loc_dict: dict[str, float],
         func: Agg,
-        capsize: float | int,
+        capsize: float,
         capstyle: CapStyle,
         barwidth: float,
-        linewidth: float | int,
+        linewidth: float,
         color: dict[str, str],
         zorder_dict: dict[str, int],
         alpha: AlphaRange = 1.0,
@@ -432,7 +432,7 @@ class CategoricalProcessor(BaseProcessor):
         zorder_dict: dict[str, int],
         fliers: str = "",
         width: float = 1.0,
-        linewidth: float | int = 1,
+        linewidth: float = 1,
         x: str | None = None,
         showmeans: bool = False,
         show_ci: bool = False,
@@ -485,14 +485,14 @@ class CategoricalProcessor(BaseProcessor):
         style: str,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
-        linewidth: float | int = 1,
+        linewidth: float = 1,
         width: float = 1.0,
         ytransform: Transform = None,
         unique_id: str | None = None,
         kernel: Kernels = "gaussian",
         bw: BW = "ISJ",
         kde_length: int | None = None,
-        tol: float | int = 1e-3,
+        tol: float = 1e-3,
         x: str | None = None,
         KDEType="fft",
         agg_func: Agg | None = None,
@@ -539,8 +539,8 @@ class CategoricalProcessor(BaseProcessor):
                     temp_data = data[group_indexes, column]
                     min_data = get_transform(transform)(temp_data.min())
                     max_data = get_transform(transform)(temp_data.max())
-                    min_data = min_data - np.abs((min_data * tol))
-                    max_data = max_data + np.abs((max_data * tol))
+                    min_data = min_data - np.abs(min_data * tol)
+                    max_data = max_data + np.abs(max_data * tol)
                     min_data = min_data if min_data != 0 else -1e-10
                     max_data = max_data if max_data != 0 else 1e-10
                     x_array = np.linspace(min_data, max_data, num=kde_len_temp)
@@ -622,14 +622,14 @@ class CategoricalProcessor(BaseProcessor):
         y: str,
         width: float,
         marker: str | dict[str, str],
-        markersize: float | int,
+        markersize: float,
         markerfacecolor: str | dict[str, str],
         markeredgecolor: str | dict[str, str],
         markeredgewidth: float,
         linecolor: str | dict[str, str],
         linestyle: str | dict[str, str],
-        linewidth: float | int,
-        linealpha: float | int,
+        linewidth: float,
+        linealpha: float,
         zorder_dict: dict[str, int],
         order: list[str | int] | tuple[str | int] | None = None,
         x: str | None = None,
@@ -639,7 +639,7 @@ class CategoricalProcessor(BaseProcessor):
         **kwargs,
     ):
         n_pairs, pairs_counts = np.unique(data[index], return_counts=True)
-        n_ids, ids_counts = np.unique(data[unique_id], return_counts=True)
+        n_ids, _ = np.unique(data[unique_id], return_counts=True)
         if not np.all(pairs_counts[0] == pairs_counts):
             raise AttributeError("Some pairs may have missing or extra values.")
         if n_ids.size * n_pairs.size != data.shape[0] and len(levels) == 0:
@@ -718,9 +718,9 @@ class CategoricalProcessor(BaseProcessor):
         edgecolor: dict[str, str],
         hatch: str,
         barwidth: float,
-        linewidth: float | int,
-        alpha: float | int,
-        edge_alpha: float | int,
+        linewidth: float,
+        alpha: float,
+        edge_alpha: float,
         zorder_dict: dict[str, int],
         func: Agg,
         x: str | None = None,
@@ -816,11 +816,11 @@ class CategoricalProcessor(BaseProcessor):
         loc_dict: dict[str, float],
         facecolor: dict[str, str],
         edgecolor: dict[str, str],
-        cutoff: None | list[float | int],
+        cutoff: None | list[float],
         include_bins: list[bool],
         zorder_dict: dict[str, int],
         barwidth: float = 1.0,
-        linewidth: float | int = 1,
+        linewidth: float = 1,
         alpha: AlphaRange = 1.0,
         edge_alpha: AlphaRange = 1.0,
         hatch: bool = False,
@@ -884,7 +884,7 @@ class CategoricalProcessor(BaseProcessor):
                 hatches.append(hs)
                 group_labels.append(group_key)
             else:
-                unique_ids_sub = np.unique(data[groups[group_key], unique_id])
+                unique_ids_sub = np.unique(data[indexes, unique_id])
                 temp_width = barwidth / len(unique_ids_sub)
                 if len(unique_ids_sub) > 1:
                     dist = np.linspace(

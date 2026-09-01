@@ -8,7 +8,7 @@ from .basic_types import Direction
 
 @dataclass
 class PlotData:
-    group_labels: list[str]
+    group_labels: list[str] | list[tuple[str]]
     zorder: list[int]
     direction: Direction
 
@@ -16,14 +16,14 @@ class PlotData:
 @dataclass
 class RectanglePlotData(PlotData):
     heights: list[float]
-    bottoms: list[float]
-    bins: list[float]
+    bottoms: list[int] | list[float]
+    bins: list[list[int]] | list[list[float]] | list[float] | list[np.ndarray]
     binwidths: list
     fillcolors: list[str]
     edgecolors: list[str]
     fill_alpha: float
     edge_alpha: float
-    hatches: list[str]
+    hatches: list[str] | list[list[str]] | list[None] | list[list[None]]
     linewidth: float
     facet_index: None | list[int] = None
     stacked: bool = False
@@ -86,13 +86,13 @@ class ScatterPlotData(PlotData):
     x_data: list[np.ndarray]
     y_data: list[np.ndarray]
     marker: list[str]
-    markerfacecolor: list[str]
-    markeredgecolor: list[str]
-    markersize: list[float]
+    markerfacecolor: list[str] | list[list[str]]
+    markeredgecolor: list[str] | list[list[str]]
+    markersize: list[float] | list[list[float]]
     alpha: float
     linewidth: float | int
     edge_alpha: float
-    facet_index: list[int]
+    facet_index: list[int] | list[float]
     plot_type: str = "scatter"
 
 
