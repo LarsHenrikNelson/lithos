@@ -1246,7 +1246,7 @@ class CategoricalPlotter(Plotter):
             top_labels = np.tile(top_labels, n_repeats)
         else:
             raise ValueError("Labels must style1, style2, style3.")
-        span = max(top_ticks) - min(top_ticks) + self.plot_dict["width"] * 2
+        span = max(top_ticks) - min(top_ticks) + self.plot_dict["group_spacing"] / 2
         margin = self.plot_format["figure"]["margins"] * span
         if axis == "x":
             ax.set_xticks(
@@ -1258,8 +1258,8 @@ class CategoricalPlotter(Plotter):
                 fontsize=self.plot_format["labels"]["ticklabel_size"],
             )
             ax.set_xlim(
-                min(top_ticks) - self.plot_dict["width"] - margin,
-                max(top_ticks) + self.plot_dict["width"] + margin,
+                min(top_ticks) - self.plot_dict["group_spacing"] / 2 - margin,
+                max(top_ticks) + self.plot_dict["group_spacing"] / 2 + margin,
             )
             if self.plot_format["axis_format"]["truncate_xaxis"]:
                 ticks = self.plot_dict["ticks"]
@@ -1284,8 +1284,8 @@ class CategoricalPlotter(Plotter):
                 fontsize=self.plot_format["labels"]["ticklabel_size"],
             )
             ax.set_ylim(
-                min(top_ticks) - self.plot_dict["width"] - margin,
-                max(top_ticks) + self.plot_dict["width"] + margin,
+                min(top_ticks) - self.plot_dict["group_spacing"] / 2 - margin,
+                max(top_ticks) + self.plot_dict["group_spacing"] / 2 + margin,
             )
             if self.plot_format["axis_format"]["truncate_yaxis"]:
                 ticks = self.plot_dict["ticks"]

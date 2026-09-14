@@ -99,6 +99,7 @@ class CategoricalProcessor(BaseProcessor):
             "ticks": x_ticks,
             "subticks": list(loc_dict.values()),
             "width": width,
+            "group_spacing": group_spacing,
             "labels": labels,
         }
 
