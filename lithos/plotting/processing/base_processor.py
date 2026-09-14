@@ -140,9 +140,9 @@ class BaseProcessor:
         self, groups, dict, subgroups=None, agg: Agg | None = None
     ) -> list:
         if subgroups is None or agg is not None:
-            output = [dict[g] for g in groups.keys()]
+            output = [dict[g] for g in groups]
         else:
-            output = [dict[g[:-1]] for g in subgroups.keys()]
+            output = [dict[g[:-1]] for g in subgroups]
         return output
 
     # def _biplot(
