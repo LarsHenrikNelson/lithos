@@ -15,8 +15,8 @@ class PlotData:
 
 @dataclass
 class RectanglePlotData(PlotData):
-    heights: list[float]
-    bottoms: list[int] | list[float]
+    heights: list[float] | np.ndarray
+    bottoms: list[int] | list[float] | np.ndarray
     bins: list[list[int]] | list[list[float]] | list[float] | list[np.ndarray]
     binwidths: list
     fillcolors: list[str]

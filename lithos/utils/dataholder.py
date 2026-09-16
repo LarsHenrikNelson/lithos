@@ -8,9 +8,8 @@ class DataHolder:
             for key, value in data.items():
                 if isinstance(value, list):
                     data[key] = np.array(value)
-        if isinstance(data, np.ndarray):
-            if len(data.shape) == 1:
-                data = data.reshape(-1, 1)
+        if isinstance(data, np.ndarray) and len(data.shape) == 1:
+            data = data.reshape(-1, 1)
         self._data = data._data if isinstance(data, DataHolder) else data
         self._container_type = self._get_container_type()
         self._groups_cache = {}
@@ -30,7 +29,7 @@ class DataHolder:
         elif isinstance(self._data, dict):
             return "dict"
         else:
-            raise ValueError(
+            raise TypeError(
                 "Only numpy arrays, dict, or pandas dataframes/series are accepted."
             )
 
@@ -67,7 +66,7 @@ class DataHolder:
         elif isinstance(index, str):
             return self._data[index]
         else:
-            raise ValueError("Invalid index type")
+            raise TypeError("Invalid index type")
 
     def __getitem__(self, index):
         if self._container_type == "numpy":

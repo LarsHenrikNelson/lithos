@@ -81,7 +81,7 @@ class LineProcessor(BaseProcessor):
 
     def _post_process_density(
         self, plot_data, hist_type: HistType, facet_index: list[int] | np.ndarray
-    ):
+    ) -> tuple[np.ndarray, np.ndarray]:
         plot_data = np.asarray(plot_data)
         output = np.zeros(plot_data.shape)
         bottoms = np.zeros(plot_data.shape)
@@ -94,7 +94,9 @@ class LineProcessor(BaseProcessor):
             bottoms[t_indexes, :] = b[:, :]
         return output, bottoms
 
-    def _post_process_density_type(self, data, hist_type: HistType):
+    def _post_process_density_type(
+        self, data, hist_type: HistType
+    ) -> tuple[np.ndarray, np.ndarray]:
         if hist_type == "fill":
             og = np.asarray(data)
             t_sum = og.sum(axis=0)
