@@ -87,6 +87,88 @@ class TestIdentity:
             assert "y" not in g
 
 
+# paired data: every unique_id shares the same complete x grid (shuffled rows).
+PAIRED_ALIGNED = {
+    "grouping_1": [0, 0, 0, 0, 1, 1, 1, 1],
+    "x": [1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0],
+    "y": [3.0, 1.0, 4.0, 2.0, 10.0, 40.0, 20.0, 30.0],
+    "unique_grouping": ["a", "a", "b", "b", "a", "a", "b", "b"],
+}
+
+
+class TestIdentityPaired:
+    def test_per_subject_series_sorted_by_x(self):
+        geometry = Identity(unique_id="unique_grouping")(_holder(PAIRED_ALIGNED), y="y", x="x", levels=("grouping_1",))
+        # one geometry dict per (group, subject)
+        assert set(geometry.keys()) == {(0, "a"), (0, "b"), (1, "a"), (1, "b")}
+        np.testing.assert_allclose(geometry[(0, "a")]["x"], [0.0, 1.0])
+        np.testing.assert_allclose(geometry[(0, "a")]["y"], [1.0, 3.0])
+        np.testing.assert_allclose(geometry[(0, "b")]["y"], [2.0, 4.0])
+        np.testing.assert_allclose(geometry[(1, "a")]["y"], [10.0, 40.0])
+        np.testing.assert_allclose(geometry[(1, "b")]["y"], [20.0, 30.0])
+        assert all(g["n"] == 2 for g in geometry.values())
+
+    def test_fixture_per_subject_series(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        geometry = Identity(unique_id="unique_grouping")(_holder(data), y="y", x="x", levels=("grouping_1",))
+        # fixture is create_synthetic_data(2, 0, 3, 30): 2 groups * 3 subjects
+        assert len(geometry) == 6
+        for gkey, g in geometry.items():
+            assert g["n"] == 30
+            assert g["x"].shape == (30,)
+            assert g["y"].shape == (30,)
+            # paired series are ordered by the order column
+            assert np.all(np.diff(g["x"]) >= 0)
+
+    def test_y_only_series(self):
+        geometry = Identity(unique_id="unique_grouping")(_holder(PAIRED_ALIGNED), y="y", levels=("grouping_1",))
+        assert set(geometry.keys()) == {(0, "a"), (0, "b"), (1, "a"), (1, "b")}
+        for gkey, g in geometry.items():
+            assert "x" not in g
+            assert g["n"] == 2
+            assert g["y"].shape == (2,)
+
+    def test_duplicate_order_value_raises(self):
+        bad = {
+            "grouping_1": [0, 0, 0],
+            "x": [0.0, 0.0, 1.0],
+            "y": [1.0, 2.0, 3.0],
+            "unique_grouping": ["a", "a", "a"],
+        }
+        with pytest.raises(AttributeError):
+            Identity(unique_id="unique_grouping")(_holder(bad), y="y", x="x", levels=("grouping_1",))
+
+    def test_ragged_subject_size_raises(self):
+        bad = {
+            "grouping_1": [0, 0, 0],
+            "x": [0.0, 1.0, 0.0],
+            "y": [1.0, 2.0, 3.0],
+            "unique_grouping": ["a", "a", "b"],
+        }
+        with pytest.raises(AttributeError):
+            Identity(unique_id="unique_grouping")(_holder(bad), y="y", x="x", levels=("grouping_1",))
+
+    def test_missing_order_value_raises(self):
+        # subjects have equal sizes but different order sets ('a' has 1.0, 'b' has 2.0)
+        bad = {
+            "grouping_1": [0, 0, 0, 0],
+            "x": [0.0, 1.0, 0.0, 2.0],
+            "y": [1.0, 2.0, 3.0, 4.0],
+            "unique_grouping": ["a", "a", "b", "b"],
+        }
+        with pytest.raises(ValueError):
+            Identity(unique_id="unique_grouping")(_holder(bad), y="y", x="x", levels=("grouping_1",))
+
+    def test_default_is_unchanged(self, one_grouping):
+        # unique_id=None keeps the legacy Identity behavior exactly
+        data, _ = one_grouping
+        geometry = Identity()(_holder(data), y="y", x="x", levels=("grouping_1",))
+        assert len(geometry) == 3
+        for gkey, g in geometry.items():
+            assert g["x"].shape == (30,)
+            assert g["y"].shape == (30,)
+
+
 class TestAggregate:
     def test_mean_sem_per_group(self, one_grouping):
         data, _ = one_grouping

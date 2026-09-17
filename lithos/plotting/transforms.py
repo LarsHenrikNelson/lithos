@@ -11,7 +11,8 @@ Geometry contract per transform:
 
 - ``Identity``: ``{n, x?, y?}`` — at least one of x/y; the omitted axis is
   supplied by the position resolver (jitter/dodge; horizontal layouts use
-  ``x`` only)
+  ``x`` only). With ``unique_id``: per-subject ordered series (legacy
+  ``paired`` connector geometry), sorted by ``x`` when given
 - ``Aggregate``: arrays — without ``x``: ``{center, error_low, error_high,
   n}`` (one value per group); with ``x``: ``{x, center, error_low,
   error_high, n}`` (one value per unique x; per-x aggregation, legacy
@@ -130,9 +131,17 @@ class Identity(Transform):
     the geometry dict so the position resolver (jitter/dodge) can supply it;
     this mirrors the legacy ``jitter`` processor and enables horizontal
     layouts (``x`` only). Both given -> 2-D scatter.
+
+    ``unique_id`` optionally nests the group key so each geometry dict is
+    a single subject's ordered series — the paired-connector geometry
+    (legacy ``paired``). The series is sorted by ``x`` (the order/pairing
+    column) when given, otherwise kept in row order. When set, the data is
+    validated for pairing: every subject within a group must hold the same
+    complete set of order values, each appearing exactly once.
     """
 
     name: str = "identity"
+    unique_id: str | None = None
 
     def __call__(
         self,
@@ -146,15 +155,52 @@ class Identity(Transform):
     ) -> dict[tuple, dict]:
         if x is None and y is None:
             raise ValueError("Identity requires an x or y column.")
+        levels = tuple(levels)
+        if self.unique_id is None:
+            groups = self._groups(data, levels)
+        else:
+            groups = self._groups(data, levels + (self.unique_id,))
+            self._validate_pairs(data, x, groups, levels)
         output = {}
-        for group_key, indexes in self._groups(data, levels).items():
+        for group_key, indexes in groups.items():
             geometry = {"n": int(indexes.size)}
             if x is not None:
                 geometry["x"] = _get_column_values(data, indexes, x, xtransform)
             if y is not None:
                 geometry["y"] = _get_column_values(data, indexes, y, ytransform)
+            if self.unique_id is not None and x is not None:
+                # paired series: order the connection points by the order column
+                order = np.argsort(geometry["x"], kind="stable")
+                geometry["x"] = geometry["x"][order]
+                if y is not None:
+                    geometry["y"] = geometry["y"][order]
             output[group_key] = geometry
         return output
+
+    def _validate_pairs(self, data: DataHolder, x: str | None, groups: dict[tuple, np.ndarray], levels: tuple) -> None:
+        """Validate paired alignment within each group.
+
+        Every ``unique_id`` within a group must have the same number of rows
+        (legacy "missing or extra values"), each order value at most once,
+        and every subject must share the same complete set of order values
+        (legacy "unique_ids missing values").
+        """
+        n_levels = len(levels)
+        per_group: dict[tuple, list] = defaultdict(list)
+        for key, indexes in groups.items():
+            per_group[key[:n_levels] if n_levels > 0 else ()].append(indexes)
+        for index_lists in per_group.values():
+            sizes = [idx.size for idx in index_lists]
+            if len(set(sizes)) != 1 or sizes[0] == 0:
+                raise AttributeError("Some pairs may have missing or extra values.")
+            if x is None:
+                continue
+            per_uid = [set(np.asarray(data[idx, x]).tolist()) for idx in index_lists]
+            for order_vals, idx in zip(per_uid, index_lists):
+                if len(order_vals) != idx.size:
+                    raise AttributeError("Some pairs may have missing or extra values.")
+            if not all(order_vals == per_uid[0] for order_vals in per_uid):
+                raise ValueError("Some unique_ids are missing values. N rows divide number of pairings must equal 0.")
 
 
 @dataclass
