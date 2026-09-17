@@ -1,4 +1,5 @@
-from typing import Annotated, NamedTuple, TypeAlias, Callable, Literal
+from collections.abc import Callable
+from typing import Annotated, Literal, NamedTuple, TypeAlias
 
 AggFuncs: TypeAlias = Literal[
     "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean", "count"
@@ -42,6 +43,7 @@ class UniqueGroups(tuple):
     def _asdict(self):
         return {"unique_groups": (self)}
 
+
 Grouping: TypeAlias = list[str | int | float] | tuple[str | int | float] | Group | None
 Subgrouping: TypeAlias = (
     list[str | int | float] | tuple[str | int | float] | Subgroup | None
@@ -62,6 +64,7 @@ ColorParameters: TypeAlias = (
 # percent: hist, kde, categorical -> stacked or percent
 
 AlphaRange: TypeAlias = Annotated[float, "Value between 0.0 and 1.0"]
+
 
 class Line(NamedTuple):
     color: ColorParameters
