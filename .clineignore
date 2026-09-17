@@ -1,0 +1,14 @@
+# .clineignore — files/directories Cline should ignore (gitignore-style patterns)
+# Generated or environment content — never read or edit these.
+
+.venv/
+build/
+dist/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+lithos.egg-info/
+uv.lock
+.coverage
+coverage.xml
+doc/_static/

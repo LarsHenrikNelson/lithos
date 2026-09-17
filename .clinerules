@@ -1,0 +1,32 @@
+# .clinerules — rules for Cline working in this repo
+
+Full guidance lives in [AGENTS.md](./AGENTS.md). Read it first. Summary of hard rules:
+
+## Commands (uv-managed environment)
+- Tests: `uv run pytest` (one test: `uv run pytest tests/transforms_test.py -k test_name`)
+- Lint: `uv run ruff check .` (auto-fix: `uv run ruff check --fix .`)
+- Format: `uv run ruff format .`
+- Sync env: `uv sync`
+- Both lint and tests must pass before finishing any task.
+
+## API migration (element/transform API in progress)
+- Read `doc/migration_plan.md` before touching `lithos/plotting/`.
+- Transforms compute statistics AND error; elements are formatting-only and never compute values.
+- Transform `__call__` returns `dict[group_key, geometry_dict]` — the geometry dict is the
+  only source of numbers elements render.
+- Legacy methods (`LinePlot.*`, `CategoricalPlot.*`) stay untouched during Phase 2;
+  parity tests in `tests/processing/` compare new vs legacy geometry.
+- `lithos/stats` must never import from `lithos/plotting` (keep the dependency graph acyclic).
+
+## Never do
+- Do not edit `uv.lock` by hand (regenerate with `uv lock` if dependencies change).
+- Do not hardcode versions — versions come from setuptools-scm git tags.
+- Do not "fix" unused-import (F401/F403) warnings in `__init__.py` files — they are
+  intentional re-exports and are ignored in the ruff config.
+- Do not edit `build/`, `.venv/`, `lithos.egg-info/`, or `uv.lock` content.
+- Do not use raw `plt.*` calls inside processors/transforms; rendering goes through `Plotter` classes.
+
+## Conventions
+- Python >= 3.10, type hints everywhere, `typing-extensions` for backports.
+- Line length 120 (ruff). Import order enforced (isort) — run `uv run ruff check --fix`.
+- Dev on Windows: use `uv run <cmd>` rather than activating `.venv` manually.
