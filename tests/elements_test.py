@@ -5,7 +5,6 @@ import pytest
 from lithos.plotting.elements import (
     Annotation,
     Bar,
-    Box,
     Element,
     ErrorBand,
     ErrorBar,
@@ -22,7 +21,6 @@ ALL_ELEMENTS = [
     (Fill, "fill"),
     (ErrorBand, "errorband"),
     (ErrorBar, "errorbar"),
-    (Box, "box"),
     (Annotation, "annotation"),
     (Significance, "significance"),
 ]
@@ -63,14 +61,14 @@ def test_line_has_no_fill_fields():
     assert "fill_between" not in spec
 
 
-def test_bar_and_box_have_no_fill_fields():
+def test_bar_has_no_fill_fields():
     # fill styling (incl. hatch) lives exclusively on Fill
-    for spec in (Bar().to_spec(), Box().to_spec()):
-        assert "facecolor" not in spec
-        assert "fillcolor" not in spec
-        assert "fillalpha" not in spec
-        assert "hatch" not in spec
-        assert "alpha" not in spec
+    spec = Bar().to_spec()
+    assert "facecolor" not in spec
+    assert "fillcolor" not in spec
+    assert "fillalpha" not in spec
+    assert "hatch" not in spec
+    assert "alpha" not in spec
 
 
 def test_errorband_has_no_fill_to_baseline():

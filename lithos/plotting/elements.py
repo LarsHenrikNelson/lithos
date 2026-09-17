@@ -12,9 +12,9 @@ Aggregation and error computation live in the transforms (see
 geometry produced by a transform.
 
 Fills are exclusively :class:`Fill` (including hatching): it is used for
-density/hist fill-under curves, bar faces and box faces. :class:`Bar` and
-:class:`Box` carry only outline/structure styling, and :class:`ErrorBand` is
-strictly the band around a transform's center +/- error bounds.
+density/hist fill-under curves and bar faces. :class:`Bar` carries only
+outline/structure styling, and :class:`ErrorBand` is strictly the band around
+a transform's center +/- error bounds.
 
 Field names deliberately match the legacy method keyword arguments so the
 serialized spec can be consumed by the existing processing helpers
@@ -31,7 +31,6 @@ from ..types.plot_input import AlphaRange, ColorParameters
 __all__ = [
     "Annotation",
     "Bar",
-    "Box",
     "Element",
     "ErrorBand",
     "ErrorBar",
@@ -106,9 +105,9 @@ class Bar(Element):
 class Fill(Element):
     """Filled region - the single source of fill styling.
 
-    Used for any filled geometry: density/hist fill-under curves, bar faces
-    and box faces. Pair with :class:`Bar`/:class:`Box` for outlines and with
-    :class:`Line` for density outlines. Hatching is also fill styling.
+    Used for any filled geometry: density/hist fill-under curves and bar
+    faces. Pair with :class:`Bar` for outlines and with :class:`Line` for density
+    outlines. Hatching is also fill styling.
     """
 
     type: str = "fill"
@@ -144,24 +143,6 @@ class ErrorBar(Element):
     linewidth: float = 2.0
     capsize: float = 5.0
     capstyle: CapStyle = "butt"
-
-
-@dataclass
-class Box(Element):
-    """Box outline for box/summary style plots.
-
-    Fill styling (facecolor, fillalpha, hatch) comes from a separate
-    :class:`Fill` element; ``Box`` only controls the outline and structure.
-    """
-
-    type: str = "box"
-    edgecolor: ColorParameters = "glasbey_category10"
-    edge_alpha: AlphaRange = 1.0
-    linewidth: float = 1.5
-    width: float = 0.9
-    notch: bool = False
-    showmeans: bool = False
-    fliers: bool | str = True
 
 
 @dataclass

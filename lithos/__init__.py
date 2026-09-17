@@ -4,7 +4,6 @@ from .plotting import CategoricalPlot, LinePlot
 from .plotting.elements import (
     Annotation,
     Bar,
-    Box,
     Element,
     ErrorBand,
     ErrorBar,

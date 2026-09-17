@@ -58,7 +58,7 @@ other.
 | `Marker` | `marker, markercolor, edgecolor, markeredgewidth, markersize, alpha, edge_alpha` | points at geometry |
 | `Bar` | `edgecolor, barwidth, linewidth, edge_alpha` | rectangle outlines (hist bars, categorical bars) |
 
-| `Fill` | `fillcolor, fillalpha, hatch, edgecolor, edgealpha` | filled regions (density fill-under, bar/box faces); the single source of fill styling |
+| `Fill` | `fillcolor, fillalpha, hatch, edgecolor, edgealpha` | filled regions (density fill-under, bar faces); the single source of fill styling |
 | `ErrorBand` | `fillcolor, fillalpha, edgecolor, edgealpha, linewidth` | shaded band between center +/- error bounds |
 
 ## Transform catalog and geometry contract
@@ -104,7 +104,7 @@ pipeline and the legacy processor output:
 1. scatter/jitter/paired -> `Identity` + `Marker` (+ `Line`)
 2. summary/bar/aggline/summaryu -> `Aggregate` + elements
 3. kde/hist/ecdf/violin/percent -> `Density` + elements
-4. box -> `Summary` + `Box`
+4. box -> `Summary` + `Bar`/`Fill`/`Line`/`Marker`
 5. fit -> `Fit` + `Line` + `ErrorBand`
 
 Parity tests live in `tests/processing/` and compare `Plot.add(...)` processed
@@ -126,15 +126,14 @@ same inputs and defaults.
 
 | `ErrorBar` | `linecolor, linealpha, linewidth, capsize, capstyle` | caps error bars |
 | `Whisker` | `linecolor, linealpha, linewidth, capsize, capstyle` | whisker lines from quantile geometry |
-| `Box` | `edgecolor, edge_alpha, linewidth, width, notch, showmeans, fliers` | box outline from quantile geometry |
 | `Annotation` | `text, x, y, fontsize, color, ha, va, rotation` | free text |
 | `Significance` | `text, x1, x2, y, linecolor, linewidth, fontsize, capsize` | GraphPad-style brackets+asterisks |
 
 Notes:
 
 - `Fill` is the single source of fill styling (including hatch) for density
-  fill-under curves, bar faces and box faces. `ErrorBand` is strictly the
-  center +/- error band. No `Connector`: paired connectors are just `Line`
+  fill-under curves and bar faces. `ErrorBand` is strictly the center +/- error
+  band. No `Connector`: paired connectors are just `Line`
   elements over the connection geometry.
 - Field names intentionally match the legacy processor argument names so that
   the serialized spec can reuse `preprocess_args` (any key containing `color`,

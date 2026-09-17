@@ -31,7 +31,7 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
 ## New element/transform API (Phase 0/1)
 
 - `lithos/plotting/elements.py` — formatting-only dataclasses (`Line`, `Marker`, `Bar`,
-  `Fill`, `ErrorBand`, `ErrorBar`, `Whisker`, `Box`, `Annotation`, `Significance`) that
+  `Fill`, `ErrorBand`, `ErrorBar`, `Annotation`, `Significance`) that
   serialize via `to_spec()`/`asdict()`.
 - `lithos/plotting/transforms.py` — pure statistical dataclasses (`Identity`, `Aggregate`,
   `Density`, `Summary`, `Fit`) built on `lithos.stats`. Each transform returns

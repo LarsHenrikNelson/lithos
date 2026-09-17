@@ -1,7 +1,6 @@
 from .elements import (
     Annotation,
     Bar,
-    Box,
     Element,
     ErrorBand,
     ErrorBar,
