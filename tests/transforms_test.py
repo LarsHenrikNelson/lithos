@@ -2,14 +2,19 @@ import numpy as np
 import pytest
 
 from lithos import (
+    ECDF,
+    KDE,
     Aggregate,
-    Density,
     Fit,
+    Histogram,
     Identity,
     Summary,
 )
 from lithos.plotting.transforms import as_error_pair
-from lithos.utils import DataHolder
+from lithos.stats import ecdf as stats_ecdf
+from lithos.stats import hist as stats_hist
+from lithos.stats import kde as stats_kde
+from lithos.utils import DataHolder, get_transform
 
 
 def _holder(data):
@@ -306,35 +311,169 @@ class TestAggregatePerX:
             )
 
 
-class TestDensity:
+class TestKDE:
     def test_kde(self, one_grouping):
         data, _ = one_grouping
-        geometry = Density(kind="kde")(_holder(data), y="y", levels=("grouping_1",))
+        geometry = KDE()(_holder(data), y="y", levels=("grouping_1",))
         assert len(geometry) == 3
         for gkey, g in geometry.items():
             assert g["x"].shape == g["y"].shape
             assert g["x"].size > 1
 
+
+class TestHistogram:
     def test_hist(self, one_grouping):
         data, _ = one_grouping
-        geometry = Density(kind="hist", bins=10)(_holder(data), y="y", levels=("grouping_1",))
+        geometry = Histogram(bins=10)(_holder(data), y="y", levels=("grouping_1",))
         for gkey, g in geometry.items():
             assert g["edges"].size == g["height"].size + 1
             assert g["binwidth"].size == g["height"].size
             assert g["stat"] == "density"
             np.testing.assert_allclose(g["centers"], g["edges"][:-1] + g["binwidth"] / 2)
 
+    def test_bin_limits_common(self, one_grouping):
+        data, _ = one_grouping
+        geometry = Histogram(bins=10, bin_limits="common")(_holder(data), y="y", levels=("grouping_1",))
+        common = np.histogram_bin_edges(np.asarray(data["y"], dtype=float), bins=10)
+        for gkey, g in geometry.items():
+            np.testing.assert_allclose(g["edges"], common)
+
+    def test_bin_limits_tuple(self, one_grouping):
+        data, _ = one_grouping
+        geometry = Histogram(bins=10, bin_limits=(-10.0, 10.0))(_holder(data), y="y", levels=("grouping_1",))
+        for gkey, g in geometry.items():
+            np.testing.assert_allclose(g["edges"][0], -10.0)
+            np.testing.assert_allclose(g["edges"][-1], 10.0)
+            assert g["edges"].size == 11
+
+
+class TestECDF:
     def test_ecdf(self, one_grouping):
         data, _ = one_grouping
-        geometry = Density(kind="ecdf")(_holder(data), y="y", levels=("grouping_1",))
+        geometry = ECDF()(_holder(data), y="y", levels=("grouping_1",))
         for gkey, g in geometry.items():
             assert np.all((g["y"] >= 0) & (g["y"] <= 1))
             assert np.all(np.diff(g["x"]) >= 0)
 
-    def test_invalid_kind_raises(self, one_grouping):
-        data, _ = one_grouping
+
+def _make_density_uid_data():
+    rng = np.random.default_rng(42)
+    grouping, uid, y = [], [], []
+    for g in (0, 1):
+        for u in ("a", "b", "c", "d"):
+            vals = rng.normal(loc=g * 3.0, scale=1.0, size=5)
+            grouping += [g] * vals.size
+            uid += [u] * vals.size
+            y += vals.tolist()
+    return {"grouping_1": grouping, "unique_grouping": uid, "y": y}
+
+
+DENSITY_UID = _make_density_uid_data()
+
+
+def _group_vals_density(group):
+    return np.asarray(DENSITY_UID["y"], dtype=float)[np.asarray(DENSITY_UID["grouping_1"]) == group]
+
+
+def _subject_vals_density(group):
+    mask = np.asarray(DENSITY_UID["grouping_1"]) == group
+    uid = np.asarray(DENSITY_UID["unique_grouping"])[mask]
+    vals = np.asarray(DENSITY_UID["y"], dtype=float)[mask]
+    return [vals[uid == u] for u in ("a", "b", "c", "d")]
+
+
+class TestKDEUniqueId:
+    def test_nested_per_subject(self):
+        geometry = KDE(unique_id="unique_grouping")(_holder(DENSITY_UID), y="y", levels=("grouping_1",))
+        # one geometry dict per (group, subject)
+        assert set(geometry.keys()) == {(g, u) for g in (0, 1) for u in ("a", "b", "c", "d")}
+        for g in geometry.values():
+            assert g["x"].shape == g["y"].shape
+            assert g["x"].size > 1
+            assert g["n"] == 5
+
+    def test_aggregated_matches_subject_mean(self):
+        geometry = KDE(unique_id="unique_grouping", agg_func="mean", err_func="sem", kde_length=64)(
+            _holder(DENSITY_UID), y="y", levels=("grouping_1",)
+        )
+        assert set(geometry.keys()) == {(0,), (1,)}
+        for gkey, g in geometry.items():
+            subjects = _subject_vals_density(gkey[0])
+            hold = np.vstack([stats_kde(v, tol=1e-3, x=g["x"], KDEType="fft")[1] for v in subjects])
+            np.testing.assert_allclose(g["y"], hold.mean(axis=0))
+            error = np.asarray(get_transform("sem")(hold, axis=0), dtype=float)
+            np.testing.assert_allclose(g["error_low"], error)
+            np.testing.assert_allclose(g["error_high"], error)
+            assert g["n"] == 4
+
+    def test_agg_requires_unique_id(self):
         with pytest.raises(ValueError):
-            Density(kind="nope")(_holder(data), y="y", levels=("grouping_1",))
+            KDE(agg_func="mean")(_holder(DENSITY_UID), y="y", levels=("grouping_1",))
+
+
+class TestHistogramUniqueId:
+    def test_nested_shared_group_edges(self):
+        geometry = Histogram(bins=10, unique_id="unique_grouping")(_holder(DENSITY_UID), y="y", levels=("grouping_1",))
+        assert set(geometry.keys()) == {(g, u) for g in (0, 1) for u in ("a", "b", "c", "d")}
+        for group in (0, 1):
+            edges = np.histogram_bin_edges(_group_vals_density(group), bins=10)
+            for u in ("a", "b", "c", "d"):
+                np.testing.assert_allclose(geometry[(group, u)]["edges"], edges)
+                assert geometry[(group, u)]["n"] == 5
+
+    def test_common_bin_limits(self):
+        geometry = Histogram(bins=10, bin_limits="common", unique_id="unique_grouping")(
+            _holder(DENSITY_UID), y="y", levels=("grouping_1",)
+        )
+        common = np.histogram_bin_edges(np.asarray(DENSITY_UID["y"], dtype=float), bins=10)
+        for g in geometry.values():
+            np.testing.assert_allclose(g["edges"], common)
+
+    def test_aggregated_mean_heights(self):
+        geometry = Histogram(bins=10, unique_id="unique_grouping", agg_func="mean", err_func="std")(
+            _holder(DENSITY_UID), y="y", levels=("grouping_1",)
+        )
+        assert set(geometry.keys()) == {(0,), (1,)}
+        for gkey, g in geometry.items():
+            edges = np.histogram_bin_edges(_group_vals_density(gkey[0]), bins=10)
+            np.testing.assert_allclose(g["edges"], edges)
+            subjects = _subject_vals_density(gkey[0])
+            hold = np.vstack([stats_hist(v, edges, "density") for v in subjects])
+            np.testing.assert_allclose(g["height"], hold.mean(axis=0))
+            error = np.asarray(get_transform("std")(hold, axis=0), dtype=float)
+            np.testing.assert_allclose(g["error_low"], error)
+            np.testing.assert_allclose(g["error_high"], error)
+            assert g["n"] == 4
+
+    def test_agg_requires_integer_bins(self):
+        with pytest.raises(ValueError):
+            Histogram(bins="auto", unique_id="unique_grouping", agg_func="mean")(
+                _holder(DENSITY_UID), y="y", levels=("grouping_1",)
+            )
+
+
+class TestECDFUniqueId:
+    def test_aggregated_spline_quantiles(self):
+        geometry = ECDF(ecdf_type="spline", unique_id="unique_grouping", agg_func="mean")(
+            _holder(DENSITY_UID), y="y", levels=("grouping_1",)
+        )
+        assert set(geometry.keys()) == {(0,), (1,)}
+        for gkey, g in geometry.items():
+            subjects = _subject_vals_density(gkey[0])
+            size = max(v.size for v in subjects)
+            # shared probability grid; x holds the aggregated quantile values (legacy axis swap)
+            np.testing.assert_allclose(g["y"], np.arange(size) / size)
+            hold = np.vstack([stats_ecdf(v, "spline", size=size)[1] for v in subjects])
+            np.testing.assert_allclose(g["x"], hold.mean(axis=0))
+            assert g["n"] == 4
+            assert g["error_low"] is None
+            assert g["error_high"] is None
+
+    def test_agg_requires_spline(self):
+        with pytest.raises(ValueError):
+            ECDF(ecdf_type="none", unique_id="unique_grouping", agg_func="mean")(
+                _holder(DENSITY_UID), y="y", levels=("grouping_1",)
+            )
 
 
 class TestSummary:

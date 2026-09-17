@@ -17,8 +17,15 @@ Geometry contract per transform:
   n}`` (one value per group); with ``x``: ``{x, center, error_low,
   error_high, n}`` (one value per unique x; per-x aggregation, legacy
   ``aggline``/``line`` parity)
-- ``Density``: kde/ecdf -> ``{x, y, n}``; hist -> ``{edges, height, binwidth,
-  centers, stat, n}``
+- ``KDE``/``ECDF``: ``{x, y, n}``; ``Histogram``: ``{edges, height,
+  binwidth, centers, stat, n}``. With ``unique_id``: one geometry dict per
+  subject (nested group keys; per-group shared bin edges for ``Histogram``).
+  With ``unique_id`` + ``agg_func``: per-subject densities on a shared grid,
+  re-aggregated per group — ``KDE``: ``{x, y, error_low, error_high, n}``;
+  ``Histogram``: ``{edges, height, error_low, error_high, binwidth,
+  centers, stat, n}``; ``ECDF``: ``{x, y, error_low, error_high, n}``
+  (``x`` = aggregated quantile values, ``y`` = shared probability grid);
+  ``n`` = subjects, errors per grid point/bin
 - ``Summary``: ``{center, mean, median, q1, q3, whisker_low, whisker_high,
   error_low, error_high, notch_low, notch_high, n}``
 - ``Fit``: ``{x, y, ci, n}``
@@ -39,6 +46,7 @@ from ..types.basic_types import (
     BW,
     CIFunc,
     FitFunc,
+    HistBinLimits,
     HistStat,
     KDEType,
     Kernels,
@@ -52,9 +60,11 @@ from ..utils import DataHolder, get_transform
 __all__ = [
     "Aggregate",
     "as_error_pair",
-    "Density",
+    "ECDF",
     "Fit",
+    "Histogram",
     "Identity",
+    "KDE",
     "Summary",
     "Transform",
 ]
@@ -427,31 +437,33 @@ class Aggregate(Transform):
 
 
 @dataclass
-class Density(Transform):
-    """Compute a 1-D density geometry per group.
+class _DensityTransform(Transform):
+    """Shared machinery for the density transforms (``KDE``/``Histogram``/``ECDF``).
 
-    ``kind`` selects the estimator:
+    ``unique_id`` nests the group key so each geometry dict is a single
+    subject's density. With ``unique_id`` + ``agg_func`` the densities are
+    first computed per subject on a *shared grid* and then re-aggregated per
+    group (legacy ``kde``/``hist``/``ecdf`` two-level semantics):
+    ``agg_func``/``err_func`` are applied across the subject curves, with
+    errors normalized per grid point to ``error_low``/``error_high`` (scalar
+    errors are symmetric). In the two-level geometry ``n`` is the subject
+    count; otherwise ``n`` is the value count.
 
-    - ``"kde"`` -> smooth density curves via ``KDEpy``;
-    - ``"hist"`` -> histogram (edges, heights);
-    - ``"ecdf"`` -> empirical cumulative density (raw, spline or bootstrap).
+    Subclasses implement ``_density_geometry(vals, edges=None)`` (one group
+    or one subject) and ``_aggregate_geometry(...)`` (two-level per group),
+    and may override ``_common_edges``/``_group_edges`` (shared bin edges)
+    and ``_validate``.
     """
 
     name: str = "density"
-    kind: Literal["kde", "hist", "ecdf"] = "kde"
-    # kde
-    kernel: Kernels = "gaussian"
-    bw: BW = "ISJ"
-    tol: float | int | tuple = 1e-3
-    kde_length: int | None = None
-    KDEType: KDEType = "fft"
-    # hist
-    bins: NBins = 50
-    bin_range: tuple[float, float] | None = None
-    stat: HistStat = "density"
-    # ecdf
-    ecdf_type: Literal["bootstrap", "spline", "none"] = "none"
-    ecdf_args: dict = field(default_factory=dict)
+    unique_id: str | None = None
+    agg_func: Agg | None = None
+    err_func: Error = None
+
+    def _validate(self) -> None:
+        """Per-transform validation; subclasses extend and call ``super()``."""
+        if self.agg_func is not None and self.unique_id is None:
+            raise ValueError(f"{type(self).__name__} agg_func requires a unique_id column.")
 
     def __call__(
         self,
@@ -464,40 +476,294 @@ class Density(Transform):
         **kwargs,
     ) -> dict[tuple, dict]:
         if y is None:
-            raise ValueError("Density requires a y column.")
+            raise ValueError(f"{type(self).__name__} requires a y column.")
+        self._validate()
+
+        levels = tuple(levels)
+        groups = self._groups(data, levels)
+        unique_groups = self._groups(data, levels + (self.unique_id,)) if self.unique_id is not None else None
+        common_edges = self._common_edges(data, y, ytransform)
+
         output = {}
-        for group_key, indexes in self._groups(data, levels).items():
+        for group_key, indexes in groups.items():
             vals = _get_column_values(data, indexes, y, ytransform)
-            if self.kind == "kde":
-                if vals.size < 2:
-                    xv, yv = vals, np.zeros_like(vals, dtype=float)
-                else:
-                    xv, yv = kde(
-                        vals,
-                        kernel=self.kernel,
-                        bw=self.bw,
-                        tol=self.tol,
-                        kde_length=self.kde_length,
-                        KDEType=self.KDEType,
-                    )
-                output[group_key] = {"x": xv, "y": yv, "n": int(vals.size)}
-            elif self.kind == "hist":
-                edges = np.histogram_bin_edges(vals, bins=self.bins, range=self.bin_range)
-                height = hist(vals, edges, self.stat)
-                output[group_key] = {
-                    "edges": edges,
-                    "height": height,
-                    "binwidth": np.diff(edges),
-                    "centers": edges[:-1] + np.diff(edges) / 2,
-                    "stat": self.stat,
-                    "n": int(vals.size),
-                }
-            elif self.kind == "ecdf":
-                xv, yv = ecdf(vals, self.ecdf_type, **self.ecdf_args)
-                output[group_key] = {"x": xv, "y": yv, "n": int(vals.size)}
+            edges = self._group_edges(vals) if common_edges is None else common_edges
+            if self.unique_id is None:
+                output[group_key] = self._density_geometry(vals, edges=edges)
+                continue
+
+            uids = np.unique(np.asarray(data[indexes, self.unique_id]))
+            if self.agg_func is None:
+                # nesting: one geometry dict per (group, subject)
+                for uid in uids:
+                    sub_indexes = unique_groups[group_key + (uid,)]
+                    sub_vals = _get_column_values(data, sub_indexes, y, ytransform)
+                    output[group_key + (uid,)] = self._density_geometry(sub_vals, edges=edges)
             else:
-                raise ValueError(f"kind must be 'kde', 'hist' or 'ecdf', got {self.kind!r}.")
+                # two-level: per-subject densities on the shared grid, re-aggregated per group
+                output[group_key] = self._aggregate_geometry(
+                    vals, uids, group_key, unique_groups, data, y, ytransform, edges
+                )
         return output
+
+    def _subject_values(
+        self,
+        group_key: tuple,
+        uids: np.ndarray,
+        unique_groups: dict[tuple, np.ndarray],
+        data: DataHolder,
+        y: str,
+        ytransform: Transform | None,
+    ) -> list[np.ndarray]:
+        """Per-subject value arrays within a group, in uid order."""
+        return [_get_column_values(data, unique_groups[group_key + (uid,)], y, ytransform) for uid in uids]
+
+    def _density_geometry(self, vals: np.ndarray, edges: np.ndarray | None = None) -> dict:
+        """Density geometry for one set of values (one group or one subject)."""
+        raise NotImplementedError("Density transforms must implement _density_geometry.")
+
+    def _aggregate_geometry(
+        self,
+        vals: np.ndarray,
+        uids: np.ndarray,
+        group_key: tuple,
+        unique_groups: dict[tuple, np.ndarray],
+        data: DataHolder,
+        y: str,
+        ytransform: Transform | None,
+        edges: np.ndarray | None,
+    ) -> dict:
+        """Two-level geometry: per-subject densities on a shared grid, aggregated per group."""
+        raise NotImplementedError("Density transforms must implement _aggregate_geometry.")
+
+    def _common_edges(self, data: DataHolder, y: str, ytransform: Transform | None) -> np.ndarray | None:
+        """Global shared bin edges (``bin_limits="common"``); ``None`` otherwise."""
+        return None
+
+    def _group_edges(self, vals: np.ndarray) -> np.ndarray | None:
+        """Per-group shared bin edges; ``None`` when the transform has no bins."""
+        return None
+
+    def _pair_error(self, hold: np.ndarray) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """Normalize ``err_func`` output across subjects to per-grid-point (low, high).
+
+        Per-grid-point extension of ``as_error_pair``: a ``(2, n)`` array is
+        treated as ``(low, high)`` rows; anything else is symmetric per point.
+        """
+        if self.err_func is None:
+            return None, None
+        error = np.asarray(get_transform(self.err_func)(hold, axis=0), dtype=float)
+        if error.ndim == 2 and error.shape[0] == 2:
+            return error[0], error[1]
+        return error, error.copy()
+
+
+@dataclass
+class KDE(_DensityTransform):
+    """Smooth per-group density curves via ``KDEpy``.
+
+    ``unique_id`` nests the group key so each geometry dict is one subject's
+    KDE (per-subject grids). With ``unique_id`` + ``agg_func`` each subject
+    KDE is evaluated on a shared grid built from the pooled group values
+    (``tol`` pads the range; a ``(low, high)`` tuple fixes it; grid
+    evaluation is FFT) and ``agg_func``/``err_func`` are applied across the
+    subject curves.
+
+    Geometry per group/subject: ``{x, y, n}``; two-level per group:
+    ``{x, y, error_low, error_high, n}`` (``n`` = subjects, errors per grid
+    point).
+    """
+
+    name: str = "kde"
+    kernel: Kernels = "gaussian"
+    bw: BW = "ISJ"
+    tol: float | int | tuple = 1e-3
+    kde_length: int | None = None
+    KDEType: KDEType = "fft"
+
+    def _density_geometry(self, vals: np.ndarray, edges: np.ndarray | None = None) -> dict:
+        if vals.size < 2:
+            xv, yv = vals, np.zeros_like(vals, dtype=float)
+        else:
+            xv, yv = kde(
+                vals,
+                kernel=self.kernel,
+                bw=self.bw,
+                tol=self.tol,
+                kde_length=self.kde_length,
+                KDEType=self.KDEType,
+            )
+        return {"x": xv, "y": yv, "n": int(vals.size)}
+
+    def _aggregate_geometry(
+        self,
+        vals: np.ndarray,
+        uids: np.ndarray,
+        group_key: tuple,
+        unique_groups: dict[tuple, np.ndarray],
+        data: DataHolder,
+        y: str,
+        ytransform: Transform | None,
+        edges: np.ndarray | None,
+    ) -> dict:
+        grid = self._shared_grid(vals)
+        sub_vals = self._subject_values(group_key, uids, unique_groups, data, y, ytransform)
+        # grid evaluation is FFT-only (legacy behavior, made explicit)
+        hold = np.vstack(
+            [kde(v, kernel=self.kernel, bw=self.bw, tol=self.tol, x=grid, KDEType="fft")[1] for v in sub_vals]
+        )
+        center = np.asarray(get_transform(self.agg_func)(hold, axis=0), dtype=float)
+        low, high = self._pair_error(hold)
+        return {"x": grid, "y": center, "error_low": low, "error_high": high, "n": int(uids.size)}
+
+    def _shared_grid(self, vals: np.ndarray) -> np.ndarray:
+        """Shared evaluation grid from the pooled group values (legacy semantics)."""
+        if isinstance(self.tol, tuple):
+            lo, hi = float(self.tol[0]), float(self.tol[1])
+        else:
+            lo, hi = float(vals.min()), float(vals.max())
+            # relative padding, guarding a zero bound (legacy behavior)
+            lo = lo - abs(lo * self.tol) if lo != 0 else -1e-10
+            hi = hi + abs(hi * self.tol) if hi != 0 else 1e-10
+        kde_length = self.kde_length if self.kde_length is not None else 1 << int(np.ceil(np.log2(max(vals.size, 2))))
+        return np.linspace(lo, hi, num=kde_length)
+
+
+@dataclass
+class Histogram(_DensityTransform):
+    """Per-group histogram geometry.
+
+    ``bin_limits`` unifies range control:
+
+    - ``None`` (default): per-group auto range (group min/max);
+    - ``"common"``: global pooled range — every group/subject shares the
+      same edges;
+    - ``(low, high)``: explicit fixed range.
+
+    ``unique_id`` nests the group key with per-group shared edges so subject
+    hists are comparable. With ``unique_id`` + ``agg_func`` (integer ``bins``
+    required) the per-subject heights are aggregated per group with per-bin
+    errors.
+
+    Geometry per group/subject: ``{edges, height, binwidth, centers, stat,
+    n}``; two-level per group: ``{edges, height, error_low, error_high,
+    binwidth, centers, stat, n}`` (``n`` = subjects, errors per bin).
+    """
+
+    name: str = "histogram"
+    bins: NBins = 50
+    bin_limits: HistBinLimits = None
+    stat: HistStat = "density"
+
+    def _validate(self) -> None:
+        super()._validate()
+        if self.agg_func is not None and isinstance(self.bins, str):
+            raise ValueError("bins must be an integer when agg_func is given.")
+
+    def _edges(self, vals: np.ndarray) -> np.ndarray:
+        """Bin edges for one set of values under the current ``bin_limits``."""
+        limits = self.bin_limits if isinstance(self.bin_limits, tuple) else None
+        return np.histogram_bin_edges(vals, bins=self.bins, range=limits)
+
+    def _common_edges(self, data: DataHolder, y: str, ytransform: Transform | None) -> np.ndarray | None:
+        if self.bin_limits == "common":
+            all_vals = _get_column_values(data, np.arange(data.shape[0]), y, ytransform)
+            return self._edges(all_vals)
+        return None
+
+    def _group_edges(self, vals: np.ndarray) -> np.ndarray | None:
+        # per-group shared bin edges so subject hists are comparable
+        return self._edges(vals)
+
+    def _density_geometry(self, vals: np.ndarray, edges: np.ndarray | None = None) -> dict:
+        edges = self._edges(vals) if edges is None else edges
+        height = hist(vals, edges, self.stat)
+        return {
+            "edges": edges,
+            "height": height,
+            "binwidth": np.diff(edges),
+            "centers": edges[:-1] + np.diff(edges) / 2,
+            "stat": self.stat,
+            "n": int(vals.size),
+        }
+
+    def _aggregate_geometry(
+        self,
+        vals: np.ndarray,
+        uids: np.ndarray,
+        group_key: tuple,
+        unique_groups: dict[tuple, np.ndarray],
+        data: DataHolder,
+        y: str,
+        ytransform: Transform | None,
+        edges: np.ndarray | None,
+    ) -> dict:
+        edges = self._edges(vals) if edges is None else edges
+        sub_vals = self._subject_values(group_key, uids, unique_groups, data, y, ytransform)
+        hold = np.vstack([hist(v, edges, self.stat) for v in sub_vals])
+        center = np.asarray(get_transform(self.agg_func)(hold, axis=0), dtype=float)
+        low, high = self._pair_error(hold)
+        return {
+            "edges": edges,
+            "height": center,
+            "error_low": low,
+            "error_high": high,
+            "binwidth": np.diff(edges),
+            "centers": edges[:-1] + np.diff(edges) / 2,
+            "stat": self.stat,
+            "n": int(uids.size),
+        }
+
+
+@dataclass
+class ECDF(_DensityTransform):
+    """Per-group empirical cumulative density (raw, spline or bootstrap).
+
+    ``unique_id`` nests the group key so each geometry dict is one subject's
+    ECDF. With ``unique_id`` + ``agg_func`` (``ecdf_type="spline"`` required)
+    every subject is evaluated on a shared probability grid (``size``
+    defaults to the largest subject) so the aggregated geometry is the mean
+    quantile function — the legacy axis swap: ``x`` holds quantile values,
+    ``y`` the shared probabilities.
+
+    Geometry per group/subject: ``{x, y, n}``; two-level per group:
+    ``{x, y, error_low, error_high, n}`` (``n`` = subjects, errors per grid
+    point).
+    """
+
+    name: str = "ecdf"
+    ecdf_type: Literal["bootstrap", "spline", "none"] = "none"
+    ecdf_args: dict = field(default_factory=dict)
+
+    def _validate(self) -> None:
+        super()._validate()
+        if self.agg_func is not None and self.ecdf_type != "spline":
+            raise ValueError("ecdf_type must be 'spline' when agg_func is given (shared probability grid).")
+
+    def _density_geometry(self, vals: np.ndarray, edges: np.ndarray | None = None) -> dict:
+        xv, yv = ecdf(vals, self.ecdf_type, **self.ecdf_args)
+        return {"x": xv, "y": yv, "n": int(vals.size)}
+
+    def _aggregate_geometry(
+        self,
+        vals: np.ndarray,
+        uids: np.ndarray,
+        group_key: tuple,
+        unique_groups: dict[tuple, np.ndarray],
+        data: DataHolder,
+        y: str,
+        ytransform: Transform | None,
+        edges: np.ndarray | None,
+    ) -> dict:
+        # shared probability grid; x holds the aggregated quantile values (legacy axis swap)
+        args = dict(self.ecdf_args)
+        sub_vals = self._subject_values(group_key, uids, unique_groups, data, y, ytransform)
+        size = args.pop("size", max(v.size for v in sub_vals))
+        grid_y = np.arange(size) / size
+        hold = np.vstack([ecdf(v, "spline", size=size, **args)[1] for v in sub_vals])
+        center = np.asarray(get_transform(self.agg_func)(hold, axis=0), dtype=float)
+        low, high = self._pair_error(hold)
+        return {"x": center, "y": grid_y, "error_low": low, "error_high": high, "n": int(uids.size)}
 
 
 @dataclass

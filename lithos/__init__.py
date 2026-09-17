@@ -13,9 +13,11 @@ from .plotting.elements import (
     Significance,
 )
 from .plotting.transforms import (
+    ECDF,
+    KDE,
     Aggregate,
-    Density,
     Fit,
+    Histogram,
     Identity,
     Summary,
     Transform,

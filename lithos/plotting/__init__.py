@@ -11,9 +11,11 @@ from .elements import (
 )
 from .plot_class import CategoricalPlot, LinePlot
 from .transforms import (
+    ECDF,
+    KDE,
     Aggregate,
-    Density,
     Fit,
+    Histogram,
     Identity,
     Summary,
     Transform,

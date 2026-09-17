@@ -72,7 +72,9 @@ element computes values.
 | --- | --- | --- |
 | `Identity` | `unique_id` | `{n, x?, y?}` — at least one of x/y; the omitted axis is supplied by the position resolver (jitter/dodge; horizontal layouts use `x` only). With `unique_id`: one geometry dict per subject's ordered series (paired connectors), sorted by `x` when given, with pair-completeness validation |
 | `Aggregate` | `func, err_func, agg_func, unique_id, how` | arrays — without `x`: `{center, error_low, error_high, n}` (one value per group); with `x`: `{x, center, error_low, error_high, n}` (one value per unique x; per-x aggregation, legacy `aggline`/`line` parity). `how=auto\|groupby\|matrix` picks the ragged-vs-aligned per-x strategy |
-| `Density(kind)` | `kde`: `kernel, bw, tol, kde_length, KDEType`<br/>`hist`: `bins, bin_range, stat`<br/>`ecdf`: `ecdf_type, ecdf_args` | kde/ecdf: `{x, y, n}`<br/>hist: `{edges, height, binwidth, centers, stat, n}` |
+| `KDE` | `kernel, bw, tol, kde_length, KDEType` + `unique_id, agg_func, err_func` | `{x, y, n}` per group/subject (per-subject grids). With `unique_id` + `agg_func`: pooled-group eval grid (FFT-evaluated), `agg_func`/`err_func` across subject curves: `{x, y, error_low, error_high, n}` (`n` = subjects, errors per grid point) |
+| `Histogram` | `bins, bin_limits, stat` + `unique_id, agg_func, err_func` | `{edges, height, binwidth, centers, stat, n}`. `bin_limits`: `None` = per-group auto range, `"common"` = global shared edges, `(low, high)` = explicit range. With `unique_id`: per-group shared edges per subject; with `agg_func`: per-subject heights aggregated per group with per-bin errors (integer `bins`) |
+| `ECDF` | `ecdf_type, ecdf_args` + `unique_id, agg_func, err_func` | `{x, y, n}` per group/subject. With `unique_id` + `agg_func` (spline): shared probability grid, `x` = aggregated quantile values (legacy axis swap): `{x, y, error_low, error_high, n}` |
 | `Summary` | `func, err_func, whisker, whisker_quantiles, notch` | `{center, mean, median, q1, q3, whisker_low, whisker_high, error_low, error_high, notch_low, notch_high, n}` |
 | `Fit` | `fit_func, ci_func, fit_args` | `{x, y, ci, n}` |
 
@@ -103,7 +105,7 @@ pipeline and the legacy processor output:
 
 1. scatter/jitter/paired -> `Identity` + `Marker` (+ `Line`)
 2. summary/bar/aggline/summaryu -> `Aggregate` + elements
-3. kde/hist/ecdf/violin/percent -> `Density` + elements
+3. kde/hist/ecdf/violin/percent -> `KDE`/`Histogram`/`ECDF` + elements
 4. box -> `Summary` + `Bar`/`Fill`/`Line`/`Marker`
 5. fit -> `Fit` + `Line` + `ErrorBand`
 
@@ -121,7 +123,9 @@ same inputs and defaults.
 
 - Facet / polar figure handling stays renderer-side (`create_figure`,
   `format_polar`) - not part of the spec.
-- `bin_limits="common"`-style cross-group binning inside `Density` (Phase 2).
+- `bin_limits="common"`-style cross-group binning inside `Histogram`
+  (resolved: `Histogram(bin_limits="common")` computes global edges, shared
+  by every group/subject hist).
 - Whether `LinePlot`/`CategoricalPlot` survive as facades (Phase 3).
 
 | `ErrorBar` | `linecolor, linealpha, linewidth, capsize, capstyle` | caps error bars |
@@ -136,7 +140,15 @@ Notes:
   then across subjects — legacy `line`/`summaryu` semantics, including the
   `(uid, x)` matrix pivot for the legacy `paired` `agg_func` branch); in
   `Identity` it nests the group key so each geometry dict is one subject's
-  ordered series — the legacy `paired` connector geometry. The paired plot
+  ordered series — the legacy `paired` connector geometry. In `KDE`/
+  `Histogram`/`ECDF` it plays both: nesting only (per-subject densities,
+  `Histogram` on shared per-group edges) unless `agg_func` is given, in
+  which case the densities are computed per subject on a *shared grid* (kde: pooled-group
+  evaluation grid, FFT-evaluated; hist: shared edges; ecdf: spline on a
+  shared probability grid — the aggregated geometry is the mean quantile
+  function, legacy axis swap) and re-aggregated across subjects, with
+  `err_func` giving per-grid-point errors — legacy `kde`/`hist`/`ecdf`
+  `agg_func` semantics. The paired plot
   therefore decomposes as `Identity(unique_id=...) + Line + Marker`, stacked
   with `Aggregate(unique_id=..., how="matrix")` for the aggregated line.
   Stacked `.add()` calls over the same data keep subject-level and
