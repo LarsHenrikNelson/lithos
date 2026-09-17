@@ -95,6 +95,7 @@ class Transform:
         levels: Levels = (),
         ytransform: Transform | None = None,
         xtransform: Transform | None = None,
+        *args,
         **kwargs,
     ) -> dict[tuple, dict]:
         """Compute per-group geometry.
