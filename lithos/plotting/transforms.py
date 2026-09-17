@@ -9,8 +9,13 @@ the geometry dict is the only source of numbers that elements render.
 
 Geometry contract per transform:
 
-- ``Identity``: ``{x, y, n}``
-- ``Aggregate``: ``{center, error_low, error_high, n}``
+- ``Identity``: ``{n, x?, y?}`` — at least one of x/y; the omitted axis is
+  supplied by the position resolver (jitter/dodge; horizontal layouts use
+  ``x`` only)
+- ``Aggregate``: arrays — without ``x``: ``{center, error_low, error_high,
+  n}`` (one value per group); with ``x``: ``{x, center, error_low,
+  error_high, n}`` (one value per unique x; per-x aggregation, legacy
+  ``aggline``/``line`` parity)
 - ``Density``: kde/ecdf -> ``{x, y, n}``; hist -> ``{edges, height, binwidth,
   centers, stat, n}``
 - ``Summary``: ``{center, mean, median, q1, q3, whisker_low, whisker_high,
@@ -103,7 +108,9 @@ class Transform:
         Args:
             data: the input data.
             y: value column.
-            x: independent column (required by ``Identity``/``Fit``).
+            x: independent column (required by ``Fit``; optional for
+              ``Identity`` and per-x ``Aggregate`` — the omitted axis is
+              supplied by the position resolver).
             levels: grouping columns (group, subgroup, ...).
             ytransform: transform applied to y values (log10 etc).
             xtransform: transform applied to x values.
@@ -117,7 +124,13 @@ class Transform:
 
 @dataclass
 class Identity(Transform):
-    """Pass raw values through as per-group point geometry."""
+    """Pass raw values through as per-group point geometry.
+
+    Requires at least one of ``x``/``y``. The omitted axis is left out of
+    the geometry dict so the position resolver (jitter/dodge) can supply it;
+    this mirrors the legacy ``jitter`` processor and enables horizontal
+    layouts (``x`` only). Both given -> 2-D scatter.
+    """
 
     name: str = "identity"
 
@@ -131,31 +144,53 @@ class Identity(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
-        if x is None or y is None:
-            raise ValueError("Identity requires both x and y columns.")
+        if x is None and y is None:
+            raise ValueError("Identity requires an x or y column.")
         output = {}
         for group_key, indexes in self._groups(data, levels).items():
-            output[group_key] = {
-                "x": _get_column_values(data, indexes, x, xtransform),
-                "y": _get_column_values(data, indexes, y, ytransform),
-                "n": int(indexes.size),
-            }
+            geometry = {"n": int(indexes.size)}
+            if x is not None:
+                geometry["x"] = _get_column_values(data, indexes, x, xtransform)
+            if y is not None:
+                geometry["y"] = _get_column_values(data, indexes, y, ytransform)
+            output[group_key] = geometry
         return output
 
 
 @dataclass
 class Aggregate(Transform):
-    """Aggregate y per group (optionally nesting via ``unique_id``).
+    """Aggregate y per group — optionally along x, optionally nested by ``unique_id``.
 
     Args:
         func: aggregation function applied to y within each group (or within
-            each unique_id group first).
+            each unique_id first).
         err_func: error function applied to the same values; the result is
             normalized to ``error_low``/``error_high``.
         agg_func: second-level aggregation applied across unique_id samples
             when ``unique_id`` is given (defaults to ``func``).
         unique_id: column whose unique values are first aggregated with
             ``func``, then re-aggregated per group with ``agg_func``.
+        how: per-x aggregation strategy when ``x`` is given (``x`` must be
+            numeric and sortable):
+
+            - ``"groupby"``: aggregate per (levels, x) — handles ragged data
+              (unequal y counts or missing x values per uid).
+            - ``"matrix"``: pivot to a dense (uid, x) matrix and aggregate
+              ``axis=0`` — the fast path for aligned data; requires
+              ``unique_id`` and every uid to share the same x grid.
+            - ``"auto"`` (default): ``matrix`` when the data is aligned,
+              ``groupby`` otherwise.
+
+    Geometry per group (always arrays):
+
+    - without ``x``: ``{center, error_low, error_high, n}`` — length-1
+      arrays (one aggregated value per group).
+    - with ``x``: ``{x, center, error_low, error_high, n}`` — one entry per
+      unique x value (per-x aggregation, legacy ``aggline``/``line`` parity).
+
+    ``error_low``/``error_high`` are ``None`` when ``err_func`` is not given.
+    With ``unique_id`` the error is computed on the first-level (per-uid)
+    aggregates, otherwise on the raw values.
     """
 
     name: str = "aggregate"
@@ -163,6 +198,7 @@ class Aggregate(Transform):
     err_func: Error = None
     agg_func: Agg | None = None
     unique_id: str | None = None
+    how: Literal["auto", "groupby", "matrix"] = "auto"
 
     def __call__(
         self,
@@ -176,47 +212,172 @@ class Aggregate(Transform):
     ) -> dict[tuple, dict]:
         if y is None:
             raise ValueError("Aggregate requires a y column.")
-        output = {}
+        levels = tuple(levels)
+        if x is None:
+            return self._aggregate_per_group(data, y, levels, ytransform)
+        return self._aggregate_per_x(data, y, x, levels, ytransform, xtransform)
 
+    def _error_pair(self, vals: np.ndarray) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """Apply ``err_func`` to one sample of values, returning length-1 error arrays."""
+        if self.err_func is None:
+            return None, None
+        low, high = as_error_pair(get_transform(self.err_func)(vals))
+        low = None if low is None else np.array([low])
+        high = None if high is None else np.array([high])
+        return low, high
+
+    def _aggregate_per_group(
+        self, data: DataHolder, y: str, levels: tuple, ytransform: Transform | None
+    ) -> dict[tuple, dict]:
+        """Aggregate y to a single value per group (bars / summary points)."""
+        first = get_transform(self.func)
+        output = {}
         if self.unique_id is None:
             for group_key, indexes in self._groups(data, levels).items():
                 vals = _get_column_values(data, indexes, y, ytransform)
-                center = float(get_transform(self.func)(vals))
-                if self.err_func is not None:
-                    low, high = as_error_pair(get_transform(self.err_func)(vals))
-                else:
-                    low, high = None, None
+                low, high = self._error_pair(vals)
                 output[group_key] = {
-                    "center": center,
+                    "center": np.array([float(first(vals))]),
                     "error_low": low,
                     "error_high": high,
-                    "n": int(vals.size),
+                    "n": np.array([vals.size]),
                 }
             return output
 
         # Nested aggregation: first over (levels + unique_id), then over levels.
-        sub_levels = tuple(levels) + (self.unique_id,)
-        n_levels = len(tuple(levels))
-        per_group: dict[tuple, list[np.ndarray]] = defaultdict(list)
-        first = get_transform(self.func)
+        sub_levels = levels + (self.unique_id,)
+        n_levels = len(levels)
+        second = get_transform(self.agg_func if self.agg_func is not None else self.func)
+        per_group: dict[tuple, list] = defaultdict(list)
         for sub_key, sub_indexes in self._groups(data, sub_levels).items():
             vals = _get_column_values(data, sub_indexes, y, ytransform)
             per_group[sub_key[:n_levels] if n_levels > 0 else ("",)].append(first(vals))
-        second = get_transform(self.agg_func if self.agg_func is not None else self.func)
         for group_key, centers in per_group.items():
             centers = np.asarray(centers, dtype=float)
-            center = float(second(centers))
-            if self.err_func is not None:
-                low, high = as_error_pair(get_transform(self.err_func)(centers))
-            else:
-                low, high = None, None
+            low, high = self._error_pair(centers)
             output[group_key] = {
-                "center": center,
+                "center": np.array([float(second(centers))]),
                 "error_low": low,
                 "error_high": high,
-                "n": int(centers.size),
+                "n": np.array([centers.size]),
             }
         return output
+
+    def _aggregate_per_x(
+        self,
+        data: DataHolder,
+        y: str,
+        x: str,
+        levels: tuple,
+        ytransform: Transform | None,
+        xtransform: Transform | None,
+    ) -> dict[tuple, dict]:
+        """Aggregate y at each unique x value per group (legacy ``aggline``/``line``)."""
+        groups = self._groups(data, levels)
+        second = get_transform(self.agg_func if self.agg_func is not None else self.func)
+
+        if self.how == "auto":
+            use_matrix = self.unique_id is not None and self._is_aligned(data, x, groups)
+        else:
+            use_matrix = self.how == "matrix"
+        if use_matrix:
+            if self.unique_id is None:
+                raise ValueError("Aggregate how='matrix' requires a unique_id column.")
+            return {
+                group_key: self._matrix_geometry(data, indexes, y, x, ytransform, xtransform, second)
+                for group_key, indexes in groups.items()
+            }
+
+        # groupby path: aggregate per (levels, x) — handles ragged data.
+        first = get_transform(self.func)
+        n_levels = len(levels)
+        sub_levels = levels + (x,) if self.unique_id is None else levels + (x, self.unique_id)
+        per_group_x: dict[tuple, dict] = defaultdict(dict)
+        for sub_key, sub_indexes in self._groups(data, sub_levels).items():
+            gkey = sub_key[:n_levels] if n_levels > 0 else ("",)
+            xv = sub_key[n_levels]
+            vals = _get_column_values(data, sub_indexes, y, ytransform)
+            if self.unique_id is None:
+                per_group_x[gkey][xv] = vals
+            else:
+                per_group_x[gkey].setdefault(xv, []).append(first(vals))
+
+        output = {}
+        for group_key, per_x in per_group_x.items():
+            xs = sorted(per_x.keys())
+            centers, lows, highs, ns = [], [], [], []
+            for xv in xs:
+                values = np.asarray(per_x[xv], dtype=float)
+                if self.unique_id is None:
+                    centers.append(float(first(values)))
+                else:
+                    centers.append(float(second(values)))
+                low, high = self._error_pair(values)
+                lows.append(low[0] if low is not None else None)
+                highs.append(high[0] if high is not None else None)
+                ns.append(int(values.size))
+            if self.err_func is None:
+                error_low = error_high = None
+            else:
+                error_low = np.asarray(lows, dtype=float)
+                error_high = np.asarray(highs, dtype=float)
+            output[group_key] = {
+                "x": np.asarray(get_transform(xtransform)(np.asarray(xs, dtype=float)), dtype=float),
+                "center": np.asarray(centers, dtype=float),
+                "error_low": error_low,
+                "error_high": error_high,
+                "n": np.asarray(ns, dtype=int),
+            }
+        return output
+
+    def _is_aligned(self, data: DataHolder, x: str, groups: dict[tuple, np.ndarray]) -> bool:
+        """True when every unique_id shares the same complete x grid within each group."""
+        for indexes in groups.values():
+            uid_vals = np.asarray(data[indexes, self.unique_id])
+            x_vals = np.asarray(data[indexes, x])
+            if indexes.size != np.unique(uid_vals).size * np.unique(x_vals).size:
+                return False
+            pairs = np.unique(np.stack([x_vals, uid_vals], axis=1), axis=0)
+            if pairs.shape[0] != indexes.size:
+                return False
+        return True
+
+    def _matrix_geometry(
+        self,
+        data: DataHolder,
+        indexes: np.ndarray,
+        y: str,
+        x: str,
+        ytransform: Transform | None,
+        xtransform: Transform | None,
+        second,
+    ) -> dict:
+        """Fast path: pivot the group to a dense (uid, x) matrix and aggregate axis=0."""
+        uid_vals = np.asarray(data[indexes, self.unique_id])
+        x_vals = np.asarray(data[indexes, x])
+        yvals = _get_column_values(data, indexes, y, ytransform)
+        xs = np.unique(x_vals)
+        uids = np.unique(uid_vals)
+        pairs = np.unique(np.stack([x_vals, uid_vals], axis=1), axis=0)
+        if indexes.size != uids.size * xs.size or pairs.shape[0] != indexes.size:
+            raise ValueError(
+                "Aggregate how='matrix' requires every unique_id to share the same x grid "
+                "(each (unique_id, x) pair appearing at most once); use how='groupby' or 'auto'."
+            )
+        matrix = np.full((uids.size, xs.size), np.nan)
+        matrix[np.searchsorted(uids, uid_vals), np.searchsorted(xs, x_vals)] = yvals
+        if self.err_func is not None:
+            error = np.asarray(get_transform(self.err_func)(matrix, axis=0), dtype=float)
+            error_low = error_high = error
+        else:
+            error_low = error_high = None
+        return {
+            "x": np.asarray(get_transform(xtransform)(xs), dtype=float),
+            "center": np.asarray(second(matrix, axis=0), dtype=float),
+            "error_low": error_low,
+            "error_high": error_high,
+            "n": np.full(xs.size, uids.size, dtype=int),
+        }
 
 
 @dataclass

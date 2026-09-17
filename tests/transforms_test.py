@@ -63,10 +63,28 @@ class TestIdentity:
             assert g["y"].shape == (30,)
             assert g["n"] == 30
 
-    def test_requires_x_and_y(self, one_grouping):
+    def test_requires_at_least_one_column(self, one_grouping):
         data, _ = one_grouping
         with pytest.raises(ValueError):
-            Identity()(_holder(data), y="y", x=None)
+            Identity()(_holder(data), y=None, x=None)
+
+    def test_y_only_geometry(self, one_grouping):
+        data, _ = one_grouping
+        geometry = Identity()(_holder(data), y="y", levels=("grouping_1",))
+        assert len(geometry) == 3
+        for gkey, g in geometry.items():
+            assert g["y"].shape == (30,)
+            assert g["n"] == 30
+            assert "x" not in g
+
+    def test_x_only_geometry(self, one_grouping):
+        data, _ = one_grouping
+        geometry = Identity()(_holder(data), x="x", levels=("grouping_1",))
+        assert len(geometry) == 3
+        for gkey, g in geometry.items():
+            assert g["x"].shape == (30,)
+            assert g["n"] == 30
+            assert "y" not in g
 
 
 class TestAggregate:
@@ -77,10 +95,13 @@ class TestAggregate:
         for key, g in geometry.items():
             vals = _group_vals(data, key)
             n = vals.size
-            assert g["center"] == pytest.approx(float(np.mean(vals)))
-            assert g["error_low"] == pytest.approx(float(np.std(vals) / np.sqrt(n - 1)))
-            assert g["error_high"] == g["error_low"]
-            assert g["n"] == 30
+            assert g["center"].shape == (1,)
+            assert g["center"][0] == pytest.approx(float(np.mean(vals)))
+            assert g["error_low"].shape == (1,)
+            assert g["error_low"][0] == pytest.approx(float(np.std(vals) / np.sqrt(n - 1)))
+            assert g["error_high"][0] == g["error_low"][0]
+            assert g["n"].shape == (1,)
+            assert g["n"][0] == 30
 
     def test_no_error(self, one_grouping):
         data, _ = one_grouping
@@ -97,8 +118,110 @@ class TestAggregate:
         # fixture is create_synthetic_data(2, 3, 3, 30): 3 subgroups [2, 3, 4]
         assert set(geometry.keys()) == {(0, 2), (0, 3), (0, 4), (1, 2), (1, 3), (1, 4)}
         for gkey, g in geometry.items():
-            assert g["n"] == 3  # three unique ids per group/subgroup
-            assert g["error_low"] is not None
+            assert g["n"].shape == (1,)  # three unique ids per group/subgroup
+            assert g["n"][0] == 3
+            assert g["error_low"].shape == (1,)
+            assert g["error_low"][0] is not None
+
+
+# per-x aggregation (legacy aggline/line parity): ragged counts at each x.
+RAGGED_PER_X = {
+    "grouping_1": [0, 0, 0, 0, 0, 1, 1, 1],
+    "x": [0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0],
+    "y": [1.0, 2.0, 3.0, 4.0, 6.0, 10.0, 20.0, 30.0],
+    "unique_grouping": ["a", "a", "b", "a", "b", "a", "b", "a"],
+}
+
+# aligned data: every unique_id shares the same complete x grid.
+ALIGNED_PER_X = {
+    "grouping_1": [0, 0, 0, 0, 1, 1, 1, 1],
+    "x": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0],
+    "y": [1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0],
+    "unique_grouping": ["a", "b", "a", "b", "a", "b", "a", "b"],
+}
+
+
+class TestAggregatePerX:
+    def test_groupby_ragged(self):
+        geometry = Aggregate(func="mean", err_func="sem", how="groupby")(
+            _holder(RAGGED_PER_X), y="y", x="x", levels=("grouping_1",)
+        )
+        g0 = geometry[(0,)]
+        np.testing.assert_allclose(g0["x"], [0.0, 1.0])
+        np.testing.assert_allclose(g0["center"], [2.0, 5.0])
+        np.testing.assert_allclose(g0["error_low"], [np.std([1.0, 2.0, 3.0]) / np.sqrt(2), np.std([4.0, 6.0]) / 1.0])
+        assert g0["n"].tolist() == [3, 2]
+        g1 = geometry[(1,)]
+        np.testing.assert_allclose(g1["center"], [15.0, 30.0])
+        assert g1["n"].tolist() == [2, 1]
+
+    def test_groupby_ragged_no_error(self):
+        geometry = Aggregate(func="mean", how="groupby")(_holder(RAGGED_PER_X), y="y", x="x", levels=("grouping_1",))
+        for gkey, g in geometry.items():
+            assert g["error_low"] is None
+            assert g["error_high"] is None
+
+    def test_groupby_unique_id_two_level(self):
+        geometry = Aggregate(func="mean", agg_func="mean", unique_id="unique_grouping", how="groupby")(
+            _holder(RAGGED_PER_X), y="y", x="x", levels=("grouping_1",)
+        )
+        g0 = geometry[(0,)]
+        # x=0: a -> mean(1, 2) = 1.5, b -> 3.0; second-level mean = 2.25
+        # x=1: a -> 4.0, b -> 6.0; second-level mean = 5.0
+        np.testing.assert_allclose(g0["center"], [2.25, 5.0])
+        assert g0["n"].tolist() == [2, 2]
+        g1 = geometry[(1,)]
+        np.testing.assert_allclose(g1["center"], [15.0, 30.0])
+        assert g1["n"].tolist() == [2, 1]
+
+    def test_matrix_aligned(self):
+        geometry = Aggregate(func="mean", err_func="sem", unique_id="unique_grouping", how="matrix")(
+            _holder(ALIGNED_PER_X), y="y", x="x", levels=("grouping_1",)
+        )
+        g0 = geometry[(0,)]
+        np.testing.assert_allclose(g0["x"], [0.0, 1.0])
+        np.testing.assert_allclose(g0["center"], [1.5, 3.5])
+        np.testing.assert_allclose(g0["error_low"], [0.5, 0.5])
+        assert g0["n"].tolist() == [2, 2]
+        g1 = geometry[(1,)]
+        np.testing.assert_allclose(g1["center"], [15.0, 35.0])
+        assert g1["n"].tolist() == [2, 2]
+
+    def test_auto_matches_groupby(self):
+        # ragged data -> auto falls back to groupby with identical results
+        by_group = Aggregate(func="mean", unique_id="unique_grouping", how="groupby")(
+            _holder(RAGGED_PER_X), y="y", x="x", levels=("grouping_1",)
+        )
+        by_auto = Aggregate(func="mean", unique_id="unique_grouping", how="auto")(
+            _holder(RAGGED_PER_X), y="y", x="x", levels=("grouping_1",)
+        )
+        assert set(by_auto.keys()) == set(by_group.keys())
+        for key in by_group:
+            np.testing.assert_allclose(by_auto[key]["center"], by_group[key]["center"])
+            np.testing.assert_allclose(by_auto[key]["x"], by_group[key]["x"])
+
+    def test_auto_matches_matrix(self):
+        # aligned data -> auto picks matrix, same numbers as groupby
+        by_group = Aggregate(func="mean", err_func="sem", unique_id="unique_grouping", how="groupby")(
+            _holder(ALIGNED_PER_X), y="y", x="x", levels=("grouping_1",)
+        )
+        by_auto = Aggregate(func="mean", err_func="sem", unique_id="unique_grouping", how="auto")(
+            _holder(ALIGNED_PER_X), y="y", x="x", levels=("grouping_1",)
+        )
+        for key in by_group:
+            np.testing.assert_allclose(by_auto[key]["center"], by_group[key]["center"])
+            np.testing.assert_allclose(by_auto[key]["error_low"], by_group[key]["error_low"])
+            assert by_auto[key]["n"].tolist() == by_group[key]["n"].tolist()
+
+    def test_matrix_requires_unique_id(self):
+        with pytest.raises(ValueError):
+            Aggregate(func="mean", how="matrix")(_holder(RAGGED_PER_X), y="y", x="x", levels=("grouping_1",))
+
+    def test_matrix_ragged_raises(self):
+        with pytest.raises(ValueError):
+            Aggregate(func="mean", unique_id="unique_grouping", how="matrix")(
+                _holder(RAGGED_PER_X), y="y", x="x", levels=("grouping_1",)
+            )
 
 
 class TestDensity:

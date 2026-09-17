@@ -70,8 +70,8 @@ element computes values.
 
 | Transform | Parameters | Geometry per group |
 | --- | --- | --- |
-| `Identity` | --- | `{x, y, n}` |
-| `Aggregate` | `func, err_func, agg_func, unique_id` | `{center, error_low, error_high, n}` |
+| `Identity` | --- | `{n, x?, y?}` — at least one of x/y; the omitted axis is supplied by the position resolver (jitter/dodge; horizontal layouts use `x` only) |
+| `Aggregate` | `func, err_func, agg_func, unique_id, how` | arrays — without `x`: `{center, error_low, error_high, n}` (one value per group); with `x`: `{x, center, error_low, error_high, n}` (one value per unique x; per-x aggregation, legacy `aggline`/`line` parity). `how=auto\|groupby\|matrix` picks the ragged-vs-aligned per-x strategy |
 | `Density(kind)` | `kde`: `kernel, bw, tol, kde_length, KDEType`<br/>`hist`: `bins, bin_range, stat`<br/>`ecdf`: `ecdf_type, ecdf_args` | kde/ecdf: `{x, y, n}`<br/>hist: `{edges, height, binwidth, centers, stat, n}` |
 | `Summary` | `func, err_func, whisker, whisker_quantiles, notch` | `{center, mean, median, q1, q3, whisker_low, whisker_high, error_low, error_high, notch_low, notch_high, n}` |
 | `Fit` | `fit_func, ci_func, fit_args` | `{x, y, ci, n}` |
@@ -131,6 +131,14 @@ same inputs and defaults.
 
 Notes:
 
+- Per-x aggregation (legacy `aggline` = pandas-groupby over `(levels, x)`
+  for ragged data; legacy `line` with `unique_id` = dense `(uid, x)` matrix
+  aggregation for aligned data) is **unified into `Aggregate`** rather than
+  being a separate transform: both legacy paths produce the same geometry
+  shape, and the groupby-vs-matrix choice is an implementation strategy
+  exposed as `how="auto"|"groupby"|"matrix"`, not a statistical contract.
+  Geometry is always arrays so elements/resolvers index uniformly whether
+  there is one value per group (bars) or one per unique x (aggline).
 - `Fill` is the single source of fill styling (including hatch) for density
   fill-under curves and bar faces. `ErrorBand` is strictly the center +/- error
   band. No `Connector`: paired connectors are just `Line`
