@@ -242,26 +242,18 @@ class CategoricalProcessor(BaseProcessor):
                 sub_indexes = unique_groups[temp_group]
                 temp_x = np.full(len(sub_indexes), dist[index])
                 if duplicate_offset > 0.0:
-                    output = (
-                        process_duplicates(data[sub_indexes, column])
-                        * duplicate_offset
-                        * temp
-                    )
+                    output = process_duplicates(data[sub_indexes, column]) * duplicate_offset * temp
                     temp_x += output
                 if agg_func is not None:
                     temp_x = temp_x[0]
                 x_data.append(temp_x)
-                y_data.append(
-                    get_transform(agg_func)(transform(data[sub_indexes, column]))
-                )
+                y_data.append(get_transform(agg_func)(transform(data[sub_indexes, column])))
                 group_labels.append(group_key)
         output = JitterPlotData(
             x_data=x_data,
             y_data=y_data,
             marker=self._process_dict(groups, marker, unique_groups, None),
-            markerfacecolor=self._process_dict(
-                groups, markercolor, unique_groups, None
-            ),
+            markerfacecolor=self._process_dict(groups, markercolor, unique_groups, None),
             markeredgecolor=self._process_dict(groups, edgecolor, unique_groups, None),
             markeredgewidth=markeredgewidth,
             markersize=[markersize] * len(y_data),
@@ -308,9 +300,7 @@ class CategoricalProcessor(BaseProcessor):
             y_data.append(get_transform(func)(transform(data[indexes, column])))
             group_labels.append(i)
             if err_func is not None:
-                error_data.append(
-                    get_transform(err_func)(transform(data[indexes, column]))
-                )
+                error_data.append(get_transform(err_func)(transform(data[indexes, column])))
             else:
                 error_data.append(None)
         output = SummaryPlotData(
@@ -597,12 +587,8 @@ class CategoricalProcessor(BaseProcessor):
                 x_data=x_data,
                 y_data=y_data,
                 location=loc,
-                facecolors=self._process_dict(
-                    groups, facecolor, unique_groups, agg_func
-                ),
-                edgecolors=self._process_dict(
-                    groups, edgecolor, unique_groups, agg_func
-                ),
+                facecolors=self._process_dict(groups, facecolor, unique_groups, agg_func),
+                edgecolors=self._process_dict(groups, edgecolor, unique_groups, agg_func),
                 alpha=alpha,
                 edge_alpha=edge_alpha,
                 linewidth=linewidth,
@@ -644,9 +630,7 @@ class CategoricalProcessor(BaseProcessor):
         if not np.all(pairs_counts[0] == pairs_counts):
             raise AttributeError("Some pairs may have missing or extra values.")
         if n_ids.size * n_pairs.size != data.shape[0] and len(levels) == 0:
-            raise ValueError(
-                "A grouping variable must be passed to CategoricalPlot is there are repeated unique_ids."
-            )
+            raise ValueError("A grouping variable must be passed to CategoricalPlot is there are repeated unique_ids.")
 
         column = y if x is None else x
         direction = "vertical" if x is None else "horizontal"
@@ -662,16 +646,10 @@ class CategoricalProcessor(BaseProcessor):
             order = np.unique(data[index])
 
         if data.shape[0] % len(order) > 0:
-            raise ValueError(
-                "Some unique_ids are missing values. N rows divide number of pairings must equal 0."
-            )
+            raise ValueError("Some unique_ids are missing values. N rows divide number of pairings must equal 0.")
 
         temp = data.to_pd()
-        temp = DataHolder(
-            temp.pivot(
-                columns=index, index=levels + (unique_id,), values=column
-            ).reset_index()
-        )
+        temp = DataHolder(temp.pivot(columns=index, index=levels + (unique_id,), values=column).reset_index())
 
         groups = temp.groups(levels)
         for group_key, locs in groups.items():
@@ -875,9 +853,7 @@ class CategoricalProcessor(BaseProcessor):
         for group_key, indexes in groups.items():
             if unique_id is None:
                 bw.append([barwidth] * plot_bins)
-                top, bottom = _bin_data(
-                    data[indexes, column], bins, axis_type, invert, cutoff
-                )
+                top, bottom = _bin_data(data[indexes, column], bins, axis_type, invert, cutoff)
                 heights.append(top[include_bins])
                 bottoms.append(bottom[include_bins])
                 x_s = [loc_dict[group_key]] * plot_bins
@@ -888,9 +864,7 @@ class CategoricalProcessor(BaseProcessor):
                 unique_ids_sub = np.unique(data[indexes, unique_id])
                 temp_width = barwidth / len(unique_ids_sub)
                 if len(unique_ids_sub) > 1:
-                    dist = np.linspace(
-                        -barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1
-                    )
+                    dist = np.linspace(-barwidth / 2, barwidth / 2, num=len(unique_ids_sub) + 1)
                     dist = (dist[1:] + dist[:-1]) / 2
                 else:
                     dist = [0]

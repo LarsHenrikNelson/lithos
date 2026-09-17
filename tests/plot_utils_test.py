@@ -1,11 +1,11 @@
-import pytest
 import numpy as np
+import pytest
 
 from lithos.plotting.plot_utils import (
-    create_dict,
-    radian_ticks,
     _create_groupings,
     _process_positions,
+    create_dict,
+    radian_ticks,
 )
 from lithos.utils import DataHolder
 
@@ -93,14 +93,10 @@ def test_radian_ticks(values, rotate, correct_values):
         ("grouping_1", None, [0, 1], None),
     ],
 )
-def test_create_groupings_1_group(
-    two_grouping_with_unique_ids, group, subgroup, group_order, subgroup_order
-):
+def test_create_groupings_1_group(two_grouping_with_unique_ids, group, subgroup, group_order, subgroup_order):
     data, groups = two_grouping_with_unique_ids
     data = DataHolder(two_grouping_with_unique_ids[0])
-    gorder, sorder, unique_groups, levels = _create_groupings(
-        data, group, subgroup, group_order, subgroup_order
-    )
+    gorder, sorder, unique_groups, levels = _create_groupings(data, group, subgroup, group_order, subgroup_order)
     assert len(gorder) == groups[0]
     if group_order is not None:
         assert len(gorder) == len(group_order)
@@ -117,14 +113,10 @@ def test_create_groupings_1_group(
         ("grouping_1", "grouping_2", [0, 1], None),
     ],
 )
-def test_create_groupings_2_groups(
-    two_grouping_with_unique_ids, group, subgroup, group_order, subgroup_order
-):
+def test_create_groupings_2_groups(two_grouping_with_unique_ids, group, subgroup, group_order, subgroup_order):
     data, groups = two_grouping_with_unique_ids
     data = DataHolder(two_grouping_with_unique_ids[0])
-    gorder, sorder, unique_groups, levels = _create_groupings(
-        data, group, subgroup, group_order, subgroup_order
-    )
+    gorder, sorder, unique_groups, levels = _create_groupings(data, group, subgroup, group_order, subgroup_order)
 
     if subgroup_order is not None:
         assert len(sorder) == len(subgroup_order)

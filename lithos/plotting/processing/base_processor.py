@@ -20,10 +20,7 @@ class BaseProcessor:
 
     def _set_zorder(self) -> dict:
         adder = self.zorder * len(self._plot_dict["zorder_dict"]) + 1
-        zorder_dict = {
-            key: 1 + (value + adder) / 100
-            for key, value in self._plot_dict["zorder_dict"].items()
-        }
+        zorder_dict = {key: 1 + (value + adder) / 100 for key, value in self._plot_dict["zorder_dict"].items()}
         self.zorder += 1
         return zorder_dict
 
@@ -75,9 +72,7 @@ class BaseProcessor:
                     vmin = data.min(column)
                     vmax = data.max(column)
                     vals = data[column]
-                    output_args[key] = (np.array(vals) - vmin) * (stop - start) / (
-                        vmax - vmin
-                    ) + start
+                    output_args[key] = (np.array(vals) - vmin) * (stop - start) / (vmax - vmin) + start
                 else:
                     output_args[key] = [value * 4] * data.shape[0]
             else:
@@ -136,9 +131,7 @@ class BaseProcessor:
                 processed_data.append(temp)
         return processed_data, self._plot_dict
 
-    def _process_dict(
-        self, groups, dict, subgroups=None, agg: Agg | None = None
-    ) -> list:
+    def _process_dict(self, groups, dict, subgroups=None, agg: Agg | None = None) -> list:
         if subgroups is None or agg is not None:
             output = [dict[g] for g in groups]
         else:

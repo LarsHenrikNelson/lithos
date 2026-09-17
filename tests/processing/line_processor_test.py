@@ -1,7 +1,7 @@
 import pytest
 
-from lithos.plotting.processing import LineProcessor
 from lithos import LinePlot
+from lithos.plotting.processing import LineProcessor
 
 
 class TestLineProcessor:
@@ -48,9 +48,7 @@ class TestLineProcessor:
             .plot_data(y="y", x="x")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].x_data) == self.get_n_groups(
-            _fixt[1], uid=uid, agg_func=agg_func
-        )
+        assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid=uid, agg_func=agg_func)
 
     @pytest.mark.parametrize(
         "data, subgroup, agg_func, uid",
@@ -77,9 +75,7 @@ class TestLineProcessor:
             .plot_data(y="y", x="x")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].x_data) == self.get_n_groups(
-            _fixt[1], uid=uid, agg_func=agg_func
-        )
+        assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid=uid, agg_func=agg_func)
 
     @pytest.mark.parametrize(
         "data, subgroup, agg_func, uid",
@@ -106,9 +102,7 @@ class TestLineProcessor:
             .plot_data(y="y", x="x")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].x_data) == self.get_n_groups(
-            _fixt[1], uid=uid, agg_func="mean"
-        )
+        assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid=uid, agg_func="mean")
 
     @pytest.mark.parametrize(
         "data, subgroup, agg_func, uid",
@@ -135,6 +129,4 @@ class TestLineProcessor:
             .plot_data(y="y")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].group_labels) == self.get_n_groups(
-            _fixt[1], uid=uid, agg_func=agg_func
-        )
+        assert len(output[0].group_labels) == self.get_n_groups(_fixt[1], uid=uid, agg_func=agg_func)

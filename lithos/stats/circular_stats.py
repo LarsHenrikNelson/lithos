@@ -66,9 +66,7 @@ def ppc_sampled(spike_phases, size, iterations, seed=42):
     rng = default_rng(seed)
     output_array = np.zeros(iterations)
     for i in range(iterations):
-        spk_sampled = np.ascontiguousarray(
-            rng.choice(spike_phases, size=size, replace=False)
-        )
+        spk_sampled = np.ascontiguousarray(rng.choice(spike_phases, size=size, replace=False))
         output_array[i] = ppc_numba(spk_sampled)
     return output_array.mean()
 
@@ -109,15 +107,14 @@ def rayleightest(data: np.ndarray) -> float:
         tmp = (
             1.0
             + (2.0 * z - z * z) / (4.0 * n)
-            - (24.0 * z - 132.0 * z**2.0 + 76.0 * z**3.0 - 9.0 * z**4.0)
-            / (288.0 * n * n)
+            - (24.0 * z - 132.0 * z**2.0 + 76.0 * z**3.0 - 9.0 * z**4.0) / (288.0 * n * n)
         )
 
     p_value = np.exp(-z) * tmp
     return p_value
 
 
-def h_fpp(H: Union[float, int]) -> float:
+def h_fpp(H: float | int) -> float:
     # These values are obtained by fitting to simulations.
     a = 0.9999755
     b = 0.39802
@@ -132,9 +129,7 @@ def h_fpp(H: Union[float, int]) -> float:
     else:
         return 4e-8
         # This comes up too often to raise an exception
-        raise ValueError(
-            f"H={H}>50 not supported; false positive probability less than 4*10**(-8)"
-        )
+        raise ValueError(f"H={H}>50 not supported; false positive probability less than 4*10**(-8)")
 
 
 def h_test(events: NDArray[np.float64]) -> tuple[float, int, float]:
@@ -179,9 +174,7 @@ def h_test(events: NDArray[np.float64]) -> tuple[float, int, float]:
     """
     max_harmonic = 20
     ev = np.reshape(events, (-1,))
-    cs = np.sum(
-        np.exp(2.0j * np.pi * np.arange(1, max_harmonic + 1) * ev[:, None]), axis=0
-    ) / len(ev)
+    cs = np.sum(np.exp(2.0j * np.pi * np.arange(1, max_harmonic + 1) * ev[:, None]), axis=0) / len(ev)
     Zm2 = 2 * len(ev) * np.cumsum(np.abs(cs) ** 2)
     Hcand = Zm2 - 4 * np.arange(1, max_harmonic + 1) + 4
     M = np.argmax(Hcand) + 1

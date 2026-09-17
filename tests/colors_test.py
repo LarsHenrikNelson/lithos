@@ -1,6 +1,6 @@
 import pytest
 
-from lithos.plotting.plot_utils import _process_colors, _continuous_cycler
+from lithos.plotting.plot_utils import _continuous_cycler, _process_colors
 
 
 @pytest.mark.parametrize("color", ["black", "red", "blue"])

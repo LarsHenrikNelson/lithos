@@ -29,9 +29,7 @@ class DataHolder:
         elif isinstance(self._data, dict):
             return "dict"
         else:
-            raise TypeError(
-                "Only numpy arrays, dict, or pandas dataframes/series are accepted."
-            )
+            raise TypeError("Only numpy arrays, dict, or pandas dataframes/series are accepted.")
 
     def _numpy_index(self, index):
         if isinstance(index, tuple):
@@ -43,9 +41,7 @@ class DataHolder:
 
     def _pandas_index(self, index):
         if isinstance(index, tuple):
-            if pd.api.types.is_bool_dtype(index[0].dtype) or isinstance(
-                index[0], pd.Index
-            ):
+            if pd.api.types.is_bool_dtype(index[0].dtype) or isinstance(index[0], pd.Index):
                 return self._data.loc[index[0], index[1]]
             else:
                 if isinstance(index[1], (tuple, list, np.ndarray)):
@@ -111,9 +107,7 @@ class DataHolder:
         levels = columns + y
         if levels in self._groupby_cache:
             return self._groupby_cache[levels]
-        yy = pd.DataFrame(self._data)[list(columns + y)].groupby(
-            list(columns), sort=sort, as_index=False
-        )
+        yy = pd.DataFrame(self._data)[list(columns + y)].groupby(list(columns), sort=sort, as_index=False)
         self._groupby_cache[levels] = yy
         return yy
 

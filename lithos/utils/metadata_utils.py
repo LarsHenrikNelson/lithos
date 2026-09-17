@@ -1,6 +1,6 @@
 import ast
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from ..types.plot_input import Group, Subgroup, UniqueGroups
 
@@ -18,7 +18,7 @@ def metadata_dir() -> Path:
     h = home_dir()
     mdir = Path(h / "metadata_dir.txt")
     if mdir.exists():
-        with open(mdir, "r") as f:
+        with open(mdir) as f:
             mdir = f.read()
             mdir = Path(mdir)
         if not mdir.exists():
@@ -50,9 +50,7 @@ def metadata_to_string(metadata, level=0):
             else:
                 temp_key = key
             output.append(f"{' ' * level * 2}{temp_key}:\n")
-            if isinstance(
-                metadata[key], (list, tuple, dict, Group, Subgroup, UniqueGroups)
-            ):
+            if isinstance(metadata[key], (list, tuple, dict, Group, Subgroup, UniqueGroups)):
                 temp = metadata_to_string(metadata[key], level + 1)
                 output.extend(temp)
             else:
@@ -142,7 +140,7 @@ def load_metadata(metadata_path: str | dict | Path) -> dict:
     file_path = Path(file_path)
     file_path = file_path.with_suffix(".txt")
     if file_path.exists():
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             lines = f.read()
             lines = lines.replace("\n", "")
         output = ast.literal_eval(lines)

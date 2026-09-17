@@ -1,7 +1,8 @@
-import pytest
 import shutil
 
-from lithos.utils import metadata_utils, create_synthetic_data
+import pytest
+
+from lithos.utils import create_synthetic_data, metadata_utils
 
 pytest_plugins = "pytester"
 

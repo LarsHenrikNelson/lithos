@@ -1,6 +1,8 @@
-import pytest
-import os
 import glob
+import os
+
+import pytest
+
 from lithos.utils import metadata_utils
 
 
@@ -34,9 +36,7 @@ def test_save_metadata():
     # Check if the file exists in the default metadata directory
     assert metadata_utils.metadata_dir().joinpath("test_metadata.txt").exists()
 
-    metadata = metadata_utils.load_metadata(
-        "test_metadata"
-    )  # Load metadata from the file
+    metadata = metadata_utils.load_metadata("test_metadata")  # Load metadata from the file
     assert "key" in metadata  # Check if the key exists in the loaded metadata
     assert metadata["key"] == "value"  # Check if the value is correct
 
@@ -59,9 +59,7 @@ def test_set_metadata_dir():
     metadata_utils.set_metadata_dir(metadata_utils.home_dir().joinpath("metadata"))
 
     # Check if the metadata directory is reset to the default location
-    assert metadata_utils.metadata_dir() == metadata_utils.home_dir().joinpath(
-        "metadata"
-    )
+    assert metadata_utils.metadata_dir() == metadata_utils.home_dir().joinpath("metadata")
 
     # Clean up the default metadata directory after the test (if it's empty)
     metadata_utils.metadata_dir().rmdir()  # Remove the directory if it's empty

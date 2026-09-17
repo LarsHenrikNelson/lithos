@@ -9,9 +9,7 @@ from traitlets import Unicode
 
 
 def get_current_branch():
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True
-    )
+    result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True)
     return result.stdout.strip()
 
 
@@ -19,9 +17,7 @@ class ImageNamePreprocessor(Preprocessor):
     def preprocess_cell(self, cell, resources, index):
         if cell.cell_type == "code" and "outputs" in cell:
             for output in cell.outputs:
-                if "data" in output and any(
-                    key.startswith("image/") for key in output.data.keys()
-                ):
+                if "data" in output and any(key.startswith("image/") for key in output.data.keys()):
                     # Get image name from metadata
                     image_name = cell.metadata.get("filename", f"output_{index}")
 

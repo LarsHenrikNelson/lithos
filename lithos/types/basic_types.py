@@ -1,7 +1,8 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Annotated, Any, Callable, Literal, NamedTuple, TypeAlias
+from typing import Annotated, Any, Literal, NamedTuple, TypeAlias
 
 import numpy as np
 import pandas as pd
@@ -37,19 +38,13 @@ ProcessingOutput: TypeAlias = (
     | tuple[tuple[int | float, int | float, int | float, int | float], int | float]
 )
 
-InputData: TypeAlias = (
-    dict[str | int, list[int | float | str] | np.ndarray] | pd.DataFrame | np.ndarray
-)
+InputData: TypeAlias = dict[str | int, list[int | float | str] | np.ndarray] | pd.DataFrame | np.ndarray
 
-NBins: TypeAlias = (
-    int | Literal["auto", "fd", "doane", "scott", "stone", "rice", "sturges", "sqrt"]
-)
+NBins: TypeAlias = int | Literal["auto", "fd", "doane", "scott", "stone", "rice", "sturges", "sqrt"]
 
 CountPlotTypes: TypeAlias = Literal["percent", "count"]
 
-TransformFuncs: TypeAlias = Literal[
-    "log10", "log2", "ln", "inverse", "ninverse", "sqrt"
-]
+TransformFuncs: TypeAlias = Literal["log10", "log2", "ln", "inverse", "ninverse", "sqrt"]
 
 Transform: TypeAlias = TransformFuncs | Callable | None
 BinType: TypeAlias = Literal["density", "percent"]

@@ -18,9 +18,7 @@ class TestBaseProcessorClass:
         [{(0,): 0, (1,): 1}, {(1, 2): 0, (0, 2): 0, (0, 3): 1, (1, 3): 1}],
     )
     def test_zorder(self, data):
-        processor = BaseProcessor(
-            markers=("o", "X", "^", "s", "d"), hatches=("/", "o", "-", "*", "+")
-        )
+        processor = BaseProcessor(markers=("o", "X", "^", "s", "d"), hatches=("/", "o", "-", "*", "+"))
         processor._plot_dict["zorder_dict"] = data
         old = data
         for i in range(10):
@@ -93,12 +91,8 @@ class TestBaseProcessorClass:
             ),
         ],
     )
-    def test_preprocess_args(
-        self, args, group_order, subgroup_order, unique_groups, correct_output
-    ):
-        processor = BaseProcessor(
-            markers=("o", "X", "^", "s", "d"), hatches=("/", "o", "-", "*", "+")
-        )
+    def test_preprocess_args(self, args, group_order, subgroup_order, unique_groups, correct_output):
+        processor = BaseProcessor(markers=("o", "X", "^", "s", "d"), hatches=("/", "o", "-", "*", "+"))
         processor._plot_dict["unique_groups"] = unique_groups
         processor._plot_dict["group_order"] = group_order
         processor._plot_dict["subgroup_order"] = subgroup_order

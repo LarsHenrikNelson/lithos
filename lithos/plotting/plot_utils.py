@@ -3,12 +3,12 @@ from typing import Any
 
 import colorcet as cc
 import matplotlib as mpl
-from matplotlib.colors import ListedColormap
 import numpy as np
+from matplotlib.colors import ListedColormap
 from numpy.random import default_rng
 
-from ..types.plot_input import Group, Subgroup, UniqueGroups
 from ..types.basic_types import JitterType, ProcessingOutput
+from ..types.plot_input import Group, Subgroup, UniqueGroups
 
 
 def create_dict(
@@ -61,9 +61,7 @@ def _get_colormap(colormap: str | None) -> str | list:
             else:
                 raise AttributeError("Colormap does not have colors attribute.")
     else:
-        raise ValueError(
-            f"Colormap '{colormap}' not found in colorcet or matplotlib colormaps."
-        )
+        raise ValueError(f"Colormap '{colormap}' not found in colorcet or matplotlib colormaps.")
 
 
 def _process_colormap(color: str, groups: list | Group | UniqueGroups) -> dict:
@@ -134,9 +132,7 @@ def _process_colors(
         str | dict: Color output that can be a string or dictionary
     """
     if isinstance(color, str):
-        color_output = _process_string_color(
-            color, group_order=group_order, subgroup_order=subgroup_order
-        )
+        color_output = _process_string_color(color, group_order=group_order, subgroup_order=subgroup_order)
         return color_output
     elif isinstance(color, dict):
         return color
@@ -207,9 +203,7 @@ def process_duplicates(values, output=None):
     return output
 
 
-def process_jitter(
-    values, loc, width, rng=None, seed=42, jitter_type: JitterType = "fill"
-):
+def process_jitter(values, loc, width, rng=None, seed=42, jitter_type: JitterType = "fill"):
     if rng is None:
         rng = default_rng(seed)
     try:
@@ -322,16 +316,12 @@ def _process_groups(df, group, subgroup, group_order, subgroup_order):
         group_order = sorted(df[group].unique())
     else:
         if len(group_order) != len(df[group].unique()):
-            raise AttributeError(
-                "The number groups does not match the number in group_order"
-            )
+            raise AttributeError("The number groups does not match the number in group_order")
     if subgroup is not None:
         if subgroup_order is None:
             subgroup_order = sorted(df[subgroup].unique())
         elif len(subgroup_order) != len(df[subgroup].unique()):
-            raise AttributeError(
-                "The number subgroups does not match the number in subgroup_order"
-            )
+            raise AttributeError("The number subgroups does not match the number in subgroup_order")
     else:
         subgroup_order = [""] * len(group_order)
     return group_order, subgroup_order
@@ -373,9 +363,7 @@ def process_args(arg, group, subgroup):
     return output_dict
 
 
-def process_scatter_args(
-    arg: Any, data, levels, group_order, subgroup_order, unique_groups, arg_cycle=None
-):
+def process_scatter_args(arg: Any, data, levels, group_order, subgroup_order, unique_groups, arg_cycle=None):
     if isinstance(arg, dict):
         output = create_dict(arg, unique_groups)
         if len(levels) > 0:
@@ -438,9 +426,7 @@ def _continuous_cycler(arg, data, arg_cycle, start=0, stop=255):
         vmin = min(data[arg])
         vmax = max(data[arg])
         vals = data[arg]
-        color_normal = (np.array(vals) - vmin) * ((stop - 1) - start) / (
-            vmax - vmin
-        ) + start
+        color_normal = (np.array(vals) - vmin) * ((stop - 1) - start) / (vmax - vmin) + start
         color_normal = color_normal.astype(int)
         colors = [cmap[e] for e in color_normal]
     return colors
@@ -465,9 +451,7 @@ def _process_positions(group_spacing, group_order, subgroup_order=None):
     return loc_dict, width
 
 
-def _create_groupings(
-    data, group, subgroup, group_order, subgroup_order
-) -> tuple[list, list, list, tuple]:
+def _create_groupings(data, group, subgroup, group_order, subgroup_order) -> tuple[list, list, list, tuple]:
     if group is None:
         unique_groups = [("",)]
         group_order = [""]

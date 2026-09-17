@@ -1,10 +1,11 @@
 from typing import Literal
 
-from scipy import stats
-from scipy.optimize import curve_fit
 import numpy as np
 from numpy.polynomial import Polynomial
-from ..types.basic_types import FitFunc, CIFunc
+from scipy import stats
+from scipy.optimize import curve_fit
+
+from ..types.basic_types import CIFunc, FitFunc
 
 
 def confidence_intervals(x, y, fit_x, residuals):
@@ -12,11 +13,7 @@ def confidence_intervals(x, y, fit_x, residuals):
     dof = n - 2
     t = stats.t.ppf(0.975, dof)
     s_err = np.sqrt(np.sum(residuals**2) / dof)
-    ci = (
-        t
-        * s_err
-        * np.sqrt(1 / n + (fit_x - np.mean(x)) ** 2 / np.sum((x - np.mean(x)) ** 2))
-    )
+    ci = t * s_err * np.sqrt(1 / n + (fit_x - np.mean(x)) ** 2 / np.sum((x - np.mean(x)) ** 2))
     return ci
 
 
@@ -43,11 +40,7 @@ def prediction_intervals(x, y, fit_x, residuals):
     dof = n - 2
     t = stats.t.ppf(0.975, dof)
     s_err = np.sqrt(np.sum(residuals**2) / dof)
-    pi = (
-        t
-        * s_err
-        * np.sqrt(1 + 1 / n + (fit_x - np.mean(x)) ** 2 / np.sum((x - np.mean(x)) ** 2))
-    )
+    pi = t * s_err * np.sqrt(1 + 1 / n + (fit_x - np.mean(x)) ** 2 / np.sum((x - np.mean(x)) ** 2))
     return pi
 
 
@@ -67,9 +60,7 @@ def get_ci_func(ci_func: CIFunc | None = "ci", **kwargs):
             residuals=kwargs["residuals"],
         )
     elif ci_func == "bootstrap_ci":
-        return boostrap_confidence_intervals(
-            x=kwargs["x"], y=kwargs["y"], fit_x=kwargs["fit_x"]
-        )
+        return boostrap_confidence_intervals(x=kwargs["x"], y=kwargs["y"], fit_x=kwargs["fit_x"])
     else:
         return None
 
@@ -83,9 +74,7 @@ def guess_sine(x, y):
     y = np.array(y)
     ff = np.fft.fftfreq(len(x), (x[1] - x[0]))  # assume uniform spacing
     Fy = abs(np.fft.fft(y))
-    guess_freq = abs(
-        ff[np.argmax(Fy[1:]) + 1]
-    )  # excluding the zero frequency "peak", which is related to offset
+    guess_freq = abs(ff[np.argmax(Fy[1:]) + 1])  # excluding the zero frequency "peak", which is related to offset
     guess_amp = np.std(y) * 2.0**0.5
     guess_offset = np.mean(y)
     guess = np.array([guess_amp, 2.0 * np.pi * guess_freq, 0.0, guess_offset])

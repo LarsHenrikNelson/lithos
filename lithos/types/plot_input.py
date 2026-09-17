@@ -1,9 +1,7 @@
 from collections.abc import Callable
 from typing import Annotated, Literal, NamedTuple, TypeAlias
 
-AggFuncs: TypeAlias = Literal[
-    "mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean", "count"
-]
+AggFuncs: TypeAlias = Literal["mean", "periodic_mean", "nanmean", "median", "nanmedian", "gmean", "hmean", "count"]
 ErrorFuncs: TypeAlias = Literal[
     "sem",
     "ci",
@@ -45,16 +43,10 @@ class UniqueGroups(tuple):
 
 
 Grouping: TypeAlias = list[str | int | float] | tuple[str | int | float] | Group | None
-Subgrouping: TypeAlias = (
-    list[str | int | float] | tuple[str | int | float] | Subgroup | None
-)
-UniqueGrouping: TypeAlias = (
-    list[str | int | float] | tuple[str | int | float] | UniqueGroups | None
-)
+Subgrouping: TypeAlias = list[str | int | float] | tuple[str | int | float] | Subgroup | None
+UniqueGrouping: TypeAlias = list[str | int | float] | tuple[str | int | float] | UniqueGroups | None
 
-ColorParameters: TypeAlias = (
-    str | dict[str | int, str] | Group | Subgroup | UniqueGroups | None
-)
+ColorParameters: TypeAlias = str | dict[str | int, str] | Group | Subgroup | UniqueGroups | None
 
 
 # For new API for density, scatter, percent, aggregate functions

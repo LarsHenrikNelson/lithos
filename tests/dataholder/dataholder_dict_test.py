@@ -1,22 +1,19 @@
 import numpy as np
 import pytest
 
-from .dataholder_test_class import StringColumnsDataHolder
 from lithos.utils import DataHolder
+
+from .dataholder_test_class import StringColumnsDataHolder
 
 
 class TestDataHolderDict(StringColumnsDataHolder):
     @pytest.fixture
-    def fixt(
-        self, _fixt: tuple[dict, tuple[int, int, int, int]]
-    ) -> tuple[DataHolder, tuple[int, int, int, int]]:
+    def fixt(self, _fixt: tuple[dict, tuple[int, int, int, int]]) -> tuple[DataHolder, tuple[int, int, int, int]]:
         data, x = _fixt
         data = DataHolder(data)
         return data, x
 
-    def test_get_container_type(
-        self, fixt: tuple[DataHolder, tuple[int, int, int, int]]
-    ):
+    def test_get_container_type(self, fixt: tuple[DataHolder, tuple[int, int, int, int]]):
         data, _ = fixt
 
         assert data._get_container_type() == "dict"

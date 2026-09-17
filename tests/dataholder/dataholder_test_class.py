@@ -1,5 +1,4 @@
 import numpy as np
-
 import pytest
 
 from lithos.utils import DataHolder
@@ -62,7 +61,6 @@ class DataHolderTestClass:
 
 
 class StringColumnsDataHolder(DataHolderTestClass):
-
     def get_column_names(self, x):
         cols = sum(True for i in x[:3] if i > 0)
         if cols == 1:

@@ -1,15 +1,14 @@
 import numpy as np
 import pytest
 
-from .dataholder_test_class import DataHolderTestClass
 from lithos.utils import DataHolder
+
+from .dataholder_test_class import DataHolderTestClass
 
 
 class TestDataHolderNumpy(DataHolderTestClass):
     @pytest.fixture
-    def fixt(
-        self, _fixt: tuple[dict, tuple[int, int, int, int]]
-    ) -> tuple[DataHolder, tuple[int, int, int, int]]:
+    def fixt(self, _fixt: tuple[dict, tuple[int, int, int, int]]) -> tuple[DataHolder, tuple[int, int, int, int]]:
         data, x = _fixt
         new_data = np.zeros((data["y"].size, len(data)))
         for index, i in enumerate(data.values()):
@@ -72,9 +71,7 @@ class TestDataHolderNumpy(DataHolderTestClass):
         for i in names:
             assert i in df
 
-    def test_get_container_type(
-        self, fixt: tuple[DataHolder, tuple[int, int, int, int]]
-    ):
+    def test_get_container_type(self, fixt: tuple[DataHolder, tuple[int, int, int, int]]):
         data, _ = fixt
 
         assert data._get_container_type() == "numpy"

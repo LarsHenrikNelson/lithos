@@ -6,9 +6,7 @@ from numpy.random import default_rng
 from scipy import interpolate
 
 
-def ecdf(
-    x, ecdf_type: Literal["bootstrap", "spline", "none"] = "none", **kwargs
-) -> tuple[np.ndarray, np.ndarray]:
+def ecdf(x, ecdf_type: Literal["bootstrap", "spline", "none"] = "none", **kwargs) -> tuple[np.ndarray, np.ndarray]:
     if ecdf_type == "none":
         x = np.sort(x)
         y = np.arange(x.size) / x.size
@@ -119,9 +117,7 @@ def resampled_cum_prob_df(
     df_cumsum = []
     for key, df in sampled_dfs.items():
         df.loc[:, data_id] = df.mean(axis=1)
-        df.loc[:, "Cumulative Probability"] = (
-            1.0 * np.arange(len(df[data_id])) / (len(df[data_id]) - 1)
-        )
+        df.loc[:, "Cumulative Probability"] = 1.0 * np.arange(len(df[data_id])) / (len(df[data_id]) - 1)
         df.loc[:, group] = key
         y = df[[data_id, "Cumulative Probability", group]]
         df_cumsum += [y]
@@ -154,9 +150,7 @@ def cum_prob_df(dfs, df_keys, data, group):
     for df, key in zip(dfs, df_keys):
         df_stacked = df.stack().reset_index(drop=True).sort_values()
         cum_stacked = 1.0 * np.arange(len(df_stacked)) / (len(df_stacked) - 1)
-        cum_df = pd.DataFrame(
-            {data: df_stacked.to_numpy(), "Cumulative Probability": cum_stacked}
-        )
+        cum_df = pd.DataFrame({data: df_stacked.to_numpy(), "Cumulative Probability": cum_stacked})
         cum_df[group] = key
         cum_df_list += [cum_df]
     finished_df = pd.concat(cum_df_list)

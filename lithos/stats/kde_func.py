@@ -7,9 +7,7 @@ import numpy.typing as npt
 from ..types.basic_types import BW
 
 
-def _kde_length(
-    data, kde_obj, tol: float | int | tuple = 0.1, kde_length: int | None = None
-):
+def _kde_length(data, kde_obj, tol: float | int | tuple = 0.1, kde_length: int | None = None):
     if isinstance(tol, tuple):
         min_data, max_data = tol
     else:
@@ -36,7 +34,7 @@ def kde(
         "cosine",
     ] = "gaussian",
     bw: BW = "ISJ",
-    x: Optional[np.ndarray] = None,
+    x: np.ndarray | None = None,
     kde_length: int | None = None,
     tol: float | int | tuple = 1e-3,
     KDEType: Literal["fft", "tree"] = "fft",

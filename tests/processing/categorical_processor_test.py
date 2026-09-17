@@ -1,7 +1,7 @@
 import pytest
 
-from lithos.plotting.processing import CategoricalProcessor
 from lithos import CategoricalPlot
+from lithos.plotting.processing import CategoricalProcessor
 
 
 class TestCategoricalProcessor:
@@ -45,9 +45,7 @@ class TestCategoricalProcessor:
             .plot_data(y="y")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].x_data) == self.get_n_groups(
-            _fixt[1], uid="unique_grouping", agg_func=None
-        )
+        assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid="unique_grouping", agg_func=None)
 
     @pytest.mark.parametrize(
         "data, subgroup, uid",
@@ -122,9 +120,7 @@ class TestCategoricalProcessor:
             .plot_data(y="y")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].x_data) == self.get_n_groups(
-            _fixt[1], uid="unique_grouping", agg_func=agg_func
-        )
+        assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid="unique_grouping", agg_func=agg_func)
 
     @pytest.mark.parametrize(
         "data, subgroup, uid",
@@ -140,12 +136,7 @@ class TestCategoricalProcessor:
             hatches=("/", "o", "-", "*", "+"),
         )
 
-        plot = (
-            CategoricalPlot(_fixt[0])
-            .grouping(group="grouping_1", subgroup=subgroup)
-            .summary()
-            .plot_data(y="y")
-        )
+        plot = CategoricalPlot(_fixt[0]).grouping(group="grouping_1", subgroup=subgroup).summary().plot_data(y="y")
         output, _ = processor(plot.data, plot.metadata())
         assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid)
 
@@ -163,12 +154,7 @@ class TestCategoricalProcessor:
             hatches=("/", "o", "-", "*", "+"),
         )
 
-        plot = (
-            CategoricalPlot(_fixt[0])
-            .grouping(group="grouping_1", subgroup=subgroup)
-            .box()
-            .plot_data(y="y")
-        )
+        plot = CategoricalPlot(_fixt[0]).grouping(group="grouping_1", subgroup=subgroup).box().plot_data(y="y")
         metadata = plot.metadata()
         output, _ = processor(plot.data, metadata)
         assert len(output[0].x_data) == self.get_n_groups(_fixt[1], uid)
@@ -196,9 +182,7 @@ class TestCategoricalProcessor:
             .plot_data(y="y")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].heights) == self.get_n_groups(
-            _fixt[1], uid="unique_grouping"
-        )
+        assert len(output[0].heights) == self.get_n_groups(_fixt[1], uid="unique_grouping")
 
     @pytest.mark.parametrize(
         "data, subgroup",
@@ -223,6 +207,4 @@ class TestCategoricalProcessor:
             .plot_data(y="y")
         )
         output, _ = processor(plot.data, plot.metadata())
-        assert len(output[0].heights) == self.get_n_groups(
-            _fixt[1], uid="unique_grouping"
-        )
+        assert len(output[0].heights) == self.get_n_groups(_fixt[1], uid="unique_grouping")

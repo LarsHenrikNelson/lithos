@@ -55,9 +55,7 @@ class TestIdentity:
 
     def test_two_grouping_values(self, two_grouping):
         data, _ = two_grouping
-        geometry = Identity()(
-            _holder(data), y="y", x="x", levels=("grouping_1", "grouping_2")
-        )
+        geometry = Identity()(_holder(data), y="y", x="x", levels=("grouping_1", "grouping_2"))
         # subgroups are [2, 3] (offset above the group values [0, 1])
         assert set(geometry.keys()) == {(0, 2), (0, 3), (1, 2), (1, 3)}
         for gkey, g in geometry.items():
@@ -74,38 +72,30 @@ class TestIdentity:
 class TestAggregate:
     def test_mean_sem_per_group(self, one_grouping):
         data, _ = one_grouping
-        geometry = Aggregate(func="mean", err_func="sem")(
-            _holder(data), y="y", levels=("grouping_1",)
-        )
+        geometry = Aggregate(func="mean", err_func="sem")(_holder(data), y="y", levels=("grouping_1",))
         assert len(geometry) == 3
         for key, g in geometry.items():
             vals = _group_vals(data, key)
             n = vals.size
             assert g["center"] == pytest.approx(float(np.mean(vals)))
-            assert g["error_low"] == pytest.approx(
-                float(np.std(vals) / np.sqrt(n - 1))
-            )
+            assert g["error_low"] == pytest.approx(float(np.std(vals) / np.sqrt(n - 1)))
             assert g["error_high"] == g["error_low"]
             assert g["n"] == 30
 
     def test_no_error(self, one_grouping):
         data, _ = one_grouping
-        geometry = Aggregate(func="mean")(
-            _holder(data), y="y", levels=("grouping_1",)
-        )
+        geometry = Aggregate(func="mean")(_holder(data), y="y", levels=("grouping_1",))
         for key, g in geometry.items():
             assert g["error_low"] is None
             assert g["error_high"] is None
 
     def test_nested_unique_id(self, two_grouping_with_unique_ids):
         data, _ = two_grouping_with_unique_ids
-        geometry = Aggregate(
-            func="mean", agg_func="mean", err_func="sem", unique_id="unique_grouping"
-        )(_holder(data), y="y", levels=("grouping_1", "grouping_2"))
+        geometry = Aggregate(func="mean", agg_func="mean", err_func="sem", unique_id="unique_grouping")(
+            _holder(data), y="y", levels=("grouping_1", "grouping_2")
+        )
         # fixture is create_synthetic_data(2, 3, 3, 30): 3 subgroups [2, 3, 4]
-        assert set(geometry.keys()) == {
-            (0, 2), (0, 3), (0, 4), (1, 2), (1, 3), (1, 4)
-        }
+        assert set(geometry.keys()) == {(0, 2), (0, 3), (0, 4), (1, 2), (1, 3), (1, 4)}
         for gkey, g in geometry.items():
             assert g["n"] == 3  # three unique ids per group/subgroup
             assert g["error_low"] is not None
@@ -114,9 +104,7 @@ class TestAggregate:
 class TestDensity:
     def test_kde(self, one_grouping):
         data, _ = one_grouping
-        geometry = Density(kind="kde")(
-            _holder(data), y="y", levels=("grouping_1",)
-        )
+        geometry = Density(kind="kde")(_holder(data), y="y", levels=("grouping_1",))
         assert len(geometry) == 3
         for gkey, g in geometry.items():
             assert g["x"].shape == g["y"].shape
@@ -124,22 +112,16 @@ class TestDensity:
 
     def test_hist(self, one_grouping):
         data, _ = one_grouping
-        geometry = Density(kind="hist", bins=10)(
-            _holder(data), y="y", levels=("grouping_1",)
-        )
+        geometry = Density(kind="hist", bins=10)(_holder(data), y="y", levels=("grouping_1",))
         for gkey, g in geometry.items():
             assert g["edges"].size == g["height"].size + 1
             assert g["binwidth"].size == g["height"].size
             assert g["stat"] == "density"
-            np.testing.assert_allclose(
-                g["centers"], g["edges"][:-1] + g["binwidth"] / 2
-            )
+            np.testing.assert_allclose(g["centers"], g["edges"][:-1] + g["binwidth"] / 2)
 
     def test_ecdf(self, one_grouping):
         data, _ = one_grouping
-        geometry = Density(kind="ecdf")(
-            _holder(data), y="y", levels=("grouping_1",)
-        )
+        geometry = Density(kind="ecdf")(_holder(data), y="y", levels=("grouping_1",))
         for gkey, g in geometry.items():
             assert np.all((g["y"] >= 0) & (g["y"] <= 1))
             assert np.all(np.diff(g["x"]) >= 0)
@@ -162,9 +144,7 @@ class TestSummary:
 
     def test_mean_summary(self, one_grouping):
         data, _ = one_grouping
-        geometry = Summary(func="mean", err_func="sem", notch=True)(
-            _holder(data), y="y", levels=("grouping_1",)
-        )
+        geometry = Summary(func="mean", err_func="sem", notch=True)(_holder(data), y="y", levels=("grouping_1",))
         for key, g in geometry.items():
             vals = _group_vals(data, key)
             assert g["center"] == pytest.approx(float(np.mean(vals)))
@@ -173,9 +153,7 @@ class TestSummary:
 
     def test_minmax_whiskers(self, one_grouping):
         data, _ = one_grouping
-        geometry = Summary(whisker="minmax")(
-            _holder(data), y="y", levels=("grouping_1",)
-        )
+        geometry = Summary(whisker="minmax")(_holder(data), y="y", levels=("grouping_1",))
         for key, g in geometry.items():
             vals = _group_vals(data, key)
             assert g["whisker_low"] == pytest.approx(float(vals.min()))
@@ -199,5 +177,3 @@ class TestFit:
         data, _ = one_grouping
         with pytest.raises(ValueError):
             Fit()(_holder(data), y="y", x=None)
-
-

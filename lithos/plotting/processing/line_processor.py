@@ -94,9 +94,7 @@ class LineProcessor(BaseProcessor):
             bottoms[t_indexes, :] = b[:, :]
         return output, bottoms
 
-    def _post_process_density_type(
-        self, data, hist_type: HistType
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def _post_process_density_type(self, data, hist_type: HistType) -> tuple[np.ndarray, np.ndarray]:
         if hist_type == "fill":
             og = np.asarray(data)
             t_sum = og.sum(axis=0)
@@ -156,9 +154,7 @@ class LineProcessor(BaseProcessor):
 
         bins = None
         if bin_limits == "common":
-            bins = np.histogram_bin_edges(
-                get_transform(transform)(data[column]), bins=nbins
-            )
+            bins = np.histogram_bin_edges(get_transform(transform)(data[column]), bins=nbins)
 
         groups = data.groups(levels)
         if unique_id is not None:
@@ -216,20 +212,14 @@ class LineProcessor(BaseProcessor):
                 count += 1
         facet_index = self._process_dict(groups, loc_dict, unique_groups, agg_func)
         if hist_type != "step":
-            plot_data, bottoms = self._post_process_density(
-                plot_data, hist_type, facet_index
-            )
+            plot_data, bottoms = self._post_process_density(plot_data, hist_type, facet_index)
             output = RectanglePlotData(
                 heights=plot_data,
                 bottoms=bottoms,
                 bins=[i[:-1] for i in plot_bins],
                 binwidths=[np.full(len(i) - 1, i[1] - i[0]) for i in plot_bins],
-                fillcolors=self._process_dict(
-                    groups, facecolor, unique_groups, agg_func
-                ),
-                edgecolors=self._process_dict(
-                    groups, edgecolor, unique_groups, agg_func
-                ),
+                fillcolors=self._process_dict(groups, facecolor, unique_groups, agg_func),
+                edgecolors=self._process_dict(groups, edgecolor, unique_groups, agg_func),
                 fill_alpha=fillalpha,
                 edge_alpha=linealpha,
                 hatches=self._process_dict(groups, hatch, unique_groups, agg_func),
@@ -250,16 +240,10 @@ class LineProcessor(BaseProcessor):
                 x_data=plot_bins,
                 y_data=plot_data,
                 error_data=[None for _ in plot_data],
-                facet_index=self._process_dict(
-                    groups, loc_dict, unique_groups, agg_func
-                ),
+                facet_index=self._process_dict(groups, loc_dict, unique_groups, agg_func),
                 marker=[None for _ in plot_data],
-                linecolor=self._process_dict(
-                    groups, edgecolor, unique_groups, agg_func
-                ),
-                fillcolor=self._process_dict(
-                    groups, facecolor, unique_groups, agg_func
-                ),
+                linecolor=self._process_dict(groups, edgecolor, unique_groups, agg_func),
+                fillcolor=self._process_dict(groups, facecolor, unique_groups, agg_func),
                 linewidth=[linewidth for _ in plot_data],
                 linestyle=["-" for _ in plot_data],
                 markerfacecolor=nones,
@@ -306,9 +290,7 @@ class LineProcessor(BaseProcessor):
         zorder: list[int] = []
 
         for key, value in loc_dict.items():
-            indexes = np.array(
-                [index for index, j in enumerate(facetgroup) if value == j]
-            )
+            indexes = np.array([index for index, j in enumerate(facetgroup) if value == j])
             x_data.append(get_transform(xtransform)(data[indexes, x]))
             y_data.append(get_transform(ytransform)(data[indexes, y]))
             mks.append(marker)
@@ -385,13 +367,8 @@ class LineProcessor(BaseProcessor):
         new_data = data.groupby(y, new_levels, sort=sort).agg(**agg_dict)
         if unique_id is None:
             if err_func is not None:
-                agg_dict = {
-                    col: (y, lambda x: get_transform(err_func)(ytransform(x)))
-                    for col in [y]
-                }
-                err_data = DataHolder(
-                    data.groupby(y, new_levels, sort=sort).agg(**agg_dict)
-                )
+                agg_dict = {col: (y, lambda x: get_transform(err_func)(ytransform(x))) for col in [y]}
+                err_data = DataHolder(data.groupby(y, new_levels, sort=sort).agg(**agg_dict))
         else:
             if agg_func is not None:
                 if err_func is not None:
@@ -498,13 +475,9 @@ class LineProcessor(BaseProcessor):
         if isinstance(tol, tuple):
             min_data, max_data = tol
             if min_data >= data[column].min():
-                raise ValueError(
-                    f"tol[0] must be less than the minimum value of {column}."
-                )
+                raise ValueError(f"tol[0] must be less than the minimum value of {column}.")
             if max_data <= data[column].max():
-                raise ValueError(
-                    f"tol[1] must be greater than the maximum value of {column}."
-                )
+                raise ValueError(f"tol[1] must be greater than the maximum value of {column}.")
 
         if unique_id is not None:
             unique_groups = data.groups(levels + (unique_id,))
@@ -527,9 +500,7 @@ class LineProcessor(BaseProcessor):
                 error_data.append(None)
                 group_labels.append(group_key)
             else:
-                subgroups, count = np.unique(
-                    data[group_indexes, unique_id], return_counts=True
-                )
+                subgroups, count = np.unique(data[group_indexes, unique_id], return_counts=True)
 
                 if agg_func is not None:
                     if not isinstance(tol, tuple):
@@ -586,11 +557,7 @@ class LineProcessor(BaseProcessor):
                     y_data.append(y_kde)
                     x_data.append(x_array)
                     group_labels.append(group_key)
-                    error_data.append(
-                        get_transform(err_func)(y_hold, axis=0)
-                        if err_func is not None
-                        else None
-                    )
+                    error_data.append(get_transform(err_func)(y_hold, axis=0) if err_func is not None else None)
         nones = [None] * len(y_data)
         output = LinePlotData(
             x_data=x_data,
@@ -659,17 +626,13 @@ class LineProcessor(BaseProcessor):
         for group_key, indexes in groups.items():
             if unique_id is None:
                 y_values = np.asarray(data[indexes, column]).flatten()
-                x_ecdf, y_ecdf = stats.ecdf(
-                    get_transform(transform)(y_values), ecdf_type=ecdf_type, **ecdf_args
-                )
+                x_ecdf, y_ecdf = stats.ecdf(get_transform(transform)(y_values), ecdf_type=ecdf_type, **ecdf_args)
                 y_data.append(y_ecdf)
                 x_data.append(x_ecdf)
                 error_data.append(None)
                 group_labels.append(group_key)
             else:
-                subgroups, counts = np.unique(
-                    data[indexes, unique_id], return_counts=True
-                )
+                subgroups, counts = np.unique(data[indexes, unique_id], return_counts=True)
                 if agg_func is not None:
                     if "size" not in ecdf_args:
                         ecdf_args["size"] = np.max(counts)
@@ -678,9 +641,7 @@ class LineProcessor(BaseProcessor):
                 for hi, s in enumerate(subgroups):
                     if unique_groups is None:
                         raise ValueError("unique_groups must not be None.")
-                    y_values = np.asarray(
-                        data[unique_groups[group_key + (s,)], column]
-                    ).flatten()
+                    y_values = np.asarray(data[unique_groups[group_key + (s,)], column]).flatten()
                     if agg_func is None:
                         x_ecdf, y_ecdf = stats.ecdf(
                             get_transform(transform)(y_values),
@@ -702,11 +663,7 @@ class LineProcessor(BaseProcessor):
                     x_data.append(get_transform(agg_func)(x_hold, axis=0))
                     y_data.append(y_ecdf)
                     group_labels.append(group_key)
-                    error_data.append(
-                        get_transform(err_func)(x_hold, axis=0)
-                        if err_func is not None
-                        else None
-                    )
+                    error_data.append(get_transform(err_func)(x_hold, axis=0) if err_func is not None else None)
         nones = [None] * len(y_data)
         output = LinePlotData(
             x_data=y_data,
@@ -797,9 +754,7 @@ class LineProcessor(BaseProcessor):
                             temp_x = np.asarray(data[sub_indexes, x])
                             x_data.append(get_transform(xtransform)(temp_x))
                         else:
-                            x_data.append(
-                                get_transform(xtransform)(np.arange(len(temp_y)))
-                            )
+                            x_data.append(get_transform(xtransform)(np.arange(len(temp_y))))
                         err_data.append(None)
                     else:
                         temp_x = np.asarray(data[sub_indexes, x])
@@ -882,9 +837,7 @@ class LineProcessor(BaseProcessor):
             if unique_id is None:
                 temp_y = get_transform(ytransform)(np.asarray(data[indexes, y]))
                 temp_x = get_transform(xtransform)(np.asarray(data[indexes, x]))
-                fit_output = stats.fit(
-                    fit_func=fit_func, x=temp_x, y=temp_y, ci_func=ci_func, **fit_args
-                )
+                fit_output = stats.fit(fit_func=fit_func, x=temp_x, y=temp_y, ci_func=ci_func, **fit_args)
                 y_data.append(fit_output[1])
                 x_data.append(fit_output[2])
                 error_data.append(fit_output[3])
@@ -903,12 +856,8 @@ class LineProcessor(BaseProcessor):
                         raise ValueError("unique_groups must not be None.")
                     sub_indexes = unique_groups[group_key + (j,)]
                     if agg_func is None:
-                        temp_y = get_transform(ytransform)(
-                            np.asarray(data[sub_indexes, y])
-                        )
-                        temp_x = get_transform(xtransform)(
-                            np.asarray(data[sub_indexes, x])
-                        )
+                        temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
+                        temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
                         fit_output = stats.fit(
                             fit_func=fit_func,
                             x=temp_x,
@@ -921,12 +870,8 @@ class LineProcessor(BaseProcessor):
                         error_data.append(None)
                         group_labels.append(group_key)
                     else:
-                        temp_y = get_transform(ytransform)(
-                            np.asarray(data[sub_indexes, y])
-                        )
-                        temp_x = get_transform(xtransform)(
-                            np.asarray(data[sub_indexes, x])
-                        )
+                        temp_y = get_transform(ytransform)(np.asarray(data[sub_indexes, y]))
+                        temp_x = get_transform(xtransform)(np.asarray(data[sub_indexes, x]))
                         fit_output = stats.fit(
                             fit_func=fit_func,
                             x=temp_x,

@@ -67,15 +67,10 @@ def as_error_pair(e) -> tuple[float | None, float | None]:
         return float(arr[0]), float(arr[0])
     elif arr.size == 2:
         return float(arr[0]), float(arr[1])
-    raise ValueError(
-        "Error functions must return a scalar or a (low, high) pair, "
-        f"got {arr.size} values."
-    )
+    raise ValueError(f"Error functions must return a scalar or a (low, high) pair, got {arr.size} values.")
 
 
-def _get_column_values(
-    data: DataHolder, indexes: np.ndarray, column: str, tr: Transform | None = None
-) -> np.ndarray:
+def _get_column_values(data: DataHolder, indexes: np.ndarray, column: str, tr: Transform | None = None) -> np.ndarray:
     """Extract and optionally transform a column for a set of row indexes."""
     vals = np.asarray(data[indexes, column], dtype=float)
     if tr is not None:
@@ -206,9 +201,7 @@ class Aggregate(Transform):
         for sub_key, sub_indexes in self._groups(data, sub_levels).items():
             vals = _get_column_values(data, sub_indexes, y, ytransform)
             per_group[sub_key[:n_levels] if n_levels > 0 else ("",)].append(first(vals))
-        second = get_transform(
-            self.agg_func if self.agg_func is not None else self.func
-        )
+        second = get_transform(self.agg_func if self.agg_func is not None else self.func)
         for group_key, centers in per_group.items():
             centers = np.asarray(centers, dtype=float)
             center = float(second(centers))
@@ -281,9 +274,7 @@ class Density(Transform):
                     )
                 output[group_key] = {"x": xv, "y": yv, "n": int(vals.size)}
             elif self.kind == "hist":
-                edges = np.histogram_bin_edges(
-                    vals, bins=self.bins, range=self.bin_range
-                )
+                edges = np.histogram_bin_edges(vals, bins=self.bins, range=self.bin_range)
                 height = hist(vals, edges, self.stat)
                 output[group_key] = {
                     "edges": edges,
@@ -297,9 +288,7 @@ class Density(Transform):
                 xv, yv = ecdf(vals, self.ecdf_type, **self.ecdf_args)
                 output[group_key] = {"x": xv, "y": yv, "n": int(vals.size)}
             else:
-                raise ValueError(
-                    f"kind must be 'kde', 'hist' or 'ecdf', got {self.kind!r}."
-                )
+                raise ValueError(f"kind must be 'kde', 'hist' or 'ecdf', got {self.kind!r}.")
         return output
 
 

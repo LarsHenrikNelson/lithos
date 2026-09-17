@@ -111,17 +111,13 @@ class Plotter:
             raise ValueError("self.fig cannot be None.")
 
     def create_figure(self) -> tuple[Figure, list[Axes]]:
-        raise NotImplementedError(
-            "Implement create_figure. Must return Figure and list[Axes]."
-        )
+        raise NotImplementedError("Implement create_figure. Must return Figure and list[Axes].")
 
     def _process_color(self, color, alpha):
         if color is None:
             color = "none"
         if isinstance(color, list):
-            return [
-                to_rgba(c, alpha=alpha) if color != "none" else "none" for c in color
-            ]
+            return [to_rgba(c, alpha=alpha) if color != "none" else "none" for c in color]
         else:
             return to_rgba(color, alpha=alpha) if color != "none" else "none"
 
@@ -158,9 +154,7 @@ class Plotter:
                 zorder=1,
             )
             sub_ax.minorticks_on()
-        sub_ax.tick_params(
-            axis="both", which="minor", bottom=False, left=False, zorder=1
-        )
+        sub_ax.tick_params(axis="both", which="minor", bottom=False, left=False, zorder=1)
 
     def _plot_axlines(self, line_dict, ax):
         for ll in line_dict["lines"]:
@@ -226,9 +220,7 @@ class Plotter:
         if axis == "y":
             if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
                 if self.plot_transforms.get("back_transform_yticks"):
-                    tick_labels = get_backtransform(self.plot_transforms["ytransform"])(
-                        ticks
-                    )
+                    tick_labels = get_backtransform(self.plot_transforms["ytransform"])(ticks)
                 else:
                     tick_labels = ticks
                 if decimals is not None:
@@ -238,9 +230,7 @@ class Plotter:
                         # This does not work with scientific format
                         tick_labels = np.round(tick_labels, decimals=decimals)
                         dformat = self.plot_format["axis"]["yformat"]
-                        tick_labels = [
-                            f"{value:.{decimals}{dformat}}" for value in tick_labels
-                        ]
+                        tick_labels = [f"{value:.{decimals}{dformat}}" for value in tick_labels]
                 if style == "lithos":
                     label_start = self.plot_format["axis_format"]["ysteps"][1]
                     label_end = self.plot_format["axis_format"]["ysteps"][2]
@@ -267,9 +257,7 @@ class Plotter:
         else:
             if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
                 if self.plot_transforms.get("back_transform_xticks"):
-                    tick_labels = get_backtransform(self.plot_transforms["xtransform"])(
-                        ticks
-                    )
+                    tick_labels = get_backtransform(self.plot_transforms["xtransform"])(ticks)
                 else:
                     tick_labels = ticks
                 if decimals is not None:
@@ -279,9 +267,7 @@ class Plotter:
                         # This does not work with scientific format
                         tick_labels = np.round(tick_labels, decimals=decimals)
                         dformat = self.plot_format["axis"]["xformat"]
-                        tick_labels = [
-                            f"{value:.{decimals}{dformat}}" for value in tick_labels
-                        ]
+                        tick_labels = [f"{value:.{decimals}{dformat}}" for value in tick_labels]
                 if style == "lithos":
                     label_start = self.plot_format["axis_format"]["xsteps"][1]
                     label_end = self.plot_format["axis_format"]["xsteps"][2]
@@ -337,9 +323,7 @@ class Plotter:
             minorticks = self.plot_format["axis_format"]["xminorticks"]
         if style == "lithos":
             self._set_lims(ax=ax, lim=lim, ticks=ticks, axis=axis)
-        self._format_ticklabels(
-            ax=ax, ticks=ticks, decimals=decimals, axis=axis, style=style
-        )
+        self._format_ticklabels(ax=ax, ticks=ticks, decimals=decimals, axis=axis, style=style)
         if minorticks != 0:
             self._set_minorticks(
                 ax,
@@ -360,9 +344,7 @@ class Plotter:
         ticks = get_backtransform(transform)(ticks)
         mticks = np.zeros((len(ticks) - 1) * nticks)
         for index in range(ticks.size - 1):
-            vals = np.linspace(
-                ticks[index], ticks[index + 1], num=nticks + 2, endpoint=True
-            )
+            vals = np.linspace(ticks[index], ticks[index + 1], num=nticks + 2, endpoint=True)
             start = index * nticks
             end = index * nticks + nticks
             mticks[start:end] = vals[1:-1]
@@ -406,9 +388,7 @@ class Plotter:
         #             mpatches.Patch(color=to_rgba(color_dict[j], alpha=alpha), label=j)
         #         )
         for key, value in color_dict.items():
-            legend_patches.append(
-                mpatches.Patch(color=to_rgba(value, alpha=alpha), label=key)
-            )
+            legend_patches.append(mpatches.Patch(color=to_rgba(value, alpha=alpha), label=key))
         return legend_patches
 
     def get_plot_func(self, plot_type):
@@ -563,9 +543,7 @@ class Plotter:
                 y,
                 mk,
                 markerfacecolor=(self._process_color(mf, alpha)),
-                markeredgecolor=(
-                    self._process_color(me, edge_alpha) if me != "none" else "none"
-                ),
+                markeredgecolor=(self._process_color(me, edge_alpha) if me != "none" else "none"),
                 markersize=ms,
                 markeredgewidth=markeredgewidth,
                 zorder=z,
@@ -602,16 +580,8 @@ class Plotter:
                 x=x,
                 y=y,
                 marker=mk,
-                c=(
-                    [self._process_color(x, alpha) for x in mf]
-                    if mf != "none"
-                    else "none"
-                ),
-                edgecolor=(
-                    [self._process_color(x, edge_alpha) for x in me]
-                    if me != "none"
-                    else "none"
-                ),
+                c=([self._process_color(x, alpha) for x in mf] if mf != "none" else "none"),
+                edgecolor=([self._process_color(x, edge_alpha) for x in me] if me != "none" else "none"),
                 s=ms,
                 linewidth=linewidth,
                 zorder=z,
@@ -634,9 +604,7 @@ class Plotter:
         direction: Direction = "vertical",
         **kwargs,
     ):
-        for xd, yd, e, c, w, z in zip(
-            x_data, y_data, error_data, colors, widths, zorder
-        ):
+        for xd, yd, e, c, w, z in zip(x_data, y_data, error_data, colors, widths, zorder):
             if direction == "horizontal":
                 yd, xd = xd, yd
                 e, w = w / 2, e
@@ -752,9 +720,7 @@ class Plotter:
         if style in {"left", "right"}:
             zorder = zorder[::-1]
         alt = True
-        for x, y, loc, fcs, ecs, z in zip(
-            x_data, y_data, location, facecolors, edgecolors, zorder
-        ):
+        for x, y, loc, fcs, ecs, z in zip(x_data, y_data, location, facecolors, edgecolors, zorder):
             if style == "left":
                 m = y.max() / 2
                 left = y * -1 + loc + m
@@ -1013,10 +979,7 @@ class Plotter:
 
 class LinePlotter(Plotter):
     def create_figure(self) -> tuple[Figure, list[Axes]]:
-        if (
-            self.plot_format["figure"]["nrows"] is None
-            and self.plot_format["figure"]["ncols"] is None
-        ):
+        if self.plot_format["figure"]["nrows"] is None and self.plot_format["figure"]["ncols"] is None:
             nrows = len(self.plot_dict["group_order"]) if self.plot_dict["facet"] else 1
             ncols = 1
         elif self.plot_format["figure"]["nrows"] is None:
@@ -1089,10 +1052,7 @@ class LinePlotter(Plotter):
         )
 
     def format_polar(self, ax: PolarAxes):
-        if (
-            self.plot_format["axis"]["xunits"] == "radian"
-            or self.plot_format["axis"]["xunits"] == "wradian"
-        ):
+        if self.plot_format["axis"]["xunits"] == "radian" or self.plot_format["axis"]["xunits"] == "wradian":
             xticks = ax.get_xticks()
             labels = (
                 radian_ticks(xticks, rotate=False)

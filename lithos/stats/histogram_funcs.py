@@ -1,7 +1,7 @@
-from numba import njit
 import numpy as np
+from numba import njit
 
-from ..types.basic_types import HistStat, BinType
+from ..types.basic_types import BinType, HistStat
 
 
 def hist(data: np.ndarray, bins: np.ndarray, stat: HistStat) -> np.ndarray | None:

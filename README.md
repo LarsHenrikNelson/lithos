@@ -209,9 +209,7 @@ Below is jitter plot with several custom settings.
 
 
 ```python
-df = create_synthetic_data(
-    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, distribution="normal"
-)
+df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, distribution="normal")
 fig, ax = plt.subplots(ncols=2, figsize=(6.4 * 2, 4.8 * 1), layout="constrained")
 plot = (
     CategoricalPlot(data=df)
@@ -229,7 +227,7 @@ plot = (
         width=0.5,
         markersize=8,
         seed=30,
-        jitter_type="fill"
+        jitter_type="fill",
     )
     .summary(
         func="mean",
@@ -261,7 +259,7 @@ plot = (
         width=0.5,
         markersize=8,
         seed=30,
-        jitter_type="dist"
+        jitter_type="dist",
     )
     .summary(
         func="mean",
@@ -294,9 +292,7 @@ Below is a jitteru plot with a violin plot. Jitteru is my personal favorites sin
 
 ```python
 df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
-fig, ax = plt.subplots(
-    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
-)
+fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained")
 plot = (
     CategoricalPlot(data=df)
     .load_metadata("my_plot")
@@ -372,9 +368,7 @@ You can also create split violin plots. There are three styles: "left", "right" 
 
 ```python
 df = create_synthetic_data(n_groups=5, n_subgroups=2, n_unique_ids=5, n_points=60)
-fig, ax = plt.subplots(
-    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
-)
+fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained")
 plot1 = (
     CategoricalPlot(data=df)
     .grouping(group="grouping_1", group_spacing=0.9)
@@ -392,13 +386,7 @@ df = create_synthetic_data(n_groups=5, n_subgroups=2, n_unique_ids=5, n_points=6
 plot2 = (
     CategoricalPlot(data=df)
     .grouping(group="grouping_1", subgroup="grouping_2", group_spacing=0.9)
-    .violin(
-        edgecolor="black",
-        linewidth=1,
-        edge_alpha=0.3,
-        width=0.9,
-        style="alternate"
-    )
+    .violin(edgecolor="black", linewidth=1, edge_alpha=0.3, width=0.9, style="alternate")
     .plot_data(y="y", ylabel="test", title="")
     .plot(figure=fig, axes=ax.flat[1])
 )
@@ -451,9 +439,7 @@ Pair plot is similar to jitteru except that it will plot lines between points an
 ```python
 fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
 wtp = 3
-df = create_synthetic_data(
-    n_groups=3, n_unique_ids=30, n_points=wtp, distribution="normal"
-)
+df = create_synthetic_data(n_groups=3, n_unique_ids=30, n_points=wtp, distribution="normal")
 df = pd.DataFrame(df)
 df["order"] = np.tile(np.arange(wtp) + 1, df.shape[0] // wtp)
 plot = (
@@ -480,9 +466,7 @@ plot = (
     .plot(figure=fig, axes=ax[0])
 )
 wtp = 2
-df = create_synthetic_data(
-    n_groups=1, n_unique_ids=30, n_points=wtp, distribution="normal"
-)
+df = create_synthetic_data(n_groups=1, n_unique_ids=30, n_points=wtp, distribution="normal")
 df = pd.DataFrame(df)
 df["order"] = np.tile(np.arange(wtp) + 1, df.shape[0] // wtp)
 plot = (
@@ -623,9 +607,7 @@ Additionally, you will notice that you can truncate the axis limits by passing a
 
 ```python
 df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
-fig, ax = plt.subplots(
-    ncols=2, nrows=2, figsize=(6.4 * 2, 4.8 * 2), layout="constrained"
-)
+fig, ax = plt.subplots(ncols=2, nrows=2, figsize=(6.4 * 2, 4.8 * 2), layout="constrained")
 ax = ax.flatten()
 plot = (
     LinePlot(data=df)
@@ -744,12 +726,8 @@ Aggline allows you to aggregate points before plotting the data. This is useful 
 
 
 ```python
-df = create_synthetic_data(
-    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60, distribution="lognormal"
-)
-fig, ax = plt.subplots(
-    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
-)
+df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60, distribution="lognormal")
+fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained")
 ax = ax.flatten()
 plot1 = (
     LinePlot(data=df)
@@ -813,9 +791,7 @@ If you have a simple line that does not need to be aggregated then use the line 
 
 ```python
 df1 = create_synthetic_data(n_groups=2, n_points=50, distribution="timeseries")
-fig, ax = plt.subplots(
-    ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained"
-)
+fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(6.4 * 2, 4.8 * 1), layout="constrained")
 plot = (
     LinePlot(data=df1)
     .grouping(group="grouping_1")
@@ -824,9 +800,7 @@ plot = (
     .figure(ncols=2)
     .plot(figure=fig, axes=ax[0])
 )
-df2 = create_synthetic_data(
-    n_groups=2, n_subgroups=3, n_points=50, distribution="timeseries"
-)
+df2 = create_synthetic_data(n_groups=2, n_subgroups=3, n_points=50, distribution="timeseries")
 plot = (
     LinePlot(data=df2)
     .grouping(group="grouping_1")
@@ -848,9 +822,7 @@ plot = (
 
 ```python
 df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60)
-df1 = create_synthetic_data(
-    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60, seed=30
-)
+df1 = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=60, seed=30)
 df["y1"] = df1["y"]
 fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
 plot = (
@@ -896,12 +868,8 @@ Fit currently provides a simple linear regression. You can output confidence int
 
 
 ```python
-df = create_synthetic_data(
-    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, scale=2.0
-)
-df1 = create_synthetic_data(
-    n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, seed=30, scale=2.0
-)
+df = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, scale=2.0)
+df1 = create_synthetic_data(n_groups=2, n_subgroups=2, n_unique_ids=5, n_points=5, seed=30, scale=2.0)
 df["y1"] = df1["y"]
 fig, ax = plt.subplots(ncols=2, layout="constrained", figsize=(6.4 * 2, 4.8 * 1))
 plot = (

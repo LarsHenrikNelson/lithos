@@ -45,11 +45,15 @@ Downloads = "https://github.com/LarsHenrikNelson/lithos"
 [dependency-groups]
 dev = [
   {include-group = "test"},
-  {include-group = "docs"}
+  {include-group = "docs"},
+  {include-group = "lint"}
 ]
 test = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+]
+lint = [
+    "ruff>=0.12",
 ]
 docs = [
     "ipykernel>=7.1.0",
@@ -59,5 +63,14 @@ docs = [
 [tool.setuptools.packages]
 find = {}
 
+[tool.ruff]
+line-length = 120
+
 [tool.ruff.lint]
-ignore = ["F401", "F403"]
+select = [
+    "E4", "E7", "E9",  # pycodestyle subset (ruff default)
+    "F",               # pyflakes
+    "I",               # isort
+    "UP",              # pyupgrade
+]
+ignore = ["F401", "F403"]  # intentional: __init__ re-exports and star imports
