@@ -798,11 +798,17 @@ class Summary(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
-        if y is None:
-            raise ValueError("Summary requires a y column.")
+        if y is not None:
+            column = y
+            transform = ytransform
+        elif x is not None:
+            column = x
+            transform = xtransform
+        else:
+            raise ValueError("Summary requires a y or x column.")
         output = {}
         for group_key, indexes in self._groups(data, levels).items():
-            vals = _get_column_values(data, indexes, y, ytransform)
+            vals = _get_column_values(data, indexes, column, transform)
             q1 = float(np.percentile(vals, 25))
             q3 = float(np.percentile(vals, 75))
             median = float(np.percentile(vals, 50))
