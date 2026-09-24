@@ -392,7 +392,7 @@ class Plot:
         """Serializable positioning/labeling context consumed by the plotter."""
         raise NotImplementedError("Subclasses must implement _layout_context().")
 
-    def _layout_options(self) -> dict:
+    def layout_options(self) -> dict:
         return dict(self._layout_options)
 
     def _set_layout_options(self, options: dict):
@@ -411,7 +411,7 @@ class Plot:
             "version": 2,
             "layout": self.layout,
             "grouping": dict(self._grouping),
-            "layout_options": dict(self._layout_options),
+            "layout_options": self._layout_options,
             "data": dict(self._plot_data),
             "format": self.plot_format,
             "transforms": self._plot_transforms,
