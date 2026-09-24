@@ -14,6 +14,7 @@ transform (box/whisker) arrive with their Phase 2 port.
 
 import numpy as np
 
+from ...types.basic_types import SavePath
 from ..matplotlib_plotter import CategoricalPlotter, LinePlotter, Plotter
 from ..plot_utils import _process_colors, create_dict
 from .resolver import locate_key
@@ -37,7 +38,7 @@ class SpecPlotter(Plotter):
         plot_dict: dict,
         metadata: dict,
         savefig: bool = False,
-        path: str = "",
+        path: SavePath = "",
         filetype: str = "svg",
         filename: str = "",
         axes=None,
