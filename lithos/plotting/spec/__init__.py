@@ -13,7 +13,8 @@ Example:
     >>> plot = (
     ...     CategoricalPlot(data)
     ...     .grouping(group="grouping_1")
-    ...     .plot_data(y="y", ylabel="value")
+    ...     .plot_data(y="y")
+    ...     .labels(ylabel="value")
     ... )
     >>> plot.add(Identity(), position="jitter", Marker())
     >>> plot.add(Aggregate(err_func="sem"), Marker(), ErrorBar())

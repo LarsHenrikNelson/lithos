@@ -199,6 +199,113 @@ class TestResolver:
             locate_key(("a", "b"), {("z",): 0.0})
 
 
+class TestLabels:
+    def teardown_method(self):
+        plt.close("all")
+
+    def test_default_labels_use_column_names(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot(data).grouping(group="grouping_1").plot_data(y="y", x="x")
+
+        labels = plot._resolved_labels()
+        assert labels["ylabel"] == "y"
+        assert labels["xlabel"] == "x"
+
+    def test_default_labels_without_columns_are_blank(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot(data).grouping(group="grouping_1")
+
+        labels = plot._resolved_labels()
+        assert labels["ylabel"] == ""
+        assert labels["xlabel"] == ""
+        assert labels["title"] == ""
+        assert labels["figure_title"] == ""
+
+    def test_none_means_no_label_and_empty_string_is_kept(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot(data).plot_data(y="y", x="x").labels(ylabel=None, xlabel="")
+
+        labels = plot._resolved_labels()
+        assert labels["ylabel"] is None
+        assert labels["xlabel"] == ""
+
+    def test_labels_are_separate_from_plot_data(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot(data).grouping(group="grouping_1")
+        plot.plot_data(y="y", x="x")
+        plot.labels(ylabel="value", title="Test")
+
+        assert plot._plot_data == {"y": "y", "x": "x"}
+        metadata = plot.metadata()
+        assert metadata["data"] == {"y": "y", "x": "x"}
+        assert metadata["labels"] == {"ylabel": "value", "xlabel": "x", "title": "Test", "figure_title": ""}
+
+    def test_labels_roundtrip_through_metadata(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot(data).grouping(group="grouping_1")
+        plot.plot_data(y="y", x="x")
+        plot.labels(ylabel=None, xlabel="", title="Test", figure_title="")
+
+        rebuilt = LinePlot(data).load_metadata(plot.metadata())
+        assert rebuilt._labels == plot._labels
+        assert rebuilt._resolved_labels() == plot._resolved_labels()
+
+    def test_render_default_label_is_column_name(self, one_grouping):
+        data, _ = one_grouping
+        plot = (
+            LinePlot(data)
+            .grouping(group="grouping_1")
+            .plot_data(y="y", x="x")
+            .add(Aggregate(err_func="sem"), Line(), Marker(), ErrorBand(), y="y", x="x")
+        )
+        plot.plot()
+
+        assert plot.plotter.axes[0].get_ylabel() == "y"
+        assert plot.plotter.axes[0].get_xlabel() == "x"
+
+    def test_render_none_label_is_blank(self, one_grouping):
+        data, _ = one_grouping
+        plot = (
+            LinePlot(data)
+            .grouping(group="grouping_1")
+            .plot_data(y="y", x="x")
+            .labels(ylabel=None)
+            .add(Aggregate(err_func="sem"), Line(), Marker(), y="y", x="x")
+        )
+        plot.plot()
+
+        assert plot.plotter.axes[0].get_ylabel() == ""
+
+
+class TestLabelFormat:
+    def teardown_method(self):
+        plt.close("all")
+
+    def test_separate_ticklabel_sizes(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot(data).label_format(xticklabel_size=8, yticklabel_size=14)
+
+        labels = plot.plot_format["labels"]
+        assert labels["xticklabel_size"] == 8
+        assert labels["yticklabel_size"] == 14
+        assert "ticklabel_size" not in labels
+
+    def test_render_separate_ticklabel_sizes(self, one_grouping):
+        data, _ = one_grouping
+        plot = (
+            LinePlot(data)
+            .grouping(group="grouping_1")
+            .plot_data(y="y", x="x")
+            .label_format(xticklabel_size=8, yticklabel_size=14)
+            .add(Aggregate(err_func="sem"), Line(), Marker(), y="y", x="x")
+        )
+        plot.plot()
+
+        ax = plot.plotter.axes[0]
+        assert ax.get_xticklabels()[0].get_fontsize() == 8
+        assert ax.get_yticklabels()[0].get_fontsize() == 14
+
+
 class TestMetadata:
     def test_metadata_is_json_serializable(self, one_grouping):
         data, _ = one_grouping
@@ -290,7 +397,8 @@ class TestRenderSmoke:
         plot = (
             LinePlot(data)
             .grouping(group="grouping_1")
-            .plot_data(y="y", x="x", ylabel="value")
+            .plot_data(y="y", x="x")
+            .labels(ylabel="value")
             .add(Aggregate(err_func="sem"), Line(), Marker(), ErrorBand(), y="y", x="x")
         )
         plot.plot()
@@ -317,7 +425,8 @@ class TestRenderSmoke:
         plot = (
             CategoricalPlot(data)
             .grouping(group="grouping_1")
-            .plot_data(y="y", ylabel="value")
+            .plot_data(y="y")
+            .labels(ylabel="value")
             .add(Identity(), Marker(), position="jitter")
             .add(Aggregate(err_func="sem"), Marker(), ErrorBar())
         )

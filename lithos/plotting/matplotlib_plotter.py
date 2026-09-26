@@ -113,6 +113,11 @@ class Plotter:
     def create_figure(self) -> tuple[Figure, list[Axes]]:
         raise NotImplementedError("Implement create_figure. Must return Figure and list[Axes].")
 
+    def _ticklabel_size(self, axis: Literal["x", "y"]) -> float:
+        """Tick label size for one axis, falling back to the legacy shared ``ticklabel_size``."""
+        labels = self.plot_format["labels"]
+        return labels.get(f"{axis}ticklabel_size", labels.get("ticklabel_size", 12))
+
     def _process_color(self, color, alpha):
         if color is None:
             color = "none"
@@ -242,7 +247,7 @@ class Plotter:
                     labels=tick_labels[label_start:label_end],
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    fontsize=self._ticklabel_size("y"),
                     rotation=self.plot_format["labels"]["ytick_rotation"],
                 )
             else:
@@ -251,7 +256,7 @@ class Plotter:
                     ticks,
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    fontsize=self._ticklabel_size("y"),
                     rotation=self.plot_format["labels"]["ytick_rotation"],
                 )
         else:
@@ -279,7 +284,7 @@ class Plotter:
                     labels=tick_labels[label_start:label_end],
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    fontsize=self._ticklabel_size("x"),
                     rotation=self.plot_format["labels"]["xtick_rotation"],
                 )
             else:
@@ -288,7 +293,7 @@ class Plotter:
                     ticks,
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    fontsize=self._ticklabel_size("x"),
                     rotation=self.plot_format["labels"]["xtick_rotation"],
                 )
 
@@ -1064,7 +1069,7 @@ class LinePlotter(Plotter):
                 labels,
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["tick_fontweight"],
-                fontsize=self.plot_format["labels"]["ticklabel_size"],
+                fontsize=self._ticklabel_size("x"),
                 rotation=self.plot_format["labels"]["xtick_rotation"],
             )
         ax.spines["polar"].set_visible(False)
@@ -1100,7 +1105,7 @@ class LinePlotter(Plotter):
             tick_labels,
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["tick_fontweight"],
-            fontsize=self.plot_format["labels"]["ticklabel_size"],
+            fontsize=self._ticklabel_size("y"),
             rotation=self.plot_format["labels"]["ytick_rotation"],
         )
         # self.set_axis(
@@ -1133,14 +1138,15 @@ class LinePlotter(Plotter):
             if "vline" in self.plot_format:
                 self._plot_axlines(self.plot_format["vline"], sub_ax)
 
-            sub_ax.tick_params(
-                axis="both",
-                which="major",
-                labelsize=self.plot_format["labels"]["ticklabel_size"],
-                width=self.plot_format["axis_format"]["tickwidth"],
-                length=self.plot_format["axis_format"]["ticklength"],
-                labelfontfamily=self.plot_format["labels"]["font"],
-            )
+            for tick_axis in ("x", "y"):
+                sub_ax.tick_params(
+                    axis=tick_axis,
+                    which="major",
+                    labelsize=self._ticklabel_size(tick_axis),
+                    width=self.plot_format["axis_format"]["tickwidth"],
+                    length=self.plot_format["axis_format"]["ticklength"],
+                    labelfontfamily=self.plot_format["labels"]["font"],
+                )
 
             sub_ax.set_ylabel(
                 self.plot_labels["ylabel"],
@@ -1215,7 +1221,7 @@ class CategoricalPlotter(Plotter):
                 rotation=self.plot_format["labels"]["xtick_rotation"],
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["tick_fontweight"],
-                fontsize=self.plot_format["labels"]["ticklabel_size"],
+                fontsize=self._ticklabel_size("x"),
             )
             ax.set_xlim(
                 min(top_ticks) - self.plot_dict["group_spacing"] / 2 - margin,
@@ -1231,7 +1237,7 @@ class CategoricalPlotter(Plotter):
                     labels=bottom_labels,
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    fontsize=self._ticklabel_size("x"),
                 )
                 sec.tick_params(axis="x", bottom=False)
         else:
@@ -1241,7 +1247,7 @@ class CategoricalPlotter(Plotter):
                 rotation=self.plot_format["labels"]["xtick_rotation"],
                 fontfamily=self.plot_format["labels"]["font"],
                 fontweight=self.plot_format["labels"]["tick_fontweight"],
-                fontsize=self.plot_format["labels"]["ticklabel_size"],
+                fontsize=self._ticklabel_size("y"),
             )
             ax.set_ylim(
                 min(top_ticks) - self.plot_dict["group_spacing"] / 2 - margin,
@@ -1257,7 +1263,7 @@ class CategoricalPlotter(Plotter):
                     labels=bottom_labels,
                     fontfamily=self.plot_format["labels"]["font"],
                     fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self.plot_format["labels"]["ticklabel_size"],
+                    fontsize=self._ticklabel_size("y"),
                 )
                 sec.tick_params(axis="y", left=False)
 
@@ -1316,14 +1322,15 @@ class CategoricalPlotter(Plotter):
             fontfamily=self.plot_format["labels"]["font"],
             fontweight=self.plot_format["labels"]["title_fontweight"],
         )
-        ax.tick_params(
-            axis="both",
-            which="major",
-            labelsize=self.plot_format["labels"]["ticklabel_size"],
-            width=self.plot_format["axis_format"]["tickwidth"],
-            length=self.plot_format["axis_format"]["ticklength"],
-            labelfontfamily=self.plot_format["labels"]["font"],
-        )
+        for tick_axis in ("x", "y"):
+            ax.tick_params(
+                axis=tick_axis,
+                which="major",
+                labelsize=self._ticklabel_size(tick_axis),
+                width=self.plot_format["axis_format"]["tickwidth"],
+                length=self.plot_format["axis_format"]["ticklength"],
+                labelfontfamily=self.plot_format["labels"]["font"],
+            )
         ax.margins(x=self.plot_format["figure"]["margins"])
 
         if "legend_dict" in self.plot_dict:

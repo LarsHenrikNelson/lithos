@@ -57,6 +57,14 @@ class SpecPlotter(Plotter):
             axes=axes,
             figure=figure,
         )
+        # Spec metadata keeps label text ("labels") separate from the data
+        # columns ("data"); merge both into the single plot_labels view the
+        # legacy formatting reads. A "None" label means no label and renders blank.
+        labels = metadata.get("labels", {})
+        self.plot_labels = dict(metadata["data"])
+        for key in ("ylabel", "xlabel", "title", "figure_title"):
+            value = labels.get(key, "")
+            self.plot_labels[key] = "" if value is None else value
 
     def _plot(self):
         for layer_index, layer in enumerate(self.layers):

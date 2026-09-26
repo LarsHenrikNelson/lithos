@@ -6,7 +6,10 @@ parity reference). The API decomposes the concerns the legacy
 ``grouping()`` methods mixed together:
 
 - ``.grouping()`` — pure grouping (group/subgroup columns + ordering), shared.
-- ``.plot_data()`` — labels plus plot-level default y/x columns.
+- ``.plot_data()`` — plot-level default y/x columns (data only, no label text).
+- ``.labels()`` — label text (``None`` = no label, ``""`` = empty label; unset axis
+  labels default to the y/x column names).
+- ``.label_format()`` — pure label/tick formatting (sizes, fonts, rotations).
 - ``.add(transform, *elements)`` — the layer API. The transform and elements
   are held *as-is*; no data is processed until ``_process_data()`` runs (at
   plot time), so grouping/columns set after ``.add()`` are honored. All
@@ -37,6 +40,16 @@ from .metadata import (
 )
 
 
+class Unset:
+    """Sentinel for a label that has not been set (resolved at plot time)."""
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+
+UNSET = Unset()
+
+
 class Plot:
     """Base class for the spec plot API.
 
@@ -56,11 +69,12 @@ class Plot:
 
         self._grouping = {"group": None, "subgroup": None, "group_order": None, "subgroup_order": None}
         self._layout_options: dict = {}
-        self._plot_data = {"y": None, "x": None, "ylabel": "", "xlabel": "", "title": "", "figure_title": ""}
+        self._plot_data = {"y": None, "x": None}
+        self._labels = {"ylabel": UNSET, "xlabel": UNSET, "title": UNSET, "figure_title": UNSET}
         self.plot_format: dict = {}
         self._plot_transforms: dict = {}
 
-        self.labels()
+        self.label_format()
         self.axis()
         self.axis_format()
         self.figure()
@@ -84,23 +98,34 @@ class Plot:
 
         return self
 
-    def plot_data(
-        self,
-        y: str | None = None,
-        x: str | None = None,
-        ylabel: str = "",
-        xlabel: str = "",
-        title: str = "",
-        figure_title: str = "",
-    ) -> Self:
-        """Set axis labels and plot-level default y/x columns.
+    def plot_data(self, y: str | None = None, x: str | None = None) -> Self:
+        """Set the plot-level default y/x columns (pure data — no label text).
 
         The defaults are used by ``.add()`` layers that do not pass their own
-        ``y``/``x``; stacked layers can still override them per layer.
+        ``y``/``x``; stacked layers can still override them per layer. Label
+        text lives in ``.labels()``; formatting lives in ``.label_format()``.
         """
-        self._plot_data = {
-            "y": y,
-            "x": x,
+        self._plot_data = {"y": y, "x": x}
+
+        return self
+
+    def labels(
+        self,
+        ylabel: str | None | Unset = UNSET,
+        xlabel: str | None | Unset = UNSET,
+        title: str | None | Unset = UNSET,
+        figure_title: str | None | Unset = UNSET,
+    ) -> Self:
+        """Set the label text, kept separate from the data columns.
+
+        Each label distinguishes three states:
+
+        - unset (default) — the axis labels fall back to the ``y``/``x``
+          column names from ``.plot_data()``; the titles fall back to none.
+        - ``None`` — no label.
+        - ``""`` — an explicitly empty label.
+        """
+        self._labels = {
             "ylabel": ylabel,
             "xlabel": xlabel,
             "title": title,
@@ -108,6 +133,25 @@ class Plot:
         }
 
         return self
+
+    def _resolved_labels(self) -> dict:
+        """Resolve the label states into concrete label text for the plotter.
+
+        Unset axis labels fall back to the plot-level ``y``/``x`` column names
+        (blank when the column is not set) and unset titles to no title. The
+        ``None`` (no label) and ``""`` (empty label) states are preserved so
+        they round-trip through the metadata; the plotter renders both blank.
+        """
+        labels = dict(self._labels)
+        if isinstance(labels["ylabel"], Unset):
+            labels["ylabel"] = self._plot_data["y"] if self._plot_data["y"] is not None else ""
+        if isinstance(labels["xlabel"], Unset):
+            labels["xlabel"] = self._plot_data["x"] if self._plot_data["x"] is not None else ""
+        if isinstance(labels["title"], Unset):
+            labels["title"] = ""
+        if isinstance(labels["figure_title"], Unset):
+            labels["figure_title"] = ""
+        return labels
 
     def add(
         self,
@@ -197,11 +241,12 @@ class Plot:
         """Grouping columns (group, subgroup) with ``None`` entries dropped."""
         return tuple(level for level in (self._grouping["group"], self._grouping["subgroup"]) if level is not None)
 
-    def labels(
+    def label_format(
         self,
         labelsize: float = 20,
         titlesize: float = 22,
-        ticklabel_size: int = 12,
+        xticklabel_size: int = 12,
+        yticklabel_size: int = 12,
         font: str = "DejaVu Sans",
         fontweight: None | str | float = None,
         title_fontweight: str | float = "regular",
@@ -212,6 +257,7 @@ class Plot:
         xtick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
         ytick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
     ) -> Self:
+        """Set the label/tick formatting: sizes, fonts, weights and rotations."""
         if fontweight is not None:
             title_fontweight = fontweight
             label_fontweight = fontweight
@@ -221,7 +267,8 @@ class Plot:
             "labelsize": labelsize,
             "titlesize": titlesize,
             "font": font,
-            "ticklabel_size": ticklabel_size,
+            "xticklabel_size": xticklabel_size,
+            "yticklabel_size": yticklabel_size,
             "title_fontweight": title_fontweight,
             "label_fontweight": label_fontweight,
             "tick_fontweight": tick_fontweight,
@@ -439,6 +486,7 @@ class Plot:
             "grouping": dict(self._grouping),
             "layout_options": self._layout_options,
             "data": dict(self._plot_data),
+            "labels": self._resolved_labels(),
             "format": self.plot_format,
             "transforms": self._plot_transforms,
             "layers": [layer_to_json(layer) for layer in self.layers],
@@ -459,7 +507,12 @@ class Plot:
 
         self._grouping = dict(metadata["grouping"])
         self._set_layout_options(metadata.get("layout_options", {}))
-        self._plot_data = dict(metadata["data"])
+        self._plot_data = {key: metadata["data"].get(key) for key in ("y", "x")}
+        labels = metadata.get("labels")
+        if labels is None:
+            # earlier metadata versions carried the label text inside "data"
+            labels = {key: metadata["data"].get(key, "") for key in ("ylabel", "xlabel", "title", "figure_title")}
+        self._labels = {key: labels.get(key, "") for key in ("ylabel", "xlabel", "title", "figure_title")}
         for key, value in metadata["format"].items():
             self.plot_format[key] = value
         self._plot_transforms = dict(metadata["transforms"])
