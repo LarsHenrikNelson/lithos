@@ -14,6 +14,9 @@ Full guidance lives in [AGENTS.md](./AGENTS.md). Read it first. Summary of hard 
 - Transforms compute statistics AND error; elements are formatting-only and never compute values.
 - Transform `__call__` returns `dict[group_key, geometry_dict]` — the geometry dict is the
   only source of numbers elements render.
+- `.add()` holds raw transform/element objects; all computation happens in one
+  `_process_data()` pass at plot time (grouping may be set after `.add()`); metadata is
+  pure layer specs, geometry is recomputed on load via `.add()` replay.
 - Legacy methods (`LinePlot.*`, `CategoricalPlot.*`) stay untouched during Phase 2;
   parity tests in `tests/processing/` compare new vs legacy geometry.
 - `lithos/stats` must never import from `lithos/plotting` (keep the dependency graph acyclic).

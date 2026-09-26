@@ -28,7 +28,7 @@ Stats                   lithos.stats (pure functions: kde, ecdf, histogram, curv
 Dependency direction is strictly downward: plot classes -> processors -> stats/transforms.
 `lithos/stats` must stay free of `lithos.plotting` imports. Do not introduce cycles.
 
-## New element/transform API (Phase 0/1)
+## New element/transform API (Phase 1, in progress)
 
 - `lithos/plotting/elements.py` — formatting-only dataclasses (`Line`, `Marker`, `Bar`,
   `Fill`, `ErrorBand`, `ErrorBar`, `Annotation`, `Significance`) that
@@ -36,8 +36,15 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
 - `lithos/plotting/transforms.py` — pure statistical dataclasses (`Identity`, `Aggregate`,
   `Density`, `Summary`, `Fit`) built on `lithos.stats`. Each transform returns
   `dict[group_key, geometry_dict]`.
-- Both are exported from `lithos/__init__.py` today; the `Plot` class, position resolver
-  and `SpecPlotter` arrive in Phase 1 (see the migration plan).
+- `lithos/plotting/spec/` — the new plot classes (`Plot` base with `LinePlot` /
+  `CategoricalPlot`), the position resolver and the `SpecPlotter`.
+  `.add(transform, *elements)` holds raw transform/element objects; `_process_data()`
+  is the only place transforms are invoked (at plot time, against the grouping/columns
+  in effect then — so grouping may be set after `.add()`). It emits serializable layer
+  specs (asdict transform + element specs + geometry) that the resolver/plotter consume
+  and that can be handed to alternative renderers. Metadata stores pure layer specs —
+  no geometry — and `load_metadata` recomputes it by replaying `.add()` against the data.
+- All are exported from `lithos/__init__.py` (see the migration plan for remaining phases).
 
 ## Data flow (legacy)
 

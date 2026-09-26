@@ -15,7 +15,6 @@ from lithos.plotting.spec import CategoricalPlot, LinePlot
 from lithos.plotting.spec.metadata import (
     build_element,
     build_transform,
-    layer_from_json,
     layer_to_json,
     to_jsonable,
 )
@@ -56,13 +55,29 @@ class TestAddValidation:
 
 
 class TestAddLayers:
-    def test_geometry_is_frozen_eagerly(self, one_grouping):
+    def test_layers_hold_raw_objects(self, one_grouping):
         data, _ = one_grouping
         plot = LinePlot(data).grouping(group="grouping_1")
-        plot.add(Identity(), Marker(), y="y", x="x")
+        identity = Identity()
+        plot.add(identity, Marker(), y="y", x="x")
 
         assert len(plot.layers) == 1
         layer = plot.layers[0]
+        assert layer["transform"] is identity
+        assert layer["transform"].name == "identity"
+        assert all(isinstance(element, Marker) for element in layer["elements"])
+        # no data is processed at .add() time
+        assert "geometry" not in layer
+
+    def test_geometry_honors_grouping_set_after_add(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot(data)
+        plot.add(Identity(), Marker(), y="y", x="x")
+        plot.grouping(group="grouping_1")
+
+        processed = plot._process_data()
+        assert len(processed) == 1
+        layer = processed[0]
         assert layer["transform"]["name"] == "identity"
         assert [spec["type"] for spec in layer["elements"]] == ["marker"]
         assert len(layer["geometry"]) == 3
@@ -71,6 +86,18 @@ class TestAddLayers:
             assert geometry["x"].shape == (30,)
             assert geometry["y"].shape == (30,)
 
+    def test_process_data_without_grouping(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot(data).plot_data(y="y", x="x")
+        plot.add(Identity(), Marker())
+
+        geometry = plot._process_data()[0]["geometry"]
+        assert len(geometry) == 1
+        single = geometry[("",)]
+        assert single["n"] == 90
+        assert single["x"].shape == (90,)
+        assert single["y"].shape == (90,)
+
     def test_chained_layers_are_independent(self, one_grouping):
         data, _ = one_grouping
         plot = LinePlot(data).grouping(group="grouping_1")
@@ -78,15 +105,16 @@ class TestAddLayers:
         plot.add(Aggregate(err_func="sem"), Line(), ErrorBar(), y="y", x="x")
 
         assert len(plot.layers) == 2
-        assert plot.layers[0]["transform"]["name"] == "identity"
-        assert plot.layers[1]["transform"]["name"] == "aggregate"
-        assert plot.layers[0]["geometry"] is not plot.layers[1]["geometry"]
+        assert plot.layers[0]["transform"].name == "identity"
+        assert plot.layers[1]["transform"].name == "aggregate"
+        processed = plot._process_data()
+        assert processed[0]["geometry"] is not processed[1]["geometry"]
 
     def test_plot_level_default_columns(self, one_grouping):
         data, _ = one_grouping
         plot = LinePlot(data).grouping(group="grouping_1").plot_data(y="y", x="x")
         plot.add(Identity(), Marker())
-        layer = plot.layers[0]
+        layer = plot._process_data()[0]
         assert layer["y"] == "y"
         assert layer["x"] == "x"
 
@@ -94,7 +122,9 @@ class TestAddLayers:
         data, _ = one_grouping
         plot = LinePlot(data).grouping(group="grouping_1").plot_data(y="y")
         plot.add(Identity(), Marker(), y="x", x="y")
-        assert plot.layers[0]["y"] == "x"
+        layer = plot._process_data()[0]
+        assert layer["y"] == "x"
+        assert layer["x"] == "y"
 
     def test_position_defaults_per_layout(self, one_grouping):
         data, _ = one_grouping
@@ -136,7 +166,7 @@ class TestResolver:
         plot = CategoricalPlot(data).grouping(group="grouping_1")
         plot.add(Aggregate(), Marker(), y="y")
         context = plot._layout_context()
-        resolved = resolve_layers(plot.layers, context)[0]
+        resolved = resolve_layers(plot._process_data(), context)[0]
         for gkey, geometry in resolved["geometry"].items():
             assert geometry["position"] == context["loc_dict"][gkey]
             np.testing.assert_allclose(geometry["x"], [context["loc_dict"][gkey]])
@@ -147,7 +177,7 @@ class TestResolver:
         plot = CategoricalPlot(data).grouping(group="grouping_1")
         plot.add(Identity(), Marker(), y="y", position="jitter", seed=42)
         context = plot._layout_context()
-        resolved = resolve_layers(plot.layers, context)[0]
+        resolved = resolve_layers(plot._process_data(), context)[0]
         for gkey, geometry in resolved["geometry"].items():
             loc = context["loc_dict"][gkey]
             assert np.all(geometry["x"] >= loc - context["width"])
@@ -159,7 +189,7 @@ class TestResolver:
         plot = CategoricalPlot(data).grouping(group="grouping_1")
         plot.add(Identity(unique_id="unique_grouping"), Marker(), y="y", position="dodge")
         context = plot._layout_context()
-        resolved = resolve_layers(plot.layers, context)[0]
+        resolved = resolve_layers(plot._process_data(), context)[0]
         for gkey, geometry in resolved["geometry"].items():
             assert len(gkey) == 2
             assert geometry["position"] == context["loc_dict"][gkey[:1]]
@@ -182,10 +212,9 @@ class TestMetadata:
         assert len(metadata["layers"]) == 1
         assert metadata["layers"][0]["transform"]["name"] == "aggregate"
         assert metadata["layers"][0]["elements"][0]["type"] == "line"
-        # geometry is stored as a JSON-friendly groups list (no tuple keys)
-        for entry in metadata["layers"][0]["groups"]:
-            assert isinstance(entry["key"], list)
-            assert isinstance(entry["geometry"]["center"], list)
+        # layers are pure specs — no geometry is stored
+        assert "groups" not in metadata["layers"][0]
+        assert "geometry" not in metadata["layers"][0]
         # the whole document round-trips through json
         assert json.loads(json.dumps(metadata)) == json.loads(json.dumps(plot.metadata()))
 
@@ -200,11 +229,10 @@ class TestMetadata:
         rebuilt_layer, layer = rebuilt.layers[0], plot.layers[0]
         assert rebuilt_layer["transform"] == layer["transform"]
         assert rebuilt_layer["elements"] == layer["elements"]
-        for gkey in layer["geometry"]:
+        rebuilt_geometry = rebuilt._process_data()[0]["geometry"]
+        for gkey, geometry in plot._process_data()[0]["geometry"].items():
             for key in ("x", "center", "error_low", "error_high"):
-                np.testing.assert_allclose(
-                    np.asarray(rebuilt_layer["geometry"][gkey][key]), np.asarray(layer["geometry"][gkey][key])
-                )
+                np.testing.assert_allclose(np.asarray(rebuilt_geometry[gkey][key]), np.asarray(geometry[key]))
 
     def test_metadata_roundtrip_via_file(self, one_grouping, tmp_path):
         data, _ = one_grouping
@@ -238,21 +266,19 @@ class TestMetadata:
         assert output["b"] == 1.5
         assert output["c"] == [[1.0]]
 
-    def test_layer_json_roundtrip(self, one_grouping):
+    def test_layer_to_json_serializes_held_objects(self, one_grouping):
         data, _ = one_grouping
         plot = LinePlot(data).grouping(group="grouping_1")
         plot.add(Identity(), Marker(), y="y", x="x")
         serialized = layer_to_json(plot.layers[0])
-        rebuilt = layer_from_json(json.loads(json.dumps(serialized)))
 
-        layer = plot.layers[0]
-        assert set(rebuilt["geometry"]) == set(layer["geometry"])
-        for gkey, geometry in layer["geometry"].items():
-            rebuilt_geometry = rebuilt["geometry"][gkey]
-            assert set(rebuilt_geometry) == set(geometry)
-            for key in ("x", "y"):
-                np.testing.assert_allclose(np.asarray(rebuilt_geometry[key]), np.asarray(geometry[key]))
-            assert rebuilt_geometry["n"] == geometry["n"]
+        assert serialized["transform"]["name"] == "identity"
+        assert serialized["elements"][0]["type"] == "marker"
+        # pure layer spec — no geometry is stored
+        assert "geometry" not in serialized
+        assert "groups" not in serialized
+        # the serialized layer is plain JSON
+        json.loads(json.dumps(serialized))
 
 
 class TestRenderSmoke:

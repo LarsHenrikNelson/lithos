@@ -153,7 +153,10 @@ Notes:
   with `Aggregate(unique_id=..., how="matrix")` for the aggregated line.
   Stacked `.add()` calls over the same data keep subject-level and
   aggregate-level layers in one plot object without seaborn-style global
-  coupling (each layer's numbers are frozen in its geometry dict).
+  coupling: `.add()` holds raw transform objects and all layers are
+  processed in a single `_process_data()` pass at plot time, so every
+  layer's numbers are computed against the same grouping and never
+  disagree (grouping may also be set *after* `.add()`).
 - Per-x aggregation (legacy `aggline` = pandas-groupby over `(levels, x)`
   for ragged data; legacy `line` with `unique_id` = dense `(uid, x)` matrix
   aggregation for aligned data) is **unified into `Aggregate`** rather than

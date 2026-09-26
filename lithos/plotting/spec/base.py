@@ -7,10 +7,11 @@ parity reference). The API decomposes the concerns the legacy
 
 - ``.grouping()`` — pure grouping (group/subgroup columns + ordering), shared.
 - ``.plot_data()`` — labels plus plot-level default y/x columns.
-- ``.add(transform, *elements)`` — the layer API. Transform geometry is
-  computed *eagerly* at ``.add()`` time, so each layer's numbers are frozen
-  in its geometry dict and stacked layers (e.g. subject-level ``Identity``
-  + aggregate-level ``Aggregate``) never disagree.
+- ``.add(transform, *elements)`` — the layer API. The transform and elements
+  are held *as-is*; no data is processed until ``_process_data()`` runs (at
+  plot time), so grouping/columns set after ``.add()`` are honored. All
+  layers are processed in one pass, so stacked layers (e.g. subject-level
+  ``Identity`` + aggregate-level ``Aggregate``) never disagree.
 - Layout-specific settings (faceting for :class:`~lithos.plotting.spec.line.LinePlot`,
   spacing/labels for :class:`~lithos.plotting.spec.categorical.CategoricalPlot`)
   live on the subclasses, not on ``grouping()``.
@@ -30,7 +31,6 @@ from ..transforms import Transform as StatTransform
 from .metadata import (
     build_element,
     build_transform,
-    layer_from_json,
     layer_to_json,
     load_spec_metadata,
     save_spec_metadata,
@@ -122,9 +122,12 @@ class Plot:
     ) -> Self:
         """Add a layer: one transform plus the elements that render its geometry.
 
-        Geometry is computed eagerly, so the layer's numbers are frozen at
-        ``.add()`` time. ``position`` selects how the resolver maps the layer
-        onto the layout when the transform does not supply a coordinate itself.
+        The transform and elements are held *as-is* — no data is processed.
+        Geometry is computed later by ``_process_data()`` (at plot time)
+        against the grouping/columns in effect then, so ``.grouping()`` and
+        ``.plot_data()`` calls made after ``.add()`` are honored.
+        ``position`` selects how the resolver maps the layer onto the layout
+        when the transform does not supply a coordinate itself.
         """
         if not isinstance(transform, StatTransform):
             raise TypeError(f"add() expects a Transform instance, got {type(transform).__name__!r}.")
@@ -138,34 +141,57 @@ class Plot:
         if position not in self.positions:
             raise ValueError(f"position must be one of {self.positions} for {type(self).__name__}, got {position!r}.")
 
-        if y is None:
-            y = self._plot_data["y"]
-        if x is None:
-            x = self._plot_data["x"]
-
-        geometry = transform(
-            self.data,
-            y=y,
-            x=x,
-            levels=self._levels(),
-            ytransform=ytransform,
-            xtransform=xtransform,
-        )
         self.layers.append(
             {
-                "transform": asdict(transform),
-                "elements": [element.to_spec() for element in elements],
+                "transform": transform,
+                "elements": list(elements),
                 "y": y,
                 "x": x,
                 "ytransform": ytransform,
                 "xtransform": xtransform,
                 "position": position,
                 "seed": seed,
-                "geometry": geometry,
             }
         )
 
         return self
+
+    def _process_data(self) -> list[dict]:
+        """Compute every layer's geometry against the current plot state.
+
+        This is the only place transforms are invoked: each held transform is
+        called with the grouping and columns in effect right now, so
+        ``.grouping()``/``.plot_data()`` calls made after ``.add()`` are
+        honored. The returned layers are plain serializable dicts (asdict
+        transform spec, element specs, fresh geometry) — the backend-agnostic
+        artifact that can be handed to any renderer.
+        """
+        processed = []
+        for layer in self.layers:
+            y = layer["y"] if layer["y"] is not None else self._plot_data["y"]
+            x = layer["x"] if layer["x"] is not None else self._plot_data["x"]
+            geometry = layer["transform"](
+                self.data,
+                y=y,
+                x=x,
+                levels=self._levels(),
+                ytransform=layer["ytransform"],
+                xtransform=layer["xtransform"],
+            )
+            processed.append(
+                {
+                    "transform": asdict(layer["transform"]),
+                    "elements": [element.to_spec() for element in layer["elements"]],
+                    "y": y,
+                    "x": x,
+                    "ytransform": layer["ytransform"],
+                    "xtransform": layer["xtransform"],
+                    "position": layer["position"],
+                    "seed": layer["seed"],
+                    "geometry": geometry,
+                }
+            )
+        return processed
 
     def _levels(self) -> tuple:
         """Grouping columns (group, subgroup) with ``None`` entries dropped."""
@@ -402,10 +428,10 @@ class Plot:
     def metadata(self) -> dict:
         """Version-2 metadata: grouping, layout, format, labels and layer specs.
 
-        The output is plain JSON (geometry is stored as a ``"groups"`` list so
-        no tuple-keyed dicts appear). On load, transforms/elements are rebuilt
-        from their specs and ``.add()`` is replayed so geometry is recomputed
-        against the current data.
+        The output is plain JSON. Layers are serialized lazily: each held
+        transform becomes an ``asdict`` spec and each element its ``to_spec()``
+        dict — no geometry is stored (``load_metadata`` recomputes it by
+        replaying ``.add()`` against the current data).
         """
         return {
             "version": 2,
@@ -440,7 +466,6 @@ class Plot:
 
         self.layers = []
         for layer in metadata["layers"]:
-            layer = layer_from_json(layer)
             self.add(
                 build_transform(layer["transform"]),
                 *[build_element(spec) for spec in layer["elements"]],
@@ -476,7 +501,7 @@ class Plot:
         from .plotter import get_spec_plotter
         from .resolver import resolve_layers
 
-        resolved = resolve_layers(self.layers, context)
+        resolved = resolve_layers(self._process_data(), context)
         self.plotter = get_spec_plotter(context["layout"])(
             layers=resolved,
             plot_dict=context,

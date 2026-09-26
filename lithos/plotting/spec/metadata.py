@@ -8,16 +8,14 @@ JSON-friendliness rules:
 
 - numpy arrays/scalars are converted to lists/numbers and callables are
   serialized to their name (shared limitation with the legacy format).
-- Tuple-keyed group geometry (``dict[tuple, dict]``) cannot be a JSON
-  object, so serialized layers store geometry as a ``"groups"`` list of
-  ``{"key": [...], "geometry": {...}}`` entries; ``layer_from_json``
-  rebuilds the tuple-keyed geometry dict on load.
-
-On load, transforms and elements are rebuilt from their specs and ``.add()``
-is replayed so geometry is recomputed against the current data.
+- ``.add()`` holds raw transform/element objects; ``layer_to_json``
+  serializes them lazily (``asdict`` / ``to_spec()``) into pure layer specs.
+  No geometry is stored — ``load_metadata`` recomputes it by replaying
+  ``.add()`` against the current data.
 """
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
@@ -65,23 +63,21 @@ def to_jsonable(obj):
 
 
 def layer_to_json(layer: dict) -> dict:
-    """JSON-friendly layer: tuple-keyed geometry becomes a ``"groups"`` list."""
+    """JSON-friendly layer: held transform/element objects become plain specs.
+
+    The stored transform instance is serialized via ``asdict`` and each
+    element via ``to_spec()`` (the lazy counterpart of ``.add()`` holding raw
+    objects); the remaining values pass through ``to_jsonable``. No geometry
+    is stored — it is recomputed from the data on load.
+    """
     output = {}
     for key, value in layer.items():
-        if key == "geometry":
-            output["groups"] = [
-                {"key": to_jsonable(list(group_key)), "geometry": to_jsonable(geometry)}
-                for group_key, geometry in value.items()
-            ]
+        if key == "transform":
+            output[key] = asdict(value)
+        elif key == "elements":
+            output[key] = [element.to_spec() for element in value]
         else:
             output[key] = to_jsonable(value)
-    return output
-
-
-def layer_from_json(layer: dict) -> dict:
-    """Rebuild an in-memory layer (tuple-keyed geometry) from its JSON form."""
-    output = {key: value for key, value in layer.items() if key != "groups"}
-    output["geometry"] = {tuple(entry["key"]): entry["geometry"] for entry in layer["groups"]}
     return output
 
 

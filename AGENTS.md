@@ -76,6 +76,10 @@ must be preserved:
   by the transform.
 - Transform `__call__` returns `dict[group_key, geometry_dict]`; the geometry dict is the only
   source of numbers that elements render.
+- `.add()` holds raw transform/element objects (no `asdict`/`to_spec` at add time); all
+  computation happens in one `Plot._process_data()` pass at plot time, so grouping/columns
+  may be set after `.add()`. Metadata stores pure layer specs (no geometry);
+  `load_metadata` recomputes geometry by replaying `.add()` against the data.
 - Element field names intentionally match legacy processor argument names so serialized specs
   can reuse `preprocess_args`.
 - `Fill` is the single source of fill styling; `ErrorBand` is strictly center +/- error; paired

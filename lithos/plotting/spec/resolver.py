@@ -1,8 +1,9 @@
 """Position resolution for the spec plot API.
 
-The resolver interprets *frozen* transform geometry onto axis positions using
-the layout context produced by the plot classes. Transforms stay layout-agnostic:
-the same ``dict[group_key, geometry]`` renders differently per layout.
+The resolver interprets the transform geometry computed by ``Plot._process_data()``
+onto axis positions using the layout context produced by the plot classes.
+Transforms stay layout-agnostic: the same ``dict[group_key, geometry]``
+renders differently per layout.
 
 Position modes (per ``.add()`` layer):
 
@@ -49,7 +50,7 @@ def _resolved_coordinates(layer: dict, context: dict, position: float, values) -
 
 
 def resolve_layer(layer: dict, context: dict) -> dict:
-    """Resolve one layer's frozen geometry against the layout context."""
+    """Resolve one layer's processed geometry against the layout context."""
     geometry = {}
     for key, group_geometry in layer["geometry"].items():
         resolved = dict(group_geometry)
