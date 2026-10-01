@@ -456,7 +456,7 @@ class Plot:
         return self.plot_format
 
     # -- layout hooks ------------------------------------------------------
-    def _layout_context(self) -> dict:
+    def _layout_context(self, data: DataHolder) -> dict:
         """Serializable positioning/labeling context consumed by the plotter."""
         raise NotImplementedError("Subclasses must implement _layout_context().")
 
