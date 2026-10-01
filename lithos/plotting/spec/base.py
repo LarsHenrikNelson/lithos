@@ -1,20 +1,31 @@
-"""Spec-based plot API: the ``Plot`` base class (metadata version 2).
+"""Spec-based plot API: the ``Plot`` base class (metadata version 3).
 
 The new user-facing plot API, decoupled from the legacy classes in
 :mod:`lithos.plotting.plot_class` (which remain untouched and serve as the
-parity reference). The API decomposes the concerns the legacy
-``grouping()`` methods mixed together:
+parity reference). A ``Plot`` object is a *pure metadata holder*: it carries no
+data and no columns until ``.plot()`` is called, so a configured plot can be
+saved (``.save_metadata()``), shared, and replayed against any dataset — like
+GraphPad's magic templates.
+
+The API decomposes the concerns the legacy ``grouping()`` methods mixed
+together:
 
 - ``.grouping()`` — pure grouping (group/subgroup columns + ordering), shared.
-- ``.plot_data()`` — plot-level default y/x columns (data only, no label text).
 - ``.labels()`` — label text (``None`` = no label, ``""`` = empty label; unset axis
-  labels default to the y/x column names).
+  labels default to the y/x names passed to ``.plot()``).
 - ``.label_format()`` — pure label/tick formatting (sizes, fonts, rotations).
 - ``.add(transform, *elements)`` — the layer API. The transform and elements
-  are held *as-is*; no data is processed until ``_process_data()`` runs (at
-  plot time), so grouping/columns set after ``.add()`` are honored. All
+  are held *as-is*; no data is processed until ``.plot()`` runs
+  ``_process_data()``, so grouping/columns set after ``.add()`` are honored. All
   layers are processed in one pass, so stacked layers (e.g. subject-level
-  ``Identity`` + aggregate-level ``Aggregate``) never disagree.
+  ``Identity`` + aggregate-level ``Aggregate``) never disagree. Layers share
+  the plot's y/x columns and scale transforms (``.transform()``); plot
+  different columns by rendering separate ``Plot`` objects onto the same
+  ``figure``/``axes``.
+- ``.plot(y, x, data)`` — supplies the data and the plot-level y/x columns.
+  ``data`` is any :data:`~lithos.types.basic_types.InputData`; ``y``/``x`` may
+  also be bare numpy arrays, in which case a single-group ``DataHolder`` is
+  built from them (matplotlib/seaborn-style quick plotting, no grouping).
 - Layout-specific settings (faceting for :class:`~lithos.plotting.spec.line.LinePlot`,
   spacing/labels for :class:`~lithos.plotting.spec.categorical.CategoricalPlot`)
   live on the subclasses, not on ``grouping()``.
@@ -24,6 +35,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import ClassVar, Literal
 
+import numpy as np
 from typing_extensions import Self
 
 from ...types.basic_types import InputData, SavePath, Transform
@@ -62,14 +74,12 @@ class Plot:
     default_position: ClassVar[str] = "passthrough"
     positions: ClassVar[tuple[str, ...]] = ("passthrough",)
 
-    def __init__(self, data: InputData):
-        self.data = DataHolder(data)
+    def __init__(self):
         self.layers: list[dict] = []
         self.plotter = None
 
         self._grouping = {"group": None, "subgroup": None, "group_order": None, "subgroup_order": None}
         self._layout_options: dict = {}
-        self._plot_data = {"y": None, "x": None}
         self._labels = {"ylabel": UNSET, "xlabel": UNSET, "title": UNSET, "figure_title": UNSET}
         self.plot_format: dict = {}
         self._plot_transforms: dict = {}
@@ -98,17 +108,6 @@ class Plot:
 
         return self
 
-    def plot_data(self, y: str | None = None, x: str | None = None) -> Self:
-        """Set the plot-level default y/x columns (pure data — no label text).
-
-        The defaults are used by ``.add()`` layers that do not pass their own
-        ``y``/``x``; stacked layers can still override them per layer. Label
-        text lives in ``.labels()``; formatting lives in ``.label_format()``.
-        """
-        self._plot_data = {"y": y, "x": x}
-
-        return self
-
     def labels(
         self,
         ylabel: str | None | Unset = UNSET,
@@ -121,7 +120,7 @@ class Plot:
         Each label distinguishes three states:
 
         - unset (default) — the axis labels fall back to the ``y``/``x``
-          column names from ``.plot_data()``; the titles fall back to none.
+          names passed to ``.plot()``; the titles fall back to none.
         - ``None`` — no label.
         - ``""`` — an explicitly empty label.
         """
@@ -134,19 +133,22 @@ class Plot:
 
         return self
 
-    def _resolved_labels(self) -> dict:
+    def _resolved_labels(self, y: str | None = None, x: str | None = None) -> dict:
         """Resolve the label states into concrete label text for the plotter.
 
-        Unset axis labels fall back to the plot-level ``y``/``x`` column names
-        (blank when the column is not set) and unset titles to no title. The
-        ``None`` (no label) and ``""`` (empty label) states are preserved so
-        they round-trip through the metadata; the plotter renders both blank.
+        Unset axis labels fall back to the ``y``/``x`` names passed to
+        ``.plot()`` (blank when the column is not set) and unset titles to no
+        title. The ``None`` (no label) and ``""`` (empty label) states are
+        preserved so they round-trip through the metadata; the plotter renders
+        both blank. Metadata saved without a ``.plot()`` call resolves unset
+        axis labels to ``""`` — share the column-name fallback by saving after
+        plotting or by setting the labels explicitly.
         """
         labels = dict(self._labels)
         if isinstance(labels["ylabel"], Unset):
-            labels["ylabel"] = self._plot_data["y"] if self._plot_data["y"] is not None else ""
+            labels["ylabel"] = y if y is not None else ""
         if isinstance(labels["xlabel"], Unset):
-            labels["xlabel"] = self._plot_data["x"] if self._plot_data["x"] is not None else ""
+            labels["xlabel"] = x if x is not None else ""
         if isinstance(labels["title"], Unset):
             labels["title"] = ""
         if isinstance(labels["figure_title"], Unset):
@@ -157,10 +159,6 @@ class Plot:
         self,
         transform: StatTransform,
         *elements: Element,
-        y: str | None = None,
-        x: str | None = None,
-        ytransform: Transform | None = None,
-        xtransform: Transform | None = None,
         position: str | None = None,
         seed: int = 42,
     ) -> Self:
@@ -168,8 +166,11 @@ class Plot:
 
         The transform and elements are held *as-is* — no data is processed.
         Geometry is computed later by ``_process_data()`` (at plot time)
-        against the grouping/columns in effect then, so ``.grouping()`` and
-        ``.plot_data()`` calls made after ``.add()`` are honored.
+        against the data, grouping and plot-level columns in effect then, so
+        ``.grouping()``/``.transform()`` calls made after ``.add()`` are
+        honored. Every layer shares the plot's ``y``/``x`` columns and scale
+        transforms (``.transform()``); render different columns by drawing
+        separate ``Plot`` objects onto the same ``figure``/``axes``.
         ``position`` selects how the resolver maps the layer onto the layout
         when the transform does not supply a coordinate itself.
         """
@@ -189,10 +190,6 @@ class Plot:
             {
                 "transform": transform,
                 "elements": list(elements),
-                "y": y,
-                "x": x,
-                "ytransform": ytransform,
-                "xtransform": xtransform,
                 "position": position,
                 "seed": seed,
             }
@@ -200,27 +197,25 @@ class Plot:
 
         return self
 
-    def _process_data(self) -> list[dict]:
-        """Compute every layer's geometry against the current plot state.
+    def _process_data(self, y: str | None = None, x: str | None = None, data: DataHolder | None = None) -> list[dict]:
+        """Compute every layer's geometry against the given data and columns.
 
         This is the only place transforms are invoked: each held transform is
-        called with the grouping and columns in effect right now, so
-        ``.grouping()``/``.plot_data()`` calls made after ``.add()`` are
-        honored. The returned layers are plain serializable dicts (asdict
+        called with the plot-level columns and the scale transforms
+        (``.transform()``) in effect right now, so calls made after ``.add()``
+        are honored. The returned layers are plain serializable dicts (asdict
         transform spec, element specs, fresh geometry) — the backend-agnostic
         artifact that can be handed to any renderer.
         """
         processed = []
         for layer in self.layers:
-            y = layer["y"] if layer["y"] is not None else self._plot_data["y"]
-            x = layer["x"] if layer["x"] is not None else self._plot_data["x"]
             geometry = layer["transform"](
-                self.data,
+                data,
                 y=y,
                 x=x,
                 levels=self._levels(),
-                ytransform=layer["ytransform"],
-                xtransform=layer["xtransform"],
+                ytransform=self._plot_transforms["ytransform"],
+                xtransform=self._plot_transforms["xtransform"],
             )
             processed.append(
                 {
@@ -228,8 +223,8 @@ class Plot:
                     "elements": [element.to_spec() for element in layer["elements"]],
                     "y": y,
                     "x": x,
-                    "ytransform": layer["ytransform"],
-                    "xtransform": layer["xtransform"],
+                    "ytransform": self._plot_transforms["ytransform"],
+                    "xtransform": self._plot_transforms["xtransform"],
                     "position": layer["position"],
                     "seed": layer["seed"],
                     "geometry": geometry,
@@ -471,35 +466,41 @@ class Plot:
     def _set_layout_options(self, options: dict):
         self._layout_options = dict(options)
 
-    # -- metadata (version 2, JSON) ------------------------------------------
-    def metadata(self) -> dict:
-        """Version-2 metadata: grouping, layout, format, labels and layer specs.
+    # -- metadata (version 3, JSON) ------------------------------------------
+    def metadata(self, y: str | None = None, x: str | None = None) -> dict:
+        """Version-3 metadata: grouping, layout, format, labels and layer specs.
 
         The output is plain JSON. Layers are serialized lazily: each held
         transform becomes an ``asdict`` spec and each element its ``to_spec()``
         dict — no geometry is stored (``load_metadata`` recomputes it by
-        replaying ``.add()`` against the current data).
+        replaying ``.add()`` against the data passed to ``.plot()``).
+
+        ``y``/``x`` (the columns passed to ``.plot()``) are recorded in
+        ``"data"`` and used to resolve unset axis labels; without them the
+        metadata is a pure template — unset labels are stored blank and the
+        columns are chosen at the next ``.plot()`` call.
         """
         return {
-            "version": 2,
+            "version": 3,
             "layout": self.layout,
             "grouping": dict(self._grouping),
             "layout_options": self._layout_options,
-            "data": dict(self._plot_data),
-            "labels": self._resolved_labels(),
+            "data": {"y": y, "x": x},
+            "labels": self._resolved_labels(y, x),
             "format": self.plot_format,
             "transforms": self._plot_transforms,
             "layers": [layer_to_json(layer) for layer in self.layers],
         }
 
     def save_metadata(self, file_path: str | Path):
+        """Save the plot as a shareable template (no data, no geometry)."""
         save_spec_metadata(self.metadata(), file_path)
 
     def load_metadata(self, metadata_path: str | dict | Path) -> Self:
-        """Load version-2 JSON metadata onto this plot, replaying the ``.add()`` layers."""
+        """Load version-3 JSON metadata onto this plot, replaying the ``.add()`` layers."""
         metadata = load_spec_metadata(metadata_path)
-        if metadata.get("version") != 2:
-            raise ValueError("Not a spec (version 2) metadata file.")
+        if metadata.get("version") != 3:
+            raise ValueError("Not a spec (version 3) metadata file.")
         if metadata.get("layout") != self.layout:
             raise ValueError(
                 f"Metadata layout {metadata.get('layout')!r} does not match {type(self).__name__} layout {self.layout!r}."
@@ -507,11 +508,7 @@ class Plot:
 
         self._grouping = dict(metadata["grouping"])
         self._set_layout_options(metadata.get("layout_options", {}))
-        self._plot_data = {key: metadata["data"].get(key) for key in ("y", "x")}
-        labels = metadata.get("labels")
-        if labels is None:
-            # earlier metadata versions carried the label text inside "data"
-            labels = {key: metadata["data"].get(key, "") for key in ("ylabel", "xlabel", "title", "figure_title")}
+        labels = metadata.get("labels", {})
         self._labels = {key: labels.get(key, "") for key in ("ylabel", "xlabel", "title", "figure_title")}
         for key, value in metadata["format"].items():
             self.plot_format[key] = value
@@ -522,10 +519,6 @@ class Plot:
             self.add(
                 build_transform(layer["transform"]),
                 *[build_element(spec) for spec in layer["elements"]],
-                y=layer["y"],
-                x=layer["x"],
-                ytransform=layer.get("ytransform"),
-                xtransform=layer.get("xtransform"),
                 position=layer["position"],
                 seed=layer.get("seed", 42),
             )
@@ -535,6 +528,9 @@ class Plot:
     # -- rendering -----------------------------------------------------------
     def plot(
         self,
+        y: str | np.ndarray | None = None,
+        x: str | np.ndarray | None = None,
+        data: InputData | None = None,
         savefig: bool = False,
         path: SavePath = "",
         filename: str = "",
@@ -542,23 +538,31 @@ class Plot:
         save_metadata: bool = False,
         **kwargs,
     ) -> Self:
-        """Resolve every layer against the layout and render through the spec plotter."""
+        """Resolve every layer against the layout and render through the spec plotter.
+
+        This is the only place data enters a plot — the plot object itself is
+        a pure metadata holder. Pass ``data`` plus the ``y``/``x`` column
+        names, or bare numpy arrays as ``y``/``x`` (an implicit single-group
+        ``DataHolder`` is built from the arrays, so grouping is not available
+        for array input).
+        """
+        y_name, x_name, holder = self._resolve_plot_data(y, x, data)
         if path == "" or path is None:
             path = Path().cwd()
         elif isinstance(path, str):
             path = Path(path)
-        filename_output = filename if filename != "" else (self._plot_data["y"] or "")
+        filename_output = filename if filename != "" else (y_name or "")
 
-        context = self._layout_context()
+        context = self._layout_context(holder)
 
         from .plotter import get_spec_plotter
         from .resolver import resolve_layers
 
-        resolved = resolve_layers(self._process_data(), context)
+        resolved = resolve_layers(self._process_data(y_name, x_name, holder), context)
         self.plotter = get_spec_plotter(context["layout"])(
             layers=resolved,
             plot_dict=context,
-            metadata=self.metadata(),
+            metadata=self.metadata(y_name, x_name),
             savefig=savefig,
             path=path,
             filetype=filetype,
@@ -571,3 +575,34 @@ class Plot:
             self.save_metadata(path / f"{filename_output}.txt")
 
         return self
+
+    def _resolve_plot_data(
+        self,
+        y: str | np.ndarray | None,
+        x: str | np.ndarray | None,
+        data: InputData | None,
+    ) -> tuple[str | None, str | None, DataHolder]:
+        """Normalize ``plot()`` inputs into column names and a ``DataHolder``.
+
+        Bare numpy arrays become an implicit single-group ``DataHolder`` with
+        columns named ``"y"``/``"x"``; column names require ``data``.
+        """
+        if y is None and x is None:
+            raise ValueError("plot() requires y and/or x (column names together with data, or numpy arrays).")
+        if data is not None:
+            if isinstance(y, np.ndarray) or isinstance(x, np.ndarray):
+                raise ValueError(
+                    "y/x must be column names when data is provided; numpy arrays are only valid without data."
+                )
+            return y, x, DataHolder(data)
+        if isinstance(y, str) or isinstance(x, str):
+            raise ValueError("y/x column names require data; pass data= or use numpy arrays for y/x.")
+        holder_data = {}
+        y_name = x_name = None
+        if isinstance(y, np.ndarray):
+            holder_data["y"] = y
+            y_name = "y"
+        if isinstance(x, np.ndarray):
+            holder_data["x"] = x
+            x_name = "x"
+        return y_name, x_name, DataHolder(holder_data)

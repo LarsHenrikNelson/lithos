@@ -8,7 +8,7 @@ from typing import ClassVar
 
 from typing_extensions import Self
 
-from ...types.basic_types import InputData
+from ...utils import DataHolder
 from ..plot_utils import _create_groupings, create_dict
 from .base import Plot
 
@@ -20,8 +20,8 @@ class LinePlot(Plot):
     default_position: ClassVar[str] = "passthrough"
     positions: ClassVar[tuple[str, ...]] = ("passthrough",)
 
-    def __init__(self, data: InputData):
-        super().__init__(data)
+    def __init__(self):
+        super().__init__()
         self._layout_options = {"facet": False, "facet_title": False}
 
     def facet(self, facet: bool = True, facet_title: bool = False) -> Self:
@@ -30,9 +30,9 @@ class LinePlot(Plot):
         self._layout_options["facet_title"] = facet_title
         return self
 
-    def _layout_context(self) -> dict:
+    def _layout_context(self, data: DataHolder) -> dict:
         group_order, subgroup_order, unique_groups, levels = _create_groupings(
-            self.data,
+            data,
             self._grouping["group"],
             self._grouping["subgroup"],
             self._grouping["group_order"],

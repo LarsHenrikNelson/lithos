@@ -1,4 +1,4 @@
-"""Serialization helpers for the spec plot API (metadata version 2).
+"""Serialization helpers for the spec plot API (metadata version 3).
 
 Spec metadata is plain JSON (standard, robust, and still human-readable via
 indentation). The legacy custom txt/literal_eval format stays with the legacy
@@ -97,14 +97,14 @@ def _metadata_file(file_path: str | Path) -> Path:
 
 
 def save_spec_metadata(metadata: dict, file_path: str | Path) -> None:
-    """Save version-2 spec metadata as JSON."""
+    """Save version-3 spec metadata as JSON."""
     file_path = _metadata_file(file_path)
     with open(file_path, "w") as f:
         json.dump(metadata, f, indent=2)
 
 
 def load_spec_metadata(file_path: str | dict | Path) -> dict:
-    """Load version-2 spec metadata from JSON (a dict passes through untouched)."""
+    """Load version-3 spec metadata from JSON (a dict passes through untouched)."""
     if isinstance(file_path, dict):
         return file_path
     file_path = _metadata_file(file_path)

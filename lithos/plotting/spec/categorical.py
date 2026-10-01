@@ -14,7 +14,8 @@ from typing import ClassVar
 
 from typing_extensions import Self
 
-from ...types.basic_types import CategoricalLabels, InputData
+from ...types.basic_types import CategoricalLabels
+from ...utils import DataHolder
 from ..plot_utils import _create_groupings, _process_positions
 from .base import Plot
 
@@ -26,8 +27,8 @@ class CategoricalPlot(Plot):
     default_position: ClassVar[str] = "dodge"
     positions: ClassVar[tuple[str, ...]] = ("passthrough", "dodge", "jitter")
 
-    def __init__(self, data: InputData):
-        super().__init__(data)
+    def __init__(self):
+        super().__init__()
         self._layout_options = {"group_spacing": 1.0, "labels": "style1"}
 
     def spacing(self, group_spacing: float = 1.0) -> Self:
@@ -40,10 +41,10 @@ class CategoricalPlot(Plot):
         self._layout_options["labels"] = labels
         return self
 
-    def _layout_context(self) -> dict:
+    def _layout_context(self, data: DataHolder) -> dict:
         group = self._grouping["group"]
         group_order, subgroup_order, unique_groups, levels = _create_groupings(
-            self.data,
+            data,
             group,
             self._grouping["subgroup"],
             self._grouping["group_order"],
