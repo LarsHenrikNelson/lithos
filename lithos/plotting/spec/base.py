@@ -197,7 +197,12 @@ class Plot:
 
         return self
 
-    def _process_data(self, y: str | None = None, x: str | None = None, data: DataHolder | None = None) -> list[dict]:
+    def _process_data(
+        self,
+        data: DataHolder,
+        y: str | None = None,
+        x: str | None = None,
+    ) -> list[dict]:
         """Compute every layer's geometry against the given data and columns.
 
         This is the only place transforms are invoked: each held transform is
@@ -231,6 +236,15 @@ class Plot:
                 }
             )
         return processed
+
+    def process_data(
+        self,
+        y: str | np.ndarray | None = None,
+        x: str | np.ndarray | None = None,
+        data: InputData | None = None,
+    ):
+        y_name, x_name, holder = self._resolve_plot_data(y, x, data)
+        return self._process_data(holder, y_name, x_name)
 
     def _levels(self) -> tuple:
         """Grouping columns (group, subgroup) with ``None`` entries dropped."""
@@ -558,7 +572,7 @@ class Plot:
         from .plotter import get_spec_plotter
         from .resolver import resolve_layers
 
-        resolved = resolve_layers(self._process_data(y_name, x_name, holder), context)
+        resolved = resolve_layers(self._process_data(holder, y_name, x_name), context)
         self.plotter = get_spec_plotter(context["layout"])(
             layers=resolved,
             plot_dict=context,
