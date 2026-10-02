@@ -15,7 +15,7 @@ JSON-friendliness rules:
 """
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from pathlib import Path
 
 import numpy as np
@@ -124,8 +124,15 @@ def build_transform(spec: dict) -> Transform:
 
 
 def build_element(spec: dict) -> Element:
-    """Rebuild an element instance from its serialized spec."""
+    """Rebuild an element instance from its serialized spec.
+
+    Keys the element no longer carries (e.g. a field removed from a newer
+    API version) are dropped so saved templates keep loading; truly unknown
+    element types still fail loudly.
+    """
     element_type = spec.get("type", "element")
     if element_type not in ELEMENT_TYPES:
         raise ValueError(f"Unknown element type {element_type!r} in metadata.")
-    return ELEMENT_TYPES[element_type](**spec)
+    element_cls = ELEMENT_TYPES[element_type]
+    known = {field.name for field in fields(element_cls)}
+    return element_cls(**{key: value for key, value in spec.items() if key in known})

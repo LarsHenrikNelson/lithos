@@ -160,7 +160,7 @@ class Plot:
         transform: StatTransform,
         *elements: Element,
         position: str | None = None,
-        width: float = 0.0,
+        width: float = 0.9,
         jitter_type: JitterType = "fill",
         seed: int = 42,
     ) -> Self:
@@ -176,13 +176,19 @@ class Plot:
         ``position`` selects how the resolver maps the layer onto the layout
         when the transform does not supply a coordinate itself.
 
-        On categorical layouts, ``width`` sets the spread of the layer's
-        points within its slot, as a fraction of the slot: ``0`` (default)
-        places everything at the slot center, ``0.5`` jitters within half the
-        slot. Flat geometry is spread randomly (``jitter_type`` shapes the
-        distribution, ``seed`` makes it reproducible); transforms that nest by
-        ``unique_id`` place one even column per subject across the width
-        instead (legacy ``jitteru``/``summaryu`` positions).
+        On categorical layouts, ``width`` sets the layer's footprint as a
+        fraction of its slot. The default ``0.9`` fills the slot while leaving
+        a small gap between groups; ``0.5`` uses half the slot and ``0``
+        collapses everything onto the slot center. Flat geometry is spread
+        randomly within the footprint (``jitter_type`` shapes the
+        distribution, ``seed`` makes it reproducible) — except
+        single-value-per-group geometry (aggregate centers), which always
+        stays anchored at the slot center like the legacy ``summary`` line.
+        Transforms that nest by ``unique_id`` place one even column per
+        subject across the footprint instead (legacy
+        ``jitteru``/``summaryu`` positions); a
+        :class:`~lithos.plotting.elements.SummaryLine` spans the footprint
+        (flat) or fills its subject column (nested).
         """
         if not isinstance(transform, StatTransform):
             raise TypeError(f"add() expects a Transform instance, got {type(transform).__name__!r}.")

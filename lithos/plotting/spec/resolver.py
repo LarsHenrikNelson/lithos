@@ -10,11 +10,15 @@ Position modes (per ``.add()`` layer):
 - ``passthrough``: the transform must supply the coordinate itself
   (continuous default).
 - ``dodge``: categorical slot positions from the layout ``loc_dict``. The
-  layer's ``width`` (a fraction of the slot) sets the spread within the slot:
+  layer's ``width`` (a fraction of the slot, default 0.9 from ``.add()``)
+  sets the spread within the slot:
 
   - ``width=0``: every point at the slot center (summary/bar positions).
   - ``width > 0`` with flat geometry: random jitter within ``width``, shaped
     by ``jitter_type`` and reproducible via ``seed`` (legacy ``jitter``).
+    Geometry holding a single value per group key (aggregate centers)
+    stays anchored at the slot center instead — legacy ``summary`` lines
+    and error bars are never jittered.
   - ``width > 0`` with ``unique_id``-nested geometry: one even column per
     subject across the width — deterministic, no randomness (legacy
     ``jitteru``/``summaryu``).
@@ -102,14 +106,18 @@ def _resolved_coordinates(
 ) -> np.ndarray:
     """Positions for the missing axis, given the layer's position mode."""
     if layer["position"] == "dodge":
+        values = _as_values(values)
         if column is not None:
             # unique_id-nested geometry: the precomputed even column
-            return np.full(_as_values(values).size, column)
+            return np.full(values.size, column)
         spread = layer.get("width", 0.0) * context["width"]
-        if spread == 0:
-            return np.full(_as_values(values).size, position)
+        # width=0, or single-value-per-key geometry (aggregate centers),
+        # sits at the slot center — legacy summary lines/error bars are
+        # never jittered, whatever the layer width.
+        if spread == 0 or values.size == 1:
+            return np.full(values.size, position)
         return process_jitter(
-            _as_values(values),
+            values,
             position,
             spread,
             seed=layer.get("seed", 42),

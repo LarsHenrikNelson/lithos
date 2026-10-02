@@ -13,6 +13,7 @@ transform (box/whisker) arrive with their Phase 2 port.
 """
 
 import numpy as np
+from matplotlib._enums import CapStyle
 
 from ...types.basic_types import SavePath
 from ..matplotlib_plotter import CategoricalPlotter, LinePlotter, Plotter
@@ -88,7 +89,7 @@ class SpecPlotter(Plotter):
         elif element_type == "errorband":
             self._render_errorband(ax, spec, gkey, geometry, zorder)
         elif element_type == "summaryline":
-            self._render_summaryline(ax, spec, gkey, geometry, zorder)
+            self._render_summaryline(ax, spec, gkey, geometry, zorder, layer)
         elif element_type == "bar":
             self._render_bar(ax, spec, gkey, geometry, zorder)
         elif element_type == "fill":
@@ -208,6 +209,9 @@ class SpecPlotter(Plotter):
         for cap in container[1]:
             cap.set_solid_capstyle(spec["capstyle"])
             cap.set_markeredgewidth(spec["linewidth"])
+            cap._marker._capstyle = CapStyle(spec["capstyle"])
+        for bar in container[2]:
+            bar.set_capstyle(spec["capstyle"])
 
     def _render_errorband(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
         if geometry.get("error_low") is None or geometry.get("error_high") is None:
@@ -226,10 +230,20 @@ class SpecPlotter(Plotter):
             zorder=zorder,
         )
 
-    def _render_summaryline(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Line of ``width`` x extent across the center (legacy ``summary``/``summaryu``)."""
+    def _render_summaryline(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float, layer: dict):
+        """Line spanning the layer ``width`` across the center (legacy ``summary``/``summaryu``).
+
+        Flat keys span ``width`` x the resolved slot extent; ``unique_id``-nested
+        keys fill their subject column (legacy ``agg_width=1``). The line ends
+        follow ``capstyle`` — the caps are invisible at ``capsize=0``, so the
+        style is applied to the bar segments themselves.
+        """
         x, center = self._curve_values(geometry)
-        half = spec["width"] * geometry.get("extent", self.plot_dict.get("width", 1.0)) / 2
+        extent = geometry.get("extent", self.plot_dict.get("width", 1.0))
+        if "uid_index" in geometry:
+            half = extent / 2
+        else:
+            half = layer["width"] * extent / 2
         linecolor = self._color_dict(spec["linecolor"])
         container = ax.errorbar(
             x,
@@ -242,8 +256,11 @@ class SpecPlotter(Plotter):
             zorder=zorder,
         )
         for cap in container[1]:
-            cap.set_solid_capstyle("round")
+            cap.set_solid_capstyle(spec["capstyle"])
             cap.set_markeredgewidth(spec["linewidth"])
+            cap._marker._capstyle = CapStyle(spec["capstyle"])
+        for bar in container[2]:
+            bar.set_capstyle(spec["capstyle"])
 
     def _render_bar(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
         if "edges" in geometry:

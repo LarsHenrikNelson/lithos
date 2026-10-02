@@ -154,12 +154,15 @@ class ErrorBar(Element):
 
 @dataclass
 class SummaryLine(Element):
-    """A short line of the given ``width`` drawn across an aggregate center.
+    """A short line drawn across an aggregate center.
 
-    The GraphPad-style summary line (legacy ``summary``/``summaryu``):
-    ``width`` is a fraction of the resolved slot — the unique_id column for
-    ``unique_id``-nested geometry, the group slot otherwise — so a summary
-    line can be drawn wider or narrower than a jitter layer on the same slot.
+    The GraphPad-style summary line (legacy ``summary``/``summaryu``). The
+    line length is controlled by the layer ``width`` given to ``.add()``: a
+    fraction of the resolved slot for flat layers (legacy ``barwidth``), or
+    the full subject column for ``unique_id``-nested geometry — so a summary
+    line can be drawn wider or narrower than a jitter layer on the same slot
+    by giving the layers different ``width`` values. ``capstyle`` selects the
+    shape of the line ends (``"round"``/``"butt"``/``"projecting"``).
     Errors render through a separate :class:`ErrorBar` from the same
     transform geometry.
     """
@@ -167,8 +170,8 @@ class SummaryLine(Element):
     type: str = "summaryline"
     linecolor: ColorParameters = "glasbey_category10"
     linewidth: float | int = 2
-    width: float = 0.9
     linealpha: AlphaRange = 1.0
+    capstyle: CapStyle = "round"
 
 
 @dataclass

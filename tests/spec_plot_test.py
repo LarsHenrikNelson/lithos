@@ -230,13 +230,26 @@ class TestResolver:
     def test_zero_width_places_points_at_slot_center(self, one_grouping):
         data, _ = one_grouping
         plot = CategoricalPlot().grouping(group="grouping_1")
-        plot.add(Identity(), Marker())  # default width=0
+        plot.add(Identity(), Marker(), width=0)
         holder = DataHolder(data)
         context = plot._layout_context(holder)
         resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]
         for gkey, geometry in resolved["geometry"].items():
             loc = context["loc_dict"][gkey]
             np.testing.assert_allclose(geometry["x"], [loc] * geometry["y"].size)
+
+    def test_default_width_fills_slot_without_touching(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1")
+        plot.add(Identity(), Marker())  # default width=0.9
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]
+        for gkey, geometry in resolved["geometry"].items():
+            loc = context["loc_dict"][gkey]
+            # points fill 90% of the slot so adjacent groups do not touch
+            assert np.all(np.abs(geometry["x"] - loc) <= 0.45 + 1e-9)
+            assert len(set(np.round(geometry["x"], 6))) > 1
 
     def test_width_jitters_within_slot_fraction(self, one_grouping):
         data, _ = one_grouping
@@ -273,10 +286,10 @@ class TestResolver:
             indexes = [resolved["geometry"][(gkey, uid)]["uid_index"] for uid in uids]
             assert indexes == [0, 1, 2]
 
-    def test_unique_id_keys_collapse_without_width(self, one_grouping_with_unique_ids):
+    def test_zero_width_collapses_unique_id_columns(self, one_grouping_with_unique_ids):
         data, _ = one_grouping_with_unique_ids
         plot = CategoricalPlot().grouping(group="grouping_1")
-        plot.add(Identity(unique_id="unique_grouping"), Marker())  # width=0
+        plot.add(Identity(unique_id="unique_grouping"), Marker(), width=0)
         holder = DataHolder(data)
         context = plot._layout_context(holder)
         resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]
@@ -336,17 +349,28 @@ class TestMarkerSymbol:
 
 
 class TestSummaryLine:
+    def teardown_method(self):
+        plt.close("all")
+
     def test_spec_fields(self):
-        spec = SummaryLine(width=0.8, linewidth=3, linecolor="black").to_spec()
+        spec = SummaryLine(linewidth=3, linecolor="black", capstyle="butt").to_spec()
 
         assert spec["type"] == "summaryline"
-        assert spec["width"] == 0.8
+        # the line length is controlled by .add(width=...), not by the element
+        assert "width" not in spec
         assert spec["linewidth"] == 3
         assert spec["linecolor"] == "black"
+        assert spec["capstyle"] == "butt"
+        assert SummaryLine().capstyle == "round"
 
     def test_summaryline_builds_from_metadata(self):
-        spec = SummaryLine(width=0.8, linewidth=3).to_spec()
-        assert build_element(spec) == SummaryLine(width=0.8, linewidth=3)
+        spec = SummaryLine(linewidth=3, capstyle="projecting").to_spec()
+        assert build_element(spec) == SummaryLine(linewidth=3, capstyle="projecting")
+
+    def test_build_element_drops_removed_fields(self):
+        # metadata saved before SummaryLine lost its width field still loads
+        stale = {"type": "summaryline", "linecolor": "black", "linewidth": 3, "width": 0.8}
+        assert build_element(stale) == SummaryLine(linecolor="black", linewidth=3)
 
     def test_summaryline_renders_from_aggregate_center(self, one_grouping):
         data, _ = one_grouping
@@ -360,6 +384,68 @@ class TestSummaryLine:
         assert len(segments) == 3  # one per group
         for segment in segments:
             np.testing.assert_allclose(segment[1] - segment[0], [0.9, 0.0], atol=1e-12)
+        # centered on the group positions (never jittered)
+        centers = sorted(round((segment[0][0] + segment[1][0]) / 2, 6) for segment in segments)
+        assert centers == [0.0, 1.0, 2.0]
+
+    def test_summaryline_width_comes_from_add(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1")
+        plot.add(Aggregate(), SummaryLine(), width=0.5)
+        plot.plot(y="y", data=data)
+
+        segments = [segment for collection in plot.plotter.axes[0].collections for segment in collection.get_segments()]
+        assert len(segments) == 3
+        for segment in segments:
+            # half-slot line, still centered on the group position
+            np.testing.assert_allclose(segment[1] - segment[0], [0.5, 0.0], atol=1e-12)
+        centers = sorted(round((segment[0][0] + segment[1][0]) / 2, 6) for segment in segments)
+        assert centers == [0.0, 1.0, 2.0]
+
+    def test_summaryline_capstyle_controls_line_ends(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(Aggregate(), SummaryLine(capstyle="butt"))
+        plot.plot(y="y", data=data)
+        collections = plot.plotter.axes[0].collections
+        assert {collection.get_capstyle() for collection in collections} == {"butt"}
+
+        plot = CategoricalPlot().grouping(group="grouping_1").add(Aggregate(), SummaryLine())
+        plot.plot(y="y", data=data)
+        collections = plot.plotter.axes[0].collections
+        assert {collection.get_capstyle() for collection in collections} == {"round"}
+
+
+class TestErrorBar:
+    def teardown_method(self):
+        plt.close("all")
+
+    def test_errorbar_default_capstyle_is_butt(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(Aggregate(err_func="sem"), ErrorBar())
+        plot.plot(y="y", data=data)
+        collections = plot.plotter.axes[0].collections
+        assert {collection.get_capstyle() for collection in collections} == {"butt"}
+
+    def test_errorbar_capstyle_controls_line_ends(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(Aggregate(err_func="sem"), ErrorBar(capstyle="round"))
+        plot.plot(y="y", data=data)
+        collections = plot.plotter.axes[0].collections
+        assert {collection.get_capstyle() for collection in collections} == {"round"}
+
+    def test_errorbar_anchors_at_slot_center(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1")
+        plot.add(Aggregate(err_func="sem"), ErrorBar(), width=0.5)
+        plot.plot(y="y", data=data)
+
+        segments = [segment for collection in plot.plotter.axes[0].collections for segment in collection.get_segments()]
+        assert len(segments) == 3
+        for segment in segments:
+            # vertical error segments stay on the group position (never jittered)
+            np.testing.assert_allclose(segment[:, 0], [segment[0][0], segment[0][0]], atol=1e-12)
+        xs = sorted(round(segment[0][0], 6) for segment in segments)
+        assert xs == [0.0, 1.0, 2.0]
 
 
 class TestLabels:
@@ -610,7 +696,7 @@ class TestRenderSmoke:
             .grouping(group="grouping_1")
             .labels(ylabel="value")
             .add(Identity(), Marker(), width=0.5, seed=42)
-            .add(Aggregate(err_func="sem"), SummaryLine(width=0.8), ErrorBar())
+            .add(Aggregate(err_func="sem"), SummaryLine(), ErrorBar(), width=0.8)
         )
         plot.plot(y="y", data=data)
 
@@ -624,7 +710,7 @@ class TestRenderSmoke:
         data, _ = one_grouping_with_unique_ids
         plot = CategoricalPlot().grouping(group="grouping_1")
         plot.add(Identity(unique_id="unique_grouping"), Marker(marker=["o", "s", "^"]), width=0.9)
-        plot.add(Aggregate(unique_id="unique_grouping"), SummaryLine(width=0.8))
+        plot.add(Aggregate(unique_id="unique_grouping"), SummaryLine(), width=0.9)
         plot.plot(y="y", data=data)
 
         assert plot.plotter is not None
@@ -638,6 +724,18 @@ class TestRenderSmoke:
         # subjects sit on even columns within each group slot
         columns = {round(collection.get_offsets()[0, 0], 6) for collection in scatters}
         assert columns == {-0.3, 0.0, 0.3, 0.7, 1.0, 1.3}
+        # each subject's summary line fills its column cell
+        line_segments = [
+            segment
+            for collection in ax.collections
+            if isinstance(collection, matplotlib.collections.LineCollection)
+            for segment in collection.get_segments()
+        ]
+        assert len(line_segments) == 6
+        for segment in line_segments:
+            np.testing.assert_allclose(segment[1] - segment[0], [0.3, 0.0], atol=1e-12)
+        centers = sorted(round((segment[0][0] + segment[1][0]) / 2, 6) for segment in line_segments)
+        assert centers == [-0.3, 0.0, 0.3, 0.7, 1.0, 1.3]
         # three marker symbols cycle over the subject columns
         symbols = {tuple(np.round(collection.get_paths()[0].vertices.flatten(), 6)) for collection in scatters}
         assert len(symbols) == 3

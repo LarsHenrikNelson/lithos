@@ -137,7 +137,7 @@ same inputs and defaults.
 - Whether `LinePlot`/`CategoricalPlot` survive as facades (Phase 3).
 
 | `ErrorBar` | `linecolor, linealpha, linewidth, capsize, capstyle` | caps error bars |
-| `SummaryLine` | `linecolor, linewidth, width, linealpha` | short line of `width` x the resolved slot/column across an aggregate center (legacy `summary`/`summaryu` line; `width` is the slot fraction so it can be wider/narrower than a jitter layer) |
+| `SummaryLine` | `linecolor, linewidth, linealpha, capstyle` | short line across an aggregate center (legacy `summary`/`summaryu` line); the length comes from the layer `width` in `.add()` (slot fraction, default 0.9; `unique_id`-nested lines fill their subject column) |
 | `Whisker` | `linecolor, linealpha, linewidth, capsize, capstyle` | whisker lines from quantile geometry |
 | `Annotation` | `text, x, y, fontsize, color, ha, va, rotation` | free text |
 | `Significance` | `text, x1, x2, y, linecolor, linewidth, fontsize, capsize` | GraphPad-style brackets+asterisks |
