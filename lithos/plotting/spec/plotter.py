@@ -74,10 +74,10 @@ class SpecPlotter(Plotter):
                 else:
                     zorder = 2 + layer_index + element_index / 10
                 for gkey, geometry in layer["geometry"].items():
-                    self._render_element(self.axes[geometry.get("facet", 0)], spec, gkey, geometry, zorder)
+                    self._render_element(self.axes[geometry.get("facet", 0)], spec, gkey, geometry, zorder, layer)
 
     # -- element dispatch --------------------------------------------------
-    def _render_element(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+    def _render_element(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float, layer: dict):
         element_type = spec["type"]
         if element_type == "marker":
             self._render_marker(ax, spec, gkey, geometry, zorder)
@@ -87,6 +87,8 @@ class SpecPlotter(Plotter):
             self._render_errorbar(ax, spec, gkey, geometry, zorder)
         elif element_type == "errorband":
             self._render_errorband(ax, spec, gkey, geometry, zorder)
+        elif element_type == "summaryline":
+            self._render_summaryline(ax, spec, gkey, geometry, zorder)
         elif element_type == "bar":
             self._render_bar(ax, spec, gkey, geometry, zorder)
         elif element_type == "fill":
@@ -112,8 +114,36 @@ class SpecPlotter(Plotter):
         """Bar width fraction (``Bar`` carries ``barwidth``; ``Fill`` defaults to the same 0.9)."""
         return spec.get("barwidth", 0.9)
 
-    def _layer_width(self, spec: dict) -> float:
-        return self._bar_width(spec) * self.plot_dict.get("width", 1.0)
+    def _layer_width(self, spec: dict, geometry: dict | None = None) -> float:
+        """Element width in axis units: ``barwidth`` x the key's resolved extent.
+
+        Flat keys span the full slot; ``unique_id``-nested keys span their
+        column (legacy percent/bar widths under unique_id nesting).
+        """
+        width = geometry.get("extent") if geometry is not None else None
+        if width is None:
+            width = self.plot_dict.get("width", 1.0)
+        return self._bar_width(spec) * width
+
+    @staticmethod
+    def _marker_symbol(spec: dict, gkey: tuple, geometry: dict) -> str:
+        """Marker symbol for one geometry key.
+
+        A list cycles over the layer's ``unique_id`` values (via the resolved
+        ``uid_index``, legacy ``jitteru`` subject markers); a dict is keyed by
+        the unique_id value for nested layers and by the group key otherwise.
+        """
+        marker = spec["marker"]
+        if isinstance(marker, str) or marker is None:
+            return marker
+        if isinstance(marker, list):
+            if "uid_index" in geometry:
+                return marker[int(geometry["uid_index"]) % len(marker)]
+            return marker[0]
+        key = geometry.get("uid", gkey)
+        if key in marker:
+            return marker[key]
+        raise ValueError(f"Marker dict has no entry for {key!r}.")
 
     @staticmethod
     def _curve_values(geometry: dict) -> tuple[np.ndarray, np.ndarray]:
@@ -136,7 +166,7 @@ class SpecPlotter(Plotter):
         ax.scatter(
             x=x,
             y=y,
-            marker=spec["marker"],
+            marker=self._marker_symbol(spec, gkey, geometry),
             color=self._group_color(markercolor, gkey, spec["alpha"]),
             edgecolors=self._group_color(edgecolor, gkey, spec["edge_alpha"]),
             s=size,
@@ -196,6 +226,25 @@ class SpecPlotter(Plotter):
             zorder=zorder,
         )
 
+    def _render_summaryline(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Line of ``width`` x extent across the center (legacy ``summary``/``summaryu``)."""
+        x, center = self._curve_values(geometry)
+        half = spec["width"] * geometry.get("extent", self.plot_dict.get("width", 1.0)) / 2
+        linecolor = self._color_dict(spec["linecolor"])
+        container = ax.errorbar(
+            x,
+            center,
+            xerr=half,
+            fmt="none",
+            color=self._group_color(linecolor, gkey, spec["linealpha"]),
+            linewidth=spec["linewidth"],
+            capsize=0,
+            zorder=zorder,
+        )
+        for cap in container[1]:
+            cap.set_solid_capstyle("round")
+            cap.set_markeredgewidth(spec["linewidth"])
+
     def _render_bar(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
         if "edges" in geometry:
             # histogram rectangles from bin edges
@@ -204,7 +253,7 @@ class SpecPlotter(Plotter):
             # group-centered bar at the resolved categorical position
             x = [geometry["position"]]
             height = np.atleast_1d(np.asarray(geometry.get("center", geometry.get("y")), dtype=float))
-            width = [self._layer_width(spec)] * height.size
+            width = [self._layer_width(spec, geometry)] * height.size
         else:
             raise NotImplementedError("Bar requires histogram or group-centered geometry.")
         edgecolor = self._color_dict(spec["edgecolor"])
@@ -251,7 +300,7 @@ class SpecPlotter(Plotter):
             ax.bar(
                 [geometry["position"]] * height.size,
                 height,
-                width=self._layer_width(spec),
+                width=self._layer_width(spec, geometry),
                 facecolor=facecolor,
                 edgecolor=edgecolor,
                 linewidth=edge_width,

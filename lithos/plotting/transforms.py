@@ -223,7 +223,11 @@ class Aggregate(Transform):
         err_func: error function applied to the same values; the result is
             normalized to ``error_low``/``error_high``.
         agg_func: second-level aggregation applied across unique_id samples
-            when ``unique_id`` is given (defaults to ``func``).
+            when ``unique_id`` is given. ``None`` (default) keeps one center
+            per unique_id, keyed ``(group..., uid)`` — the legacy
+            ``summaryu(agg_func=None)`` per-subject summary lines; give a
+            function to re-aggregate across unique_ids into one center per
+            group.
         unique_id: column whose unique values are first aggregated with
             ``func``, then re-aggregated per group with ``agg_func``.
         how: per-x aggregation strategy when ``x`` is given (``x`` must be
@@ -300,10 +304,25 @@ class Aggregate(Transform):
                 }
             return output
 
-        # Nested aggregation: first over (levels + unique_id), then over levels.
+        # Nested by unique_id. agg_func=None keeps one center per unique_id,
+        # keyed by (group..., uid) — legacy summaryu(agg_func=None), one
+        # summary line per subject; otherwise the per-uid values are
+        # re-aggregated across unique_ids with agg_func (one center per group).
         sub_levels = levels + (self.unique_id,)
         n_levels = len(levels)
-        second = get_transform(self.agg_func if self.agg_func is not None else self.func)
+        if self.agg_func is None:
+            for sub_key, sub_indexes in self._groups(data, sub_levels).items():
+                vals = _get_column_values(data, sub_indexes, y, ytransform)
+                low, high = self._error_pair(vals)
+                output[sub_key] = {
+                    "center": np.array([float(first(vals))]),
+                    "error_low": low,
+                    "error_high": high,
+                    "n": np.array([vals.size]),
+                }
+            return output
+
+        second = get_transform(self.agg_func)
         per_group: dict[tuple, list] = defaultdict(list)
         for sub_key, sub_indexes in self._groups(data, sub_levels).items():
             vals = _get_column_values(data, sub_indexes, y, ytransform)

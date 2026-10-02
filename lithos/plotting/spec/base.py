@@ -38,7 +38,7 @@ from typing import ClassVar, Literal
 import numpy as np
 from typing_extensions import Self
 
-from ...types.basic_types import InputData, SavePath, Transform
+from ...types.basic_types import InputData, JitterType, SavePath, Transform
 from ...types.plot_input import Grouping, Subgrouping
 from ...utils import DataHolder
 from ..elements import Element
@@ -160,6 +160,8 @@ class Plot:
         transform: StatTransform,
         *elements: Element,
         position: str | None = None,
+        width: float = 0.0,
+        jitter_type: JitterType = "fill",
         seed: int = 42,
     ) -> Self:
         """Add a layer: one transform plus the elements that render its geometry.
@@ -173,6 +175,14 @@ class Plot:
         separate ``Plot`` objects onto the same ``figure``/``axes``.
         ``position`` selects how the resolver maps the layer onto the layout
         when the transform does not supply a coordinate itself.
+
+        On categorical layouts, ``width`` sets the spread of the layer's
+        points within its slot, as a fraction of the slot: ``0`` (default)
+        places everything at the slot center, ``0.5`` jitters within half the
+        slot. Flat geometry is spread randomly (``jitter_type`` shapes the
+        distribution, ``seed`` makes it reproducible); transforms that nest by
+        ``unique_id`` place one even column per subject across the width
+        instead (legacy ``jitteru``/``summaryu`` positions).
         """
         if not isinstance(transform, StatTransform):
             raise TypeError(f"add() expects a Transform instance, got {type(transform).__name__!r}.")
@@ -185,12 +195,16 @@ class Plot:
             position = self.default_position
         if position not in self.positions:
             raise ValueError(f"position must be one of {self.positions} for {type(self).__name__}, got {position!r}.")
+        if width < 0:
+            raise ValueError(f"width must be >= 0, got {width!r}.")
 
         self.layers.append(
             {
                 "transform": transform,
                 "elements": list(elements),
                 "position": position,
+                "width": width,
+                "jitter_type": jitter_type,
                 "seed": seed,
             }
         )
@@ -213,12 +227,19 @@ class Plot:
         artifact that can be handed to any renderer.
         """
         processed = []
+        levels = self._levels()
         for layer in self.layers:
+            unique_id = getattr(layer["transform"], "unique_id", None)
+            if unique_id is not None and unique_id in levels:
+                raise ValueError(
+                    f"unique_id {unique_id!r} must not be one of the grouping columns {levels!r}; "
+                    "nesting keys would collide with the group slots."
+                )
             geometry = layer["transform"](
                 data,
                 y=y,
                 x=x,
-                levels=self._levels(),
+                levels=levels,
                 ytransform=self._plot_transforms["ytransform"],
                 xtransform=self._plot_transforms["xtransform"],
             )
@@ -231,6 +252,8 @@ class Plot:
                     "ytransform": self._plot_transforms["ytransform"],
                     "xtransform": self._plot_transforms["xtransform"],
                     "position": layer["position"],
+                    "width": layer["width"],
+                    "jitter_type": layer["jitter_type"],
                     "seed": layer["seed"],
                     "geometry": geometry,
                 }
@@ -534,6 +557,8 @@ class Plot:
                 build_transform(layer["transform"]),
                 *[build_element(spec) for spec in layer["elements"]],
                 position=layer["position"],
+                width=layer.get("width", 0.0),
+                jitter_type=layer.get("jitter_type", "fill"),
                 seed=layer.get("seed", 42),
             )
 

@@ -210,6 +210,26 @@ class TestAggregate:
             assert g["error_low"].shape == (1,)
             assert g["error_low"][0] is not None
 
+    def test_nested_unique_id_per_uid_centers(self, two_grouping_with_unique_ids):
+        data, _ = two_grouping_with_unique_ids
+        geometry = Aggregate(func="mean", unique_id="unique_grouping")(
+            _holder(data), y="y", levels=("grouping_1", "grouping_2")
+        )
+        # agg_func=None keeps one center per (group, subgroup, unique_id) —
+        # legacy summaryu(agg_func=None), one summary line per subject
+        assert len(geometry) == 2 * 3 * 3
+        for key, g in geometry.items():
+            assert len(key) == 3
+            mask = (
+                (np.asarray(data["grouping_1"]) == key[0])
+                & (np.asarray(data["grouping_2"]) == key[1])
+                & (np.asarray(data["unique_grouping"]) == key[2])
+            )
+            vals = np.asarray(data["y"], dtype=float)[mask]
+            assert g["n"].shape == (1,)
+            assert g["n"][0] == vals.size
+            assert g["center"][0] == pytest.approx(float(np.mean(vals)))
+
 
 # per-x aggregation (legacy aggline/line parity): ragged counts at each x.
 RAGGED_PER_X = {

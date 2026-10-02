@@ -8,8 +8,8 @@ The new element/transform plot classes, independent of the legacy API in
   pure metadata holder, so configured plots can be saved, shared, and
   replayed against any dataset.
 - :class:`LinePlot` — continuous layout (faceting).
-- :class:`CategoricalPlot` — categorical positions (dodge/jitter) and
-  categorical tick labels.
+- :class:`CategoricalPlot` — categorical positions (slot centers plus
+  per-layer jitter/unique_id-column spread) and categorical tick labels.
 
 Example:
     >>> plot = (
@@ -17,8 +17,8 @@ Example:
     ...     .grouping(group="grouping_1")
     ...     .labels(ylabel="value")
     ... )
-    >>> plot.add(Identity(), Marker(), position="jitter")
-    >>> plot.add(Aggregate(err_func="sem"), Marker(), ErrorBar())
+    >>> plot.add(Identity(), Marker(), width=0.5, seed=30)  # jitter, half slot
+    >>> plot.add(Aggregate(err_func="sem"), SummaryLine(), ErrorBar())
     >>> plot.plot(y="y", data=df)
 
 ``data`` plus column names, or bare numpy arrays (``plot(y=np.array(...))``),
