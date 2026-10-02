@@ -11,6 +11,7 @@ from .plotting.elements import (
     Line,
     Marker,
     Significance,
+    SummaryLine,
 )
 from .plotting.transforms import (
     ECDF,

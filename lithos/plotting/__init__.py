@@ -8,6 +8,7 @@ from .elements import (
     Line,
     Marker,
     Significance,
+    SummaryLine,
 )
 from .plot_class import CategoricalPlot, LinePlot
 from .transforms import (

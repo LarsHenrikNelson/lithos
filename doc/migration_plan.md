@@ -71,7 +71,7 @@ element computes values.
 | Transform | Parameters | Geometry per group |
 | --- | --- | --- |
 | `Identity` | `unique_id` | `{n, x?, y?}` — at least one of x/y; the omitted axis is supplied by the position resolver (jitter/dodge; horizontal layouts use `x` only). With `unique_id`: one geometry dict per subject's ordered series (paired connectors), sorted by `x` when given, with pair-completeness validation |
-| `Aggregate` | `func, err_func, agg_func, unique_id, how` | arrays — without `x`: `{center, error_low, error_high, n}` (one value per group); with `x`: `{x, center, error_low, error_high, n}` (one value per unique x; per-x aggregation, legacy `aggline`/`line` parity). `how=auto\|groupby\|matrix` picks the ragged-vs-aligned per-x strategy |
+| `Aggregate` | `func, err_func, agg_func, unique_id, how` | arrays — without `x`: `{center, error_low, error_high, n}` (one value per group; with `unique_id` and `agg_func=None`: one per `(group..., uid)` — legacy `summaryu` per-subject lines); with `x`: `{x, center, error_low, error_high, n}` (one value per unique x; per-x aggregation, legacy `aggline`/`line` parity). `how=auto\|groupby\|matrix` picks the ragged-vs-aligned per-x strategy |
 | `KDE` | `kernel, bw, tol, kde_length, KDEType` + `unique_id, agg_func, err_func` | `{x, y, n}` per group/subject (per-subject grids). With `unique_id` + `agg_func`: pooled-group eval grid (FFT-evaluated), `agg_func`/`err_func` across subject curves: `{x, y, error_low, error_high, n}` (`n` = subjects, errors per grid point) |
 | `Histogram` | `bins, bin_limits, stat` + `unique_id, agg_func, err_func` | `{edges, height, binwidth, centers, stat, n}`. `bin_limits`: `None` = per-group auto range, `"common"` = global shared edges, `(low, high)` = explicit range. With `unique_id`: per-group shared edges per subject; with `agg_func`: per-subject heights aggregated per group with per-bin errors (integer `bins`) |
 | `ECDF` | `ecdf_type, ecdf_args` + `unique_id, agg_func, err_func` | `{x, y, n}` per group/subject. With `unique_id` + `agg_func` (spline): shared probability grid, `x` = aggregated quantile values (legacy axis swap): `{x, y, error_low, error_high, n}` |
@@ -93,8 +93,16 @@ pair; `Aggregate`/`Summary` normalize both to `error_low`/`error_high`.
 ### Phase 1 - `Plot` prototype
 - Single `Plot(data, layout="continuous"|"categorical")` class with
   `.grouping()`, `.add(transform, *elements)`, `.plot()`.
-- Position resolution in `BaseProcessor` (layouts: passthrough / dodge /
-  jitter / stack) used only by the new API.
+- Position resolution in the spec resolver (modes: passthrough / dodge). Point
+  spread within a categorical slot is a per-layer concern: `width` (fraction of
+  the slot; 0 = slot center), `jitter_type`, `seed` in `.add()`. Transforms
+  nesting by `unique_id` place one even column per subject across the width
+  (legacy `jitteru`/`summaryu` positions) — decided, no `dodge_group`/
+  `dodge_subgroup` layout knobs.
+- Categorical layout: group clusters span a fixed 1 unit; `.spacing(pitch=)`
+  is the distance between group centers (unlike legacy `group_spacing`, which
+  was really the cluster width). The layout context still passes
+  `group_spacing=1.0` for the legacy axis-margin math.
 - `SpecPlotter` (matplotlib) mapping element dicts -> existing `_plot_*`
   renderers. `metadata()`/save/load extended with the element spec.
 - Exit: prototype renders a categorical and a continuous example.
@@ -129,6 +137,7 @@ same inputs and defaults.
 - Whether `LinePlot`/`CategoricalPlot` survive as facades (Phase 3).
 
 | `ErrorBar` | `linecolor, linealpha, linewidth, capsize, capstyle` | caps error bars |
+| `SummaryLine` | `linecolor, linewidth, width, linealpha` | short line of `width` x the resolved slot/column across an aggregate center (legacy `summary`/`summaryu` line; `width` is the slot fraction so it can be wider/narrower than a jitter layer) |
 | `Whisker` | `linecolor, linealpha, linewidth, capsize, capstyle` | whisker lines from quantile geometry |
 | `Annotation` | `text, x, y, fontsize, color, ha, va, rotation` | free text |
 | `Significance` | `text, x1, x2, y, linecolor, linewidth, fontsize, capsize` | GraphPad-style brackets+asterisks |

@@ -38,6 +38,7 @@ __all__ = [
     "Line",
     "Marker",
     "Significance",
+    "SummaryLine",
 ]
 
 
@@ -74,10 +75,16 @@ class Line(Element):
 
 @dataclass
 class Marker(Element):
-    """A marker placed at each (x, y) point per group (scatter/jitter)."""
+    """A marker placed at each (x, y) point per group (scatter/jitter).
+
+    ``marker`` may be a single symbol, a list cycled over the layer's
+    ``unique_id`` values (legacy ``jitteru`` subject markers), or a dict
+    keyed by the unique_id value (nested layers) or the group key (flat
+    layers).
+    """
 
     type: str = "marker"
-    marker: str | dict = "o"
+    marker: str | dict | list = "o"
     markercolor: ColorParameters = "glasbey_category10"
     edgecolor: ColorParameters = "white"
     markeredgewidth: float = 1.0
@@ -143,6 +150,25 @@ class ErrorBar(Element):
     linewidth: float = 2.0
     capsize: float = 5.0
     capstyle: CapStyle = "butt"
+
+
+@dataclass
+class SummaryLine(Element):
+    """A short line of the given ``width`` drawn across an aggregate center.
+
+    The GraphPad-style summary line (legacy ``summary``/``summaryu``):
+    ``width`` is a fraction of the resolved slot — the unique_id column for
+    ``unique_id``-nested geometry, the group slot otherwise — so a summary
+    line can be drawn wider or narrower than a jitter layer on the same slot.
+    Errors render through a separate :class:`ErrorBar` from the same
+    transform geometry.
+    """
+
+    type: str = "summaryline"
+    linecolor: ColorParameters = "glasbey_category10"
+    linewidth: float | int = 2
+    width: float = 0.9
+    linealpha: AlphaRange = 1.0
 
 
 @dataclass
