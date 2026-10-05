@@ -31,7 +31,7 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
 ## New element/transform API (Phase 1, in progress)
 
 - `lithos/plotting/elements.py` — formatting-only dataclasses (`Line`, `Marker`, `Bar`,
-  `Fill`, `ErrorBand`, `ErrorBar`, `Annotation`, `Significance`) that
+  `Fill`, `ErrorBand`, `ErrorBar`, `Annotation`) that
   serialize via `to_spec()`/`asdict()`.
 - `lithos/plotting/transforms.py` — pure statistical dataclasses (`Identity`, `Aggregate`,
   `Density`, `Summary`, `Fit`) built on `lithos.stats`. Each transform returns
@@ -44,6 +44,11 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
   specs (asdict transform + element specs + geometry) that the resolver/plotter consume
   and that can be handed to alternative renderers. Metadata stores pure layer specs —
   no geometry — and `load_metadata` recomputes it by replaying `.add()` against the data.
+- `lithos/plotting/spec/significance.py` — the `Significance` bracket spec and its
+  plot-time resolver. Brackets are layout decorations (`add_significance()`, like
+  `add_axline`), not `.add()` elements: they consume no transform geometry, render once
+  per bracket, resolve group names to slot positions, compute their height from the
+  data (auto-y + stacking), and serialize into metadata with no geometry like layers.
 - All are exported from `lithos/__init__.py` (see the migration plan for remaining phases).
 
 ## Data flow (legacy)

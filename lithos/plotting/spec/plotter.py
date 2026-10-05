@@ -7,9 +7,12 @@ rendering: each layer's resolved geometry is drawn once per element spec.
 
 Supported element/geometry combinations for this slice: point/curve geometry
 (``Marker``, ``Line``, ``ErrorBar``, ``ErrorBand``, density ``Fill``),
-histogram bars (``Bar``, ``Fill``), group-centered bars (``Bar``, ``Fill``),
-``Annotation`` and ``Significance``. Combinations needed by the ``Summary``
-transform (box/whisker) arrive with their Phase 2 port.
+histogram bars (``Bar``, ``Fill``), group-centered bars (``Bar``, ``Fill``)
+and ``Annotation``. Combinations needed by the ``Summary`` transform
+(box/whisker) arrive with their Phase 2 port. Significance brackets are not
+elements: the specs added with ``add_significance()`` render once per bracket
+after the layers, still inside ``_plot()`` so the axis limits are formatted
+afterwards and expand to include them.
 """
 
 import numpy as np
@@ -38,6 +41,7 @@ class SpecPlotter(Plotter):
         layers: list[dict],
         plot_dict: dict,
         metadata: dict,
+        significance: list[dict] | None = None,
         savefig: bool = False,
         path: SavePath = "",
         filetype: str = "svg",
@@ -46,6 +50,7 @@ class SpecPlotter(Plotter):
         figure=None,
     ):
         self.layers = layers
+        self.significance = significance or []
         plot_data = [_LayerView(layer) for layer in layers]
         super().__init__(
             plot_data,
@@ -76,6 +81,11 @@ class SpecPlotter(Plotter):
                     zorder = 2 + layer_index + element_index / 10
                 for gkey, geometry in layer["geometry"].items():
                     self._render_element(self.axes[geometry.get("facet", 0)], spec, gkey, geometry, zorder, layer)
+        # significance brackets render once per bracket, before format_plot()
+        # autoscales the axes, so the axis limits expand to include them.
+        for spec in self.significance:
+            zorder = spec["zorder"] if spec["zorder"] is not None else 5
+            self._render_significance(self.axes[spec["facet"]], spec, zorder)
 
     # -- element dispatch --------------------------------------------------
     def _render_element(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float, layer: dict):
@@ -96,8 +106,6 @@ class SpecPlotter(Plotter):
             self._render_fill(ax, spec, gkey, geometry, zorder)
         elif element_type == "annotation":
             self._render_annotation(ax, spec, zorder)
-        elif element_type == "significance":
-            self._render_significance(ax, spec, zorder)
         else:
             raise NotImplementedError(f"No renderer for element type {element_type!r} yet.")
 
@@ -343,24 +351,41 @@ class SpecPlotter(Plotter):
         )
 
     def _render_significance(self, ax, spec: dict, zorder: float):
-        if spec["x1"] is None or spec["x2"] is None or spec["y"] is None:
-            raise ValueError("Significance requires x1, x2 and y coordinates.")
-        x1, x2, y, cap = spec["x1"], spec["x2"], spec["y"], spec["capsize"]
-        ax.plot(
-            [x1, x1, x2, x2],
-            [y - cap, y, y, y - cap],
-            color=spec["linecolor"],
-            linewidth=spec["linewidth"],
-            zorder=zorder,
-        )
+        """Draw one resolved significance bracket (``add_significance``).
+
+        The ``"bracket"`` style is the GraphPad mustache: a horizontal line
+        whose caps descend to the computed ``cap_bottoms`` - the top of the
+        plotted data (or a nested bracket's line). The ``"line"`` style draws
+        the horizontal line only. The label sits above the line, centered.
+        """
+        x1, x2, y = spec["x1"], spec["x2"], spec["y"]
+        if spec["style"] == "bracket":
+            bottom_left, bottom_right = spec["cap_bottoms"]
+            ax.plot(
+                [x1, x1, x2, x2],
+                [bottom_left, y, y, bottom_right],
+                color=spec["linecolor"],
+                linewidth=spec["linewidth"],
+                solid_capstyle="butt",
+                zorder=zorder,
+            )
+        else:
+            ax.plot(
+                [x1, x2],
+                [y, y],
+                color=spec["linecolor"],
+                linewidth=spec["linewidth"],
+                solid_capstyle="butt",
+                zorder=zorder,
+            )
         ax.text(
             (x1 + x2) / 2,
             y,
             spec["text"],
             fontsize=spec["fontsize"],
+            color=spec["linecolor"],
             ha="center",
             va="bottom",
-            color="black",
             zorder=zorder,
         )
 

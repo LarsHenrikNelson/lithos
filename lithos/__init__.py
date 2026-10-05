@@ -10,9 +10,9 @@ from .plotting.elements import (
     Fill,
     Line,
     Marker,
-    Significance,
     SummaryLine,
 )
+from .plotting.spec.significance import Significance
 from .plotting.transforms import (
     ECDF,
     KDE,

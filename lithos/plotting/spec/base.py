@@ -50,6 +50,7 @@ from .metadata import (
     load_spec_metadata,
     save_spec_metadata,
 )
+from .significance import Significance, resolve_significance
 
 
 class Unset:
@@ -76,6 +77,7 @@ class Plot:
 
     def __init__(self):
         self.layers: list[dict] = []
+        self.significances: list[Significance] = []
         self.plotter = None
 
         self._grouping = {"group": None, "subgroup": None, "group_order": None, "subgroup_order": None}
@@ -213,6 +215,96 @@ class Plot:
                 "jitter_type": jitter_type,
                 "seed": seed,
             }
+        )
+
+        return self
+
+    def add_significance(
+        self,
+        text: str = "*",
+        groups: list | None = None,
+        x1: float | None = None,
+        x2: float | None = None,
+        y: float | None = None,
+        style: Literal["bracket", "line"] = "bracket",
+        gap: float = 0.02,
+        step: float = 0.05,
+        linecolor: str = "black",
+        linewidth: float = 1.5,
+        fontsize: float = 12,
+        zorder: int | float | None = None,
+    ) -> Self:
+        """Add a significance bracket (GraphPad asterisks style).
+
+        A bracket is a *layout decoration* like ``add_axline``, not an
+        ``.add()`` element: it consumes no transform geometry. Its span is
+        resolved at plot time, so ``.grouping()`` calls made after
+        ``add_significance()`` are honored.
+
+        ``groups`` names the bracketed groups: plain group values (e.g. ``0``
+        or ``"ctrl"``) on grouped plots, ``(group, subgroup)`` tuples on
+        subgrouped plots (a plain group value there spans the whole cluster).
+        Two entries bracket the pair; three or more span from the leftmost to
+        the rightmost slot (a main-effect bracket). Alternatively, ``x1``/``x2``
+        give absolute axis positions - on continuous layouts ``groups`` may
+        hold a single group key to pick the facet while ``x1``/``x2`` restrict
+        the span to that x-window.
+
+        With ``y=None`` the bracket sits automatically one ``gap`` (a fraction
+        of the y-range) above the maximum y value under its span, and
+        brackets with overlapping spans stack one ``step`` apart. Bracket
+        (``"bracket"``) caps descend only to the top of what is plotted; the
+        ``"line"`` style draws a plain horizontal line without caps. Brackets
+        render before the axis limits are formatted, so autoscaling expands
+        to include them (an explicit ``ylim`` still wins).
+
+        Args:
+            text: label drawn above the bracket (e.g. ``"*"``, ``"**"``, ``"p=0.01"``).
+            groups: group keys the bracket spans (strings/ints, or
+                ``(group, subgroup)`` tuples).
+            x1: left edge of the span in absolute axis positions.
+            x2: right edge of the span in absolute axis positions.
+            y: explicit bracket height; ``None`` computes it from the data.
+            style: ``"bracket"`` (mustache caps) or ``"line"`` (plain line).
+            gap: height above the plotted data, as a fraction of the y-range.
+            step: spacing between stacked brackets, as a fraction of the y-range.
+            linecolor: bracket and text color.
+            linewidth: bracket line width.
+            fontsize: label font size.
+            zorder: explicit z-order (drawn above the layers by default).
+        """
+        if groups is None and (x1 is None or x2 is None):
+            raise ValueError("add_significance() needs groups or both x1 and x2.")
+        if (x1 is None) != (x2 is None):
+            raise ValueError("add_significance() spans need both x1 and x2.")
+        if groups is not None:
+            if not groups:
+                raise ValueError("groups must be a non-empty list of group keys.")
+            if x1 is not None and self.layout == "categorical":
+                raise ValueError(
+                    "Categorical brackets use groups or x1/x2 positions, not both; "
+                    "pass groups (positions come from the layout) or absolute x1/x2 only."
+                )
+        if style not in ("bracket", "line"):
+            raise ValueError(f"style must be 'bracket' or 'line', got {style!r}.")
+        if gap < 0 or step < 0:
+            raise ValueError("gap and step must be >= 0.")
+
+        self.significances.append(
+            Significance(
+                text=text,
+                groups=groups,
+                x1=x1,
+                x2=x2,
+                y=y,
+                style=style,
+                gap=gap,
+                step=step,
+                linecolor=linecolor,
+                linewidth=linewidth,
+                fontsize=fontsize,
+                zorder=zorder,
+            )
         )
 
         return self
@@ -533,6 +625,7 @@ class Plot:
             "format": self.plot_format,
             "transforms": self._plot_transforms,
             "layers": [layer_to_json(layer) for layer in self.layers],
+            "significances": [sig.to_spec() for sig in self.significances],
         }
 
     def save_metadata(self, file_path: str | Path):
@@ -567,6 +660,7 @@ class Plot:
                 jitter_type=layer.get("jitter_type", "fill"),
                 seed=layer.get("seed", 42),
             )
+        self.significances = [Significance(**spec) for spec in metadata.get("significances", [])]
 
         return self
 
@@ -604,8 +698,12 @@ class Plot:
         from .resolver import resolve_layers
 
         resolved = resolve_layers(self._process_data(holder, y_name, x_name), context)
+        significance = resolve_significance(
+            self.significances, holder, y_name, x_name, context, self._plot_transforms["ytransform"]
+        )
         self.plotter = get_spec_plotter(context["layout"])(
             layers=resolved,
+            significance=significance,
             plot_dict=context,
             metadata=self.metadata(y_name, x_name),
             savefig=savefig,

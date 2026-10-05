@@ -140,7 +140,29 @@ same inputs and defaults.
 | `SummaryLine` | `linecolor, linewidth, linealpha, capstyle` | short line across an aggregate center (legacy `summary`/`summaryu` line); the length comes from the layer `width` in `.add()` (slot fraction, default 0.9; `unique_id`-nested lines fill their subject column) |
 | `Whisker` | `linecolor, linealpha, linewidth, capsize, capstyle` | whisker lines from quantile geometry |
 | `Annotation` | `text, x, y, fontsize, color, ha, va, rotation` | free text |
-| `Significance` | `text, x1, x2, y, linecolor, linewidth, fontsize, capsize` | GraphPad-style brackets+asterisks |
+
+## Layout decorations (`add_axline`, `add_significance`)
+
+Not everything drawn on a plot formats transform geometry. Two decorations
+live outside the `.add()` layer pipeline because they consume *no* transform
+geometry: they are resolved against the layout at plot time and render once
+(not once per group).
+
+- `add_axline(linetype, lines)` — axis-spanning reference lines.
+- `add_significance(...)` — GraphPad-style significance brackets. A bracket
+  spans groups by name (`groups=[...]`; plain group values, or
+  `(group, subgroup)` tuples; a plain group value on a subgrouped plot spans
+  the whole cluster; 3+ entries span leftmost-to-rightmost) or absolute
+  `x1`/`x2` positions (a continuous-layout bracket may combine a single
+  `groups` facet key with an `x1`/`x2` window). `y=None` places the bracket
+  automatically one `gap` (fraction of the y-range) above the maximum y under
+  the span, stacking overlapping brackets one `step` apart; `style="bracket"`
+  caps descend only to the top of the plotted data (or a nested bracket's
+  line), `style="line"` draws a plain line without caps. Brackets render
+  inside `_plot()`, before axis limits are formatted, so autoscaling expands
+  to include them (explicit `ylim` still wins). Specs serialize to metadata
+  (`"significances"`) with no geometry, replayed on load like layers.
+
 
 Notes:
 

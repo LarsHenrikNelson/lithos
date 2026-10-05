@@ -11,7 +11,6 @@ from lithos.plotting.elements import (
     Fill,
     Line,
     Marker,
-    Significance,
 )
 
 ALL_ELEMENTS = [
@@ -22,7 +21,6 @@ ALL_ELEMENTS = [
     (ErrorBand, "errorband"),
     (ErrorBar, "errorbar"),
     (Annotation, "annotation"),
-    (Significance, "significance"),
 ]
 
 
@@ -92,11 +90,3 @@ def test_element_to_spec_includes_customized_fields():
     assert spec["marker"] == "X"
     assert spec["markersize"] == 8
     assert spec["zorder"] == 3
-
-
-def test_significance_fields():
-    spec = Significance(text="**", x1=0.9, x2=2.1, y=5.0).to_spec()
-    assert spec["text"] == "**"
-    assert spec["x1"] == 0.9
-    assert spec["x2"] == 2.1
-    assert spec["y"] == 5.0

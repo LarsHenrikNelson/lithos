@@ -37,7 +37,6 @@ __all__ = [
     "Fill",
     "Line",
     "Marker",
-    "Significance",
     "SummaryLine",
 ]
 
@@ -187,18 +186,3 @@ class Annotation(Element):
     ha: str = "center"
     va: str = "center"
     rotation: float = 0
-
-
-@dataclass
-class Significance(Element):
-    """Statistical significance bracket (GraphPad asterisks style)."""
-
-    type: str = "significance"
-    text: str = "*"
-    x1: float | None = None
-    x2: float | None = None
-    y: float | None = None
-    linecolor: str = "black"
-    linewidth: float = 1.5
-    fontsize: float = 12
-    capsize: float = 5

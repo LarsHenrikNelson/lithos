@@ -28,5 +28,6 @@ enter only through ``.plot()``.
 from .base import Plot
 from .categorical import CategoricalPlot
 from .line import LinePlot
+from .significance import Significance
 
-__all__ = ["CategoricalPlot", "LinePlot", "Plot"]
+__all__ = ["CategoricalPlot", "LinePlot", "Plot", "Significance"]

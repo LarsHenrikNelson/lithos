@@ -7,10 +7,10 @@ from .elements import (
     Fill,
     Line,
     Marker,
-    Significance,
     SummaryLine,
 )
 from .plot_class import CategoricalPlot, LinePlot
+from .spec.significance import Significance
 from .transforms import (
     ECDF,
     KDE,

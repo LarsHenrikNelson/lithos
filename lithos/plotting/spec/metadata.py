@@ -30,7 +30,6 @@ from ..elements import (
     Fill,
     Line,
     Marker,
-    Significance,
     SummaryLine,
 )
 from ..transforms import (
@@ -44,9 +43,7 @@ from ..transforms import (
     Transform,
 )
 
-ELEMENT_TYPES = {
-    cls().type: cls for cls in (Annotation, Bar, ErrorBand, ErrorBar, Fill, Line, Marker, Significance, SummaryLine)
-}
+ELEMENT_TYPES = {cls().type: cls for cls in (Annotation, Bar, ErrorBand, ErrorBar, Fill, Line, Marker, SummaryLine)}
 TRANSFORM_NAMES = {cls().name: cls for cls in (Aggregate, ECDF, Fit, Histogram, Identity, KDE, Summary)}
 
 
