@@ -11,6 +11,7 @@ from lithos.plotting.elements import (
     Fill,
     Line,
     Marker,
+    SummaryLine,
 )
 
 ALL_ELEMENTS = [
@@ -20,6 +21,7 @@ ALL_ELEMENTS = [
     (Fill, "fill"),
     (ErrorBand, "errorband"),
     (ErrorBar, "errorbar"),
+    (SummaryLine, "summaryline"),
     (Annotation, "annotation"),
 ]
 
@@ -49,6 +51,21 @@ def test_element_zorder_default(cls, _):
 @pytest.mark.parametrize("cls,_", ALL_ELEMENTS)
 def test_element_to_spec_includes_zorder(cls, _):
     assert cls().to_spec()["zorder"] is None
+
+
+@pytest.mark.parametrize("cls,type_name", ALL_ELEMENTS)
+def test_type_is_class_variable_not_init_field(cls, type_name):
+    # type identifies the element in specs but is not settable via __init__
+    assert cls.type == type_name
+    with pytest.raises(TypeError):
+        cls(type=type_name)
+
+
+@pytest.mark.parametrize("cls,type_name", ALL_ELEMENTS)
+def test_to_spec_leads_with_type(cls, type_name):
+    spec = cls().to_spec()
+    assert list(spec)[0] == "type"
+    assert spec["type"] == type_name
 
 
 def test_line_has_no_fill_fields():

@@ -8,8 +8,8 @@ frontend).
 
 Aggregation and error computation live in the transforms (see
 ``lithos.plotting.transforms``), never in elements. Elements such as
-``ErrorBand``, and ``ErrorBar`` merely render the error/quantile
-geometry produced by a transform.
+``ErrorBand``, and ``ErrorBar`` merely render the error/quantile geometry
+produced by a transform.
 
 Fills are exclusively :class:`Fill` (including hatching): it is used for
 density/hist fill-under curves and bar faces. :class:`Bar` carries only
@@ -24,6 +24,7 @@ round trip.
 """
 
 from dataclasses import asdict, dataclass
+from typing import ClassVar
 
 from ..types.basic_types import CapStyle
 from ..types.plot_input import AlphaRange, ColorParameters
@@ -47,14 +48,17 @@ class Element:
 
     Subclasses add their own fields; all fields must keep a default so that
     element specs can be built positionally and stay JSON-serializable.
+    ``type`` is a class variable, not a field: it identifies the element in
+    serialized specs but is not part of ``__init__`` (the class name already
+carries that information).
     """
 
-    type: str = "element"
+    type: ClassVar[str] = "element"
     zorder: int | float | None = None
 
     def to_spec(self) -> dict:
         """Return a plain nested dict suitable for metadata/JSON export."""
-        return asdict(self)
+        return {"type": self.type, **asdict(self)}
 
 
 @dataclass
@@ -65,7 +69,7 @@ class Line(Element):
     element exists.
     """
 
-    type: str = "line"
+    type: ClassVar[str] = "line"
     linecolor: ColorParameters = "glasbey_category10"
     linestyle: str = "-"
     linewidth: float | int = 2
@@ -82,7 +86,7 @@ class Marker(Element):
     layers).
     """
 
-    type: str = "marker"
+    type: ClassVar[str] = "marker"
     marker: str | dict | list = "o"
     markercolor: ColorParameters = "glasbey_category10"
     edgecolor: ColorParameters = "white"
@@ -100,7 +104,7 @@ class Bar(Element):
     :class:`Fill` element; ``Bar`` only controls the outline and geometry.
     """
 
-    type: str = "bar"
+    type: ClassVar[str] = "bar"
     edgecolor: ColorParameters = "glasbey_category10"
     barwidth: float = 0.9
     linewidth: float = 1
@@ -116,7 +120,7 @@ class Fill(Element):
     outlines. Hatching is also fill styling.
     """
 
-    type: str = "fill"
+    type: ClassVar[str] = "fill"
     fillcolor: ColorParameters = "glasbey_category10"
     fillalpha: AlphaRange = 0.5
     hatch: str | None = None
@@ -131,7 +135,7 @@ class ErrorBand(Element):
     Not used for general fills - those are :class:`Fill`.
     """
 
-    type: str = "errorband"
+    type: ClassVar[str] = "errorband"
     fillcolor: ColorParameters = "glasbey_category10"
     fillalpha: AlphaRange = 0.5
     edgecolor: ColorParameters = "none"
@@ -143,7 +147,7 @@ class ErrorBand(Element):
 class ErrorBar(Element):
     """Capped error bars around an aggregate center per group."""
 
-    type: str = "errorbar"
+    type: ClassVar[str] = "errorbar"
     linecolor: ColorParameters = "glasbey_category10"
     linealpha: AlphaRange = 1.0
     linewidth: float = 2.0
@@ -166,7 +170,7 @@ class SummaryLine(Element):
     transform geometry.
     """
 
-    type: str = "summaryline"
+    type: ClassVar[str] = "summaryline"
     linecolor: ColorParameters = "glasbey_category10"
     linewidth: float | int = 2
     linealpha: AlphaRange = 1.0
@@ -177,7 +181,7 @@ class SummaryLine(Element):
 class Annotation(Element):
     """Free-floating text placed on the axes."""
 
-    type: str = "annotation"
+    type: ClassVar[str] = "annotation"
     text: str = ""
     x: float | None = None
     y: float | None = None
