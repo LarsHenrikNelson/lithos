@@ -25,12 +25,21 @@ class LinePlot(Plot):
         self._layout_options = {"facet": False, "facet_title": False}
 
     def facet(self, facet: bool = True, facet_title: bool = False) -> Self:
-        """Facet by group (one axes per group), optionally titled by group name."""
+        """Facet by group (one axes per group), optionally titled by group name.
+
+        Args:
+            facet (bool): One axes per group. Defaults to True.
+            facet_title (bool): Title each axes with its group name.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         self._layout_options["facet"] = facet
         self._layout_options["facet_title"] = facet_title
         return self
 
     def _layout_context(self, data: DataHolder) -> dict:
+        """Build the continuous layout context (axes index per group key)."""
         group_order, subgroup_order, unique_groups, levels = _create_groupings(
             data,
             self._grouping["group"],

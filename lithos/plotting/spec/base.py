@@ -100,7 +100,20 @@ class Plot:
         group_order: Grouping = None,
         subgroup_order: Subgrouping = None,
     ) -> Self:
-        """Set the grouping columns and ordering (pure grouping — no layout settings)."""
+        """Set the grouping columns and ordering (pure grouping — no layout settings).
+
+        Args:
+            group (str | int | None): Group (cluster) column name.
+            subgroup (str | int | None): Subgroup column name (splits each
+                cluster).
+            group_order (Grouping): Explicit group ordering; ``None`` keeps
+                data order.
+            subgroup_order (Subgrouping): Explicit subgroup ordering;
+                ``None`` keeps data order.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         self._grouping = {
             "group": group,
             "subgroup": subgroup,
@@ -125,6 +138,19 @@ class Plot:
           names passed to ``.plot()``; the titles fall back to none.
         - ``None`` — no label.
         - ``""`` — an explicitly empty label.
+
+        Args:
+            ylabel (str | None | Unset): Y axis label; ``UNSET`` falls back
+                to the y column name, ``None`` renders no label.
+            xlabel (str | None | Unset): X axis label; same states as
+                ``ylabel``.
+            title (str | None | Unset): Axes title; ``UNSET`` renders no
+                title.
+            figure_title (str | None | Unset): Figure title; ``UNSET``
+                renders no title.
+
+        Returns:
+            Self: The plot, for chaining.
         """
         self._labels = {
             "ylabel": ylabel,
@@ -191,6 +217,28 @@ class Plot:
         ``jitteru``/``summaryu`` positions); a
         :class:`~lithos.plotting.elements.SummaryLine` spans the footprint
         (flat) or fills its subject column (nested).
+
+        Args:
+            transform (Transform): The layer's statistical transform.
+            *elements (Element): The elements rendering the transform's
+                geometry.
+            position (str | None): How the resolver maps the layer onto the
+                layout when the transform supplies no coordinate; ``None``
+                uses the layout's default.
+            width (float): The layer's footprint as a fraction of its slot
+                (categorical layouts). Defaults to 0.9.
+            jitter_type (JitterType): Shape of the random point spread within
+                the footprint.
+            seed (int): Seed for the reproducible random spread.
+
+        Returns:
+            Self: The plot, for chaining.
+
+        Raises:
+            TypeError: If ``transform`` is not a ``Transform`` or an element
+                is not an ``Element``.
+            ValueError: If no element is given, the position mode is not
+                allowed for the layout, or ``width`` is negative.
         """
         if not isinstance(transform, StatTransform):
             raise TypeError(f"add() expects a Transform instance, got {type(transform).__name__!r}.")
@@ -259,19 +307,30 @@ class Plot:
         to include them (an explicit ``ylim`` still wins).
 
         Args:
-            text: label drawn above the bracket (e.g. ``"*"``, ``"**"``, ``"p=0.01"``).
-            groups: group keys the bracket spans (strings/ints, or
+            text (str): Label drawn above the bracket (e.g. ``"*"``, ``"**"``, ``"p=0.01"``).
+            groups (list | None): Group keys the bracket spans (strings/ints, or
                 ``(group, subgroup)`` tuples).
-            x1: left edge of the span in absolute axis positions.
-            x2: right edge of the span in absolute axis positions.
-            y: explicit bracket height; ``None`` computes it from the data.
-            style: ``"bracket"`` (mustache caps) or ``"line"`` (plain line).
-            gap: height above the plotted data, as a fraction of the y-range.
-            step: spacing between stacked brackets, as a fraction of the y-range.
-            linecolor: bracket and text color.
-            linewidth: bracket line width.
-            fontsize: label font size.
-            zorder: explicit z-order (drawn above the layers by default).
+            x1 (float | None): Left edge of the span in absolute axis positions.
+            x2 (float | None): Right edge of the span in absolute axis positions.
+            y (float | None): Explicit bracket height; ``None`` computes it from the data.
+            style ("bracket" | "line"): ``"bracket"`` (mustache caps) or ``"line"`` (plain line).
+            gap (float): Height above the plotted data, as a fraction of the y-range.
+            step (float): Spacing between stacked brackets, as a fraction of the y-range.
+            linecolor (str): Bracket and text color.
+            linewidth (float): Bracket line width.
+            fontsize (float): Label font size.
+            zorder (int | float | None): Explicit z-order (drawn above the
+                layers by default).
+
+        Returns:
+            Self: The plot, for chaining.
+
+        Raises:
+            ValueError: If neither ``groups`` nor both ``x1``/``x2`` is
+                given, only one of ``x1``/``x2`` is given, categorical
+                brackets combine ``groups`` with ``x1``/``x2``, ``groups``
+                is empty, ``style`` is unknown, or ``gap``/``step`` is
+                negative.
         """
         if groups is None and (x1 is None or x2 is None):
             raise ValueError("add_significance() needs groups or both x1 and x2.")
@@ -364,6 +423,20 @@ class Plot:
         x: str | np.ndarray | None = None,
         data: InputData | None = None,
     ):
+        """Compute every layer's geometry without rendering (public ``_process_data``).
+
+        Args:
+            y (str | np.ndarray | None): Value column name, or a bare numpy
+                array.
+            x (str | np.ndarray | None): Independent column name, or a bare
+                numpy array.
+            data (InputData | None): The dataset holding the columns.
+
+        Returns:
+            list[dict]: The processed, backend-agnostic layer list (see
+            ``_process_data``).
+        """
+
         y_name, x_name, holder = self._resolve_plot_data(y, x, data)
         return self._process_data(holder, y_name, x_name)
 
@@ -387,7 +460,28 @@ class Plot:
         xtick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
         ytick_rotation: Literal["horizontal", "vertical"] | float = "horizontal",
     ) -> Self:
-        """Set the label/tick formatting: sizes, fonts, weights and rotations."""
+        """Set the label/tick formatting: sizes, fonts, weights and rotations.
+
+        Args:
+            labelsize (float): Axis label font size. Defaults to 20.
+            titlesize (float): Title font size. Defaults to 22.
+            xticklabel_size (int): X tick label font size. Defaults to 12.
+            yticklabel_size (int): Y tick label font size. Defaults to 12.
+            font (str): Font family for all text.
+            fontweight (None | str | float): Weight applied to titles, labels
+                and ticks when given; ``None`` keeps the individual weights.
+            title_fontweight (str | float): Title weight.
+            label_fontweight (str | float): Axis label weight.
+            tick_fontweight (str | float): Tick label weight.
+            xlabel_rotation: X label rotation (``"horizontal"``/
+                ``"vertical"`` or degrees).
+            ylabel_rotation: Y label rotation.
+            xtick_rotation: X tick label rotation.
+            ytick_rotation: Y tick label rotation.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         if fontweight is not None:
             title_fontweight = fontweight
             label_fontweight = fontweight
@@ -425,6 +519,30 @@ class Plot:
         yunits: Literal["degree", "radian", "wradian"] | None = None,
         xunits: Literal["degree", "radian", "wradian"] | None = None,
     ) -> Self:
+        """Set the axis scales, limits and tick label formatting.
+
+        Args:
+            ylim (list | tuple | None): Y axis limits ``(low, high)``.
+            xlim (list | tuple | None): X axis limits ``(low, high)``.
+            yaxis_lim (list | tuple | None): Y limits used to truncate the y
+                spine to the tick range.
+            xaxis_lim (list | tuple | None): X limits used to truncate the x
+                spine to the tick range.
+            yscale ("linear" | "log" | "symlog"): Y axis scale.
+            xscale ("linear" | "log" | "symlog"): X axis scale.
+            ydecimals (int | None): Y tick label decimals; ``-1`` renders
+                integers, ``None`` keeps matplotlib defaults.
+            xdecimals (int | None): X tick label decimals.
+            xformat ("f" | "e"): X tick label number format.
+            yformat ("f" | "e"): Y tick label number format.
+            yunits ("degree" | "radian" | "wradian" | None): Y tick angle
+                units.
+            xunits ("degree" | "radian" | "wradian" | None): X tick angle
+                units.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         if ylim is None:
             ylim = (None, None)
         if xlim is None:
@@ -463,6 +581,31 @@ class Plot:
         truncate_yaxis: bool = False,
         style: Literal["default", "lithos"] = "lithos",
     ) -> Self:
+        """Set the axis line, tick and truncation formatting.
+
+        Args:
+            linewidth (float | dict[str, float]): Spine width; a number sets
+                left/bottom, a dict keys by spine (``"left"``/``"bottom"``/
+                ``"top"``/``"right"``).
+            tickwidth (float): Major tick width.
+            ticklength (float): Major tick length.
+            minor_tickwidth (float): Minor tick width.
+            minor_ticklength (float): Minor tick length.
+            yminorticks (int): Minor tick subdivisions between major y ticks
+                (0 disables).
+            xminorticks (int): Minor tick subdivisions between major x ticks.
+            ysteps (int | tuple[int, int, int]): Y major tick step, or
+                ``(step, start, end)`` indices into the tick sequence for a
+                truncated axis.
+            xsteps (int | tuple[int, int, int]): X major tick step, or
+                ``(step, start, end)``.
+            truncate_xaxis (bool): Truncate the x spine to the tick range.
+            truncate_yaxis (bool): Truncate the y spine to the tick range.
+            style ("default" | "lithos"): Axis formatting style.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         if isinstance(ysteps, int):
             ysteps = (ysteps, 0, ysteps)
         if isinstance(xsteps, int):
@@ -504,6 +647,22 @@ class Plot:
         ncols: int | None = None,
         projection: Literal["rectilinear", "polar"] = "rectilinear",
     ) -> Self:
+        """Set the figure/axes grid options.
+
+        Args:
+            margins (float): Axis margins as a fraction.
+            aspect (int | float | None): Axes box aspect (rectilinear
+                projection only).
+            figsize (tuple[int, int] | None): Figure size; ``None`` scales
+                with the axes grid.
+            gridspec_kw (dict | None): Matplotlib gridspec keywords.
+            nrows (int | None): Axes grid rows (faceted plots).
+            ncols (int | None): Axes grid columns.
+            projection ("rectilinear" | "polar"): Axes projection.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         figure = {
             "gridspec_kw": gridspec_kw,
             "margins": margins,
@@ -527,6 +686,19 @@ class Plot:
         linestyle: str | tuple = "solid",
         minor_linestyle: str | tuple = "solid",
     ) -> Self:
+        """Set the grid lines.
+
+        Args:
+            ygrid (int | float): Y major grid line width (0 hides the grid).
+            xgrid (int | float): X major grid line width (0 hides the grid).
+            yminor_grid (int | float): Y minor grid line width (0 hides it).
+            xminor_grid (int | float): X minor grid line width (0 hides it).
+            linestyle (str | tuple): Major grid line style.
+            minor_linestyle (str | tuple): Minor grid line style.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         grid = {
             "ygrid": ygrid,
             "xgrid": xgrid,
@@ -546,6 +718,20 @@ class Plot:
         xtransform: Transform | None = None,
         back_transform_xticks: bool = False,
     ) -> Self:
+        """Set the scale transforms applied to the plotted values.
+
+        Args:
+            ytransform (Transform | None): Transform for y values (e.g.
+                ``"log10"``).
+            back_transform_yticks (bool): Draw y tick labels back on the
+                original scale (named transforms only).
+            xtransform (Transform | None): Transform for x values.
+            back_transform_xticks (bool): Draw x tick labels back on the
+                original scale (named transforms only).
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         self._plot_transforms = {}
         self._plot_transforms["ytransform"] = ytransform
         if callable(ytransform):
@@ -571,6 +757,25 @@ class Plot:
         linewidth=1.5,
         zorder=1,
     ) -> Self:
+        """Add horizontal/vertical reference lines across the axes.
+
+        Args:
+            linetype ("hline" | "vline"): Line orientation.
+            lines (list): Axis positions of the reference lines (a single
+                number is wrapped in a list).
+            linestyle: Reference line style. Defaults to ``"solid"``.
+            linealpha: Reference line alpha. Defaults to 1.
+            linecolor: Reference line color. Defaults to ``"black"``.
+            linewidth: Reference line width. Defaults to 1.5.
+            zorder: Draw order. Defaults to 1.
+
+        Returns:
+            Self: The plot, for chaining.
+
+        Raises:
+            AttributeError: If ``linetype`` is not ``"hline"`` or
+                ``"vline"``.
+        """
         if linetype not in ["hline", "vline"]:
             raise AttributeError("linetype must by hline or vline")
         if isinstance(lines, (float, int)):
@@ -588,6 +793,12 @@ class Plot:
         return self
 
     def get_format(self) -> dict:
+        """Return the accumulated formatting settings.
+
+        Returns:
+            dict: The ``plot_format`` dictionary (labels, axis, axis_format,
+            figure, grid and any reference lines).
+        """
         return self.plot_format
 
     # -- layout hooks ------------------------------------------------------
@@ -596,6 +807,13 @@ class Plot:
         raise NotImplementedError("Subclasses must implement _layout_context().")
 
     def layout_options(self) -> dict:
+        """Return a copy of the layout-specific options.
+
+        Returns:
+            dict: The options set by the subclass layout setters (e.g.
+            ``pitch``/``labels`` for ``CategoricalPlot``, ``facet`` for
+            ``LinePlot``).
+        """
         return dict(self._layout_options)
 
     def _set_layout_options(self, options: dict):
@@ -614,6 +832,14 @@ class Plot:
         ``"data"`` and used to resolve unset axis labels; without them the
         metadata is a pure template — unset labels are stored blank and the
         columns are chosen at the next ``.plot()`` call.
+
+        Args:
+            y (str | None): The y column name passed to ``.plot()``.
+            x (str | None): The x column name passed to ``.plot()``.
+
+        Returns:
+            dict: Version-3 metadata: grouping, layout, format, labels and
+            layer specs (no geometry, no data).
         """
         return {
             "version": 3,
@@ -629,11 +855,28 @@ class Plot:
         }
 
     def save_metadata(self, file_path: str | Path):
-        """Save the plot as a shareable template (no data, no geometry)."""
+        """Save the plot as a shareable template (no data, no geometry).
+
+        Args:
+            file_path (str | Path): Output path; a bare name is stored in
+                the configured metadata directory as ``<name>.json``.
+        """
         save_spec_metadata(self.metadata(), file_path)
 
     def load_metadata(self, metadata_path: str | dict | Path) -> Self:
-        """Load version-3 JSON metadata onto this plot, replaying the ``.add()`` layers."""
+        """Load version-3 JSON metadata onto this plot, replaying the ``.add()`` layers.
+
+        Args:
+            metadata_path (str | dict | Path): Saved metadata path (or an
+                already-loaded metadata dict).
+
+        Returns:
+            Self: The plot, for chaining.
+
+        Raises:
+            ValueError: If the metadata is not version 3 or its layout does
+                not match this plot's layout.
+        """
         metadata = load_spec_metadata(metadata_path)
         if metadata.get("version") != 3:
             raise ValueError("Not a spec (version 3) metadata file.")
@@ -684,6 +927,24 @@ class Plot:
         names, or bare numpy arrays as ``y``/``x`` (an implicit single-group
         ``DataHolder`` is built from the arrays, so grouping is not available
         for array input).
+
+        Args:
+            y (str | np.ndarray | None): Value column name (with ``data``)
+                or a bare numpy array.
+            x (str | np.ndarray | None): Independent column name or a bare
+                numpy array.
+            data (InputData | None): The dataset holding the columns.
+            savefig (bool): Save the rendered figure to disk.
+            path (SavePath): Save directory (or full file path); defaults to
+                the working directory.
+            filename (str): Output file name; defaults to the y column name.
+            filetype (str): Output file format (e.g. ``"svg"``).
+            save_metadata (bool): Also save the plot template next to the
+                figure.
+            **kwargs: Extra arguments forwarded to the plotter.
+
+        Returns:
+            Self: The plot, for chaining.
         """
         y_name, x_name, holder = self._resolve_plot_data(y, x, data)
         if path == "" or path is None:

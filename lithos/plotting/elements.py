@@ -46,18 +46,28 @@ __all__ = [
 class Element:
     """Base class for all formatting elements.
 
-    Subclasses add their own fields; all fields must keep a default so that
-    element specs can be built positionally and stay JSON-serializable.
-    ``type`` is a class variable, not a field: it identifies the element in
-    serialized specs but is not part of ``__init__`` (the class name already
-carries that information).
+        Subclasses add their own fields; all fields must keep a default so that
+        element specs can be built positionally and stay JSON-serializable.
+        ``type`` is a class variable, not a field: it identifies the element in
+        serialized specs but is not part of ``__init__`` (the class name already
+    carries that information).
+
+        Attributes:
+            zorder (int | float | None): Explicit draw order for the rendered artists.
+                ``None`` falls back to the plotter default (layers stack in ``.add()``
+                order).
     """
 
     type: ClassVar[str] = "element"
     zorder: int | float | None = None
 
     def to_spec(self) -> dict:
-        """Return a plain nested dict suitable for metadata/JSON export."""
+        """Return a plain nested dict suitable for metadata/JSON export.
+
+        Returns:
+            dict: The element's serialized spec - the ``type`` class variable
+            plus every field from ``asdict(self)``.
+        """
         return {"type": self.type, **asdict(self)}
 
 
@@ -67,6 +77,13 @@ class Line(Element):
 
     Also serves as the connector for paired plots; no separate connector
     element exists.
+
+    Attributes:
+        linecolor (ColorParameters): Line color spec - a color/palette name, a
+            dict keyed by group, or a tuple of colors cycled per group.
+        linestyle (str): Matplotlib line style (e.g. ``"-"``, ``"--"``).
+        linewidth (float | int): Line width in points.
+        linealpha (AlphaRange): Line alpha (transparency), between 0 and 1.
     """
 
     type: ClassVar[str] = "line"
@@ -84,6 +101,17 @@ class Marker(Element):
     ``unique_id`` values (legacy ``jitteru`` subject markers), or a dict
     keyed by the unique_id value (nested layers) or the group key (flat
     layers).
+
+    Attributes:
+        marker (str | dict | list): Marker symbol(s); see above for the
+            accepted list/dict forms.
+        markercolor (ColorParameters): Marker face color spec.
+        edgecolor (ColorParameters): Marker edge color spec.
+        markeredgewidth (float): Marker edge width in points.
+        markersize (float | str | tuple): Marker size, passed to matplotlib as
+            the scatter ``s`` value (squared when numeric).
+        alpha (AlphaRange): Marker face alpha (transparency).
+        edge_alpha (AlphaRange): Marker edge alpha (transparency).
     """
 
     type: ClassVar[str] = "marker"
@@ -102,6 +130,13 @@ class Bar(Element):
 
     Fill styling (facecolor, fillalpha, hatch) comes from a separate
     :class:`Fill` element; ``Bar`` only controls the outline and geometry.
+
+    Attributes:
+        edgecolor (ColorParameters): Bar outline color spec.
+        barwidth (float): Bar width as a fraction of the resolved slot (flat
+            layers) or of the subject column (``unique_id``-nested layers).
+        linewidth (float): Bar outline width in points.
+        edge_alpha (AlphaRange): Bar outline alpha (transparency).
     """
 
     type: ClassVar[str] = "bar"
@@ -118,6 +153,14 @@ class Fill(Element):
     Used for any filled geometry: density/hist fill-under curves and bar
     faces. Pair with :class:`Bar` for outlines and with :class:`Line` for density
     outlines. Hatching is also fill styling.
+
+    Attributes:
+        fillcolor (ColorParameters): Fill color spec.
+        fillalpha (AlphaRange): Fill alpha (transparency).
+        hatch (str | None): Matplotlib hatch pattern; ``None`` for a plain fill.
+        edgecolor (ColorParameters): Fill boundary color spec (``"none"`` for no
+            boundary).
+        edgealpha (AlphaRange): Fill boundary alpha (transparency).
     """
 
     type: ClassVar[str] = "fill"
@@ -133,6 +176,14 @@ class ErrorBand(Element):
     """Shaded band between a transform's ``center +/- error`` bounds.
 
     Not used for general fills - those are :class:`Fill`.
+
+    Attributes:
+        fillcolor (ColorParameters): Band fill color spec.
+        fillalpha (AlphaRange): Band fill alpha (transparency).
+        edgecolor (ColorParameters): Band boundary color spec (``"none"`` for no
+            boundary).
+        edgealpha (AlphaRange): Band boundary alpha (transparency).
+        linewidth (float): Band boundary width in points.
     """
 
     type: ClassVar[str] = "errorband"
@@ -145,7 +196,16 @@ class ErrorBand(Element):
 
 @dataclass
 class ErrorBar(Element):
-    """Capped error bars around an aggregate center per group."""
+    """Capped error bars around an aggregate center per group.
+
+    Attributes:
+        linecolor (ColorParameters): Error bar (line and caps) color spec.
+        linealpha (AlphaRange): Error bar alpha (transparency).
+        linewidth (float): Error bar line width in points.
+        capsize (float): Error bar cap width in points.
+        capstyle (CapStyle): Cap end shape (``"butt"``, ``"round"``, or
+            ``"projecting"``).
+    """
 
     type: ClassVar[str] = "errorbar"
     linecolor: ColorParameters = "glasbey_category10"
@@ -168,6 +228,13 @@ class SummaryLine(Element):
     shape of the line ends (``"round"``/``"butt"``/``"projecting"``).
     Errors render through a separate :class:`ErrorBar` from the same
     transform geometry.
+
+    Attributes:
+        linecolor (ColorParameters): Summary line color spec.
+        linewidth (float | int): Summary line width in points.
+        linealpha (AlphaRange): Summary line alpha (transparency).
+        capstyle (CapStyle): Line end shape (``"round"``, ``"butt"``, or
+            ``"projecting"``).
     """
 
     type: ClassVar[str] = "summaryline"
@@ -179,7 +246,18 @@ class SummaryLine(Element):
 
 @dataclass
 class Annotation(Element):
-    """Free-floating text placed on the axes."""
+    """Free-floating text placed on the axes.
+
+    Attributes:
+        text (str): Text to draw.
+        x (float | None): X position in axis coordinates.
+        y (float | None): Y position in axis coordinates.
+        fontsize (float): Text font size in points.
+        color (str): Text color.
+        ha (str): Horizontal alignment (``"center"``, ``"left"``, ``"right"``).
+        va (str): Vertical alignment (``"center"``, ``"top"``, ``"bottom"``).
+        rotation (float): Text rotation in degrees.
+    """
 
     type: ClassVar[str] = "annotation"
     text: str = ""

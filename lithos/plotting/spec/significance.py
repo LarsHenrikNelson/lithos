@@ -47,6 +47,25 @@ class Significance:
     leftmost to the rightmost slot (a main-effect bracket). On continuous
     layouts a single group key selects the facet, and ``x1``/``x2`` (optional)
     restrict the span to that x-window.
+
+    Attributes:
+        text (str): Label drawn above the bracket.
+        groups (list | None): Group keys the bracket spans.
+        x1 (float | None): Left edge of the span in absolute axis positions.
+        x2 (float | None): Right edge of the span in absolute axis positions.
+        y (float | None): Explicit bracket height; ``None`` computes it from
+            the data.
+        style ("bracket" | "line"): Bracket style (mustache caps or plain
+            line).
+        gap (float): Height above the plotted data, as a fraction of the
+            y-range.
+        step (float): Spacing between stacked brackets, as a fraction of the
+            y-range.
+        linecolor (str): Bracket and text color.
+        linewidth (float): Bracket line width.
+        fontsize (float): Label font size.
+        zorder (int | float | None): Explicit z-order for the rendered
+            bracket.
     """
 
     text: str = "*"
@@ -63,7 +82,11 @@ class Significance:
     zorder: int | float | None = None
 
     def to_spec(self) -> dict:
-        """Return a plain dict suitable for metadata/JSON export."""
+        """Return a plain dict suitable for metadata/JSON export.
+
+        Returns:
+            dict: Every field of the bracket spec (``asdict(self)``).
+        """
         return asdict(self)
 
 
@@ -218,6 +241,23 @@ def resolve_significance(
     honored) and turns pure bracket specs into concrete dicts the plotter
     renders. No bracket geometry is stored in the metadata - like layer
     geometry, it is recomputed on load.
+
+    Args:
+        significances (list[Significance]): The bracket specs added with
+            ``add_significance()``.
+        data (DataHolder): The plot data.
+        y (str | None): The y column name.
+        x (str | None): The x column name.
+        context (dict): The layout context produced by the plot class.
+        ytransform (Transform | None): Scale transform applied to y values.
+
+    Returns:
+        list[dict]: Renderer-ready bracket dicts (span, height, caps,
+        styling).
+
+    Raises:
+        ValueError: If auto-y or bracket caps need the y column and it is
+            not given.
     """
     if not significances:
         return []

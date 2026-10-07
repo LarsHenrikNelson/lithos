@@ -49,6 +49,21 @@ class SpecPlotter(Plotter):
         axes=None,
         figure=None,
     ):
+        """Initialize the renderer.
+
+        Args:
+            layers (list[dict]): The resolved layers (geometry + element
+                specs).
+            plot_dict (dict): The layout context produced by the plot class.
+            metadata (dict): The plot metadata (format, labels, columns).
+            significance (list[dict] | None): Resolved significance brackets.
+            savefig (bool): Save the rendered figure to disk.
+            path (SavePath): Save directory (or full file path).
+            filetype (str): Output file format.
+            filename (str): Output file name.
+            axes: Existing axes to render onto (created otherwise).
+            figure: Figure owning the existing axes.
+        """
         self.layers = layers
         self.significance = significance or []
         plot_data = [_LayerView(layer) for layer in layers]
@@ -73,6 +88,12 @@ class SpecPlotter(Plotter):
             self.plot_labels[key] = "" if value is None else value
 
     def _plot(self):
+        """Render every layer's elements, then the significance brackets.
+
+        Layers draw in ``.add()`` order; elements without an explicit
+        ``zorder`` stack by layer and element index. Brackets render before
+        ``format_plot()`` autoscales the axes so the limits include them.
+        """
         for layer_index, layer in enumerate(self.layers):
             for element_index, spec in enumerate(layer["elements"]):
                 if spec["zorder"] is not None:
@@ -89,6 +110,7 @@ class SpecPlotter(Plotter):
 
     # -- element dispatch --------------------------------------------------
     def _render_element(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float, layer: dict):
+        """Dispatch one element spec to its renderer."""
         element_type = spec["type"]
         if element_type == "marker":
             self._render_marker(ax, spec, gkey, geometry, zorder)
@@ -116,6 +138,7 @@ class SpecPlotter(Plotter):
         return create_dict(processed, self.plot_dict["unique_groups"])
 
     def _group_color(self, color_dict: dict, gkey: tuple, alpha: float):
+        """RGBA color for one geometry key from a per-group color dict."""
         return self._process_color(locate_key(gkey, color_dict), alpha)
 
     @staticmethod
@@ -167,6 +190,7 @@ class SpecPlotter(Plotter):
 
     # -- element renderers ---------------------------------------------------
     def _render_marker(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw markers at the geometry's (x, y) points."""
         x, y = self._curve_values(geometry)
         markercolor = self._color_dict(spec["markercolor"])
         edgecolor = self._color_dict(spec["edgecolor"])
@@ -184,6 +208,7 @@ class SpecPlotter(Plotter):
         )
 
     def _render_line(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw a line through the geometry's (x, y) points."""
         x, y = self._curve_values(geometry)
         linecolor = self._color_dict(spec["linecolor"])
         ax.plot(
@@ -196,6 +221,7 @@ class SpecPlotter(Plotter):
         )
 
     def _render_errorbar(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw capped error bars (error_low/error_high) around the center values."""
         if geometry.get("error_low") is None or geometry.get("error_high") is None:
             raise NotImplementedError("ErrorBar requires error geometry; give the transform an err_func.")
         x, center = self._curve_values(geometry)
@@ -222,6 +248,7 @@ class SpecPlotter(Plotter):
             bar.set_capstyle(spec["capstyle"])
 
     def _render_errorband(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw the shaded band between error_low/error_high around the center values."""
         if geometry.get("error_low") is None or geometry.get("error_high") is None:
             raise NotImplementedError("ErrorBand requires error geometry; give the transform an err_func.")
         x, center = self._curve_values(geometry)
@@ -271,6 +298,7 @@ class SpecPlotter(Plotter):
             bar.set_capstyle(spec["capstyle"])
 
     def _render_bar(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw bar outlines from histogram edges or group-centered geometry."""
         if "edges" in geometry:
             # histogram rectangles from bin edges
             x, height, width = geometry["centers"], geometry["height"], geometry["binwidth"]
@@ -293,6 +321,7 @@ class SpecPlotter(Plotter):
         )
 
     def _render_fill(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw a filled region: histogram bars, a density fill-under curve or a bar face."""
         fillcolor = self._color_dict(spec["fillcolor"])
         facecolor = self._group_color(fillcolor, gkey, spec["fillalpha"])
         edgecolor = self._process_color(spec["edgecolor"], spec["edgealpha"])
@@ -336,6 +365,7 @@ class SpecPlotter(Plotter):
             raise NotImplementedError("Fill requires histogram, curve, or group-centered geometry.")
 
     def _render_annotation(self, ax, spec: dict, zorder: float):
+        """Draw free-floating text at the spec's (x, y) position."""
         if spec["x"] is None or spec["y"] is None:
             raise ValueError("Annotation requires x and y coordinates.")
         ax.text(
@@ -399,7 +429,17 @@ class CategoricalSpecPlotter(SpecPlotter, CategoricalPlotter):
 
 
 def get_spec_plotter(layout: str) -> type[SpecPlotter]:
-    """Spec plotter class for a layout name."""
+    """Spec plotter class for a layout name.
+
+    Args:
+        layout (str): Layout name (``"continuous"`` or ``"categorical"``).
+
+    Returns:
+        type[SpecPlotter]: The matching plotter class.
+
+    Raises:
+        ValueError: If the layout name is unknown.
+    """
     if layout == "continuous":
         return ContinuousSpecPlotter
     if layout == "categorical":

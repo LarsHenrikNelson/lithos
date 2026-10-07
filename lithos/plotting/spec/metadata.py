@@ -48,7 +48,16 @@ TRANSFORM_NAMES = {cls().name: cls for cls in (Aggregate, ECDF, Fit, Histogram, 
 
 
 def to_jsonable(obj):
-    """Recursively convert numpy values and callables to plain JSON-safe types."""
+    """Recursively convert numpy values and callables to plain JSON-safe types.
+
+    Args:
+        obj: Any Python object (dicts, lists/tuples, numpy values,
+            callables).
+
+    Returns:
+        The same structure with numpy arrays as lists, numpy scalars as
+        numbers and callables as their names.
+    """
     if isinstance(obj, dict):
         return {key: to_jsonable(value) for key, value in obj.items()}
     if isinstance(obj, (list, tuple)):
@@ -69,6 +78,14 @@ def layer_to_json(layer: dict) -> dict:
     element via ``to_spec()`` (the lazy counterpart of ``.add()`` holding raw
     objects); the remaining values pass through ``to_jsonable``. No geometry
     is stored — it is recomputed from the data on load.
+
+    Args:
+        layer (dict): A held ``.add()`` layer (raw transform/element
+            objects).
+
+    Returns:
+        dict: The JSON-friendly layer spec (``asdict`` transform,
+        ``to_spec()`` elements, JSON-safe values).
     """
     output = {}
     for key, value in layer.items():
@@ -97,14 +114,28 @@ def _metadata_file(file_path: str | Path) -> Path:
 
 
 def save_spec_metadata(metadata: dict, file_path: str | Path) -> None:
-    """Save version-3 spec metadata as JSON."""
+    """Save version-3 spec metadata as JSON.
+
+    Args:
+        metadata (dict): The metadata dict produced by ``Plot.metadata()``.
+        file_path (str | Path): Output path; a bare name is stored in the
+            configured metadata directory as ``<name>.json``.
+    """
     file_path = _metadata_file(file_path)
     with open(file_path, "w") as f:
         json.dump(metadata, f, indent=2)
 
 
 def load_spec_metadata(file_path: str | dict | Path) -> dict:
-    """Load version-3 spec metadata from JSON (a dict passes through untouched)."""
+    """Load version-3 spec metadata from JSON (a dict passes through untouched).
+
+    Args:
+        file_path (str | dict | Path): Saved metadata path (or an
+            already-loaded metadata dict).
+
+    Returns:
+        dict: The loaded metadata.
+    """
     if isinstance(file_path, dict):
         return file_path
     file_path = _metadata_file(file_path)
@@ -113,7 +144,18 @@ def load_spec_metadata(file_path: str | dict | Path) -> dict:
 
 
 def build_transform(spec: dict) -> Transform:
-    """Rebuild a transform instance from its serialized spec."""
+    """Rebuild a transform instance from its serialized spec.
+
+    Args:
+        spec (dict): The serialized transform spec (an ``asdict`` of the
+            transform dataclass).
+
+    Returns:
+        Transform: The rebuilt transform instance.
+
+    Raises:
+        ValueError: If the transform name is unknown.
+    """
     name = spec.get("name", "transform")
     if name not in TRANSFORM_NAMES:
         raise ValueError(f"Unknown transform {name!r} in metadata.")
@@ -126,6 +168,15 @@ def build_element(spec: dict) -> Element:
     Keys the element no longer carries (e.g. a field removed from a newer
     API version) are dropped so saved templates keep loading; truly unknown
     element types still fail loudly.
+
+    Args:
+        spec (dict): The serialized element spec (its ``to_spec()`` output).
+
+    Returns:
+        Element: The rebuilt element instance.
+
+    Raises:
+        ValueError: If the element type is unknown.
     """
     element_type = spec.get("type", "element")
     if element_type not in ELEMENT_TYPES:

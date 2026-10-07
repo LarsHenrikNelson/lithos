@@ -75,6 +75,17 @@ def as_error_pair(e) -> tuple[float | None, float | None]:
 
     Scalars become a symmetric pair; a length-2 sequence is treated as
     ``(low, high)`` already.
+
+    Args:
+        e: Error-function output - a scalar, a length-2 sequence, or
+            ``None``.
+
+    Returns:
+        tuple[float | None, float | None]: The normalized ``(low, high)``
+        pair; ``(None, None)`` when ``e`` is ``None``.
+
+    Raises:
+        ValueError: If ``e`` holds neither 1 nor 2 values.
     """
     if e is None:
         return None, None
@@ -117,14 +128,21 @@ class Transform:
         """Compute per-group geometry.
 
         Args:
-            data: the input data.
-            y: value column.
-            x: independent column (required by ``Fit``; optional for
+            data (DataHolder): The input data.
+            y (str | None): Value column.
+            x (str | None): Independent column (required by ``Fit``; optional for
               ``Identity`` and per-x ``Aggregate`` — the omitted axis is
               supplied by the position resolver).
-            levels: grouping columns (group, subgroup, ...).
-            ytransform: transform applied to y values (log10 etc).
-            xtransform: transform applied to x values.
+            levels (Levels): Grouping columns (group, subgroup, ...).
+            ytransform (Transform | None): Transform applied to y values (log10 etc).
+            xtransform (Transform | None): Transform applied to x values.
+
+        Returns:
+            dict[tuple, dict]: ``{group_key: geometry_dict}`` per group.
+
+        Raises:
+            NotImplementedError: If the subclass does not override
+                ``__call__``.
         """
         raise NotImplementedError("Transforms must implement __call__.")
 
@@ -148,6 +166,11 @@ class Identity(Transform):
     column) when given, otherwise kept in row order. When set, the data is
     validated for pairing: every subject within a group must hold the same
     complete set of order values, each appearing exactly once.
+
+    Attributes:
+        unique_id (str | None): Column whose values nest the group key (one
+            geometry dict per subject; paired-connector geometry). ``None``
+            keeps one flat geometry dict per group.
     """
 
     name: str = "identity"
@@ -163,6 +186,26 @@ class Identity(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
+        """Compute per-group (or per-subject) point geometry.
+
+        Args:
+            data (DataHolder): The input data.
+            y (str | None): Value column.
+            x (str | None): Independent/order column; sorts the paired
+                series when ``unique_id`` is given.
+            levels (Levels): Grouping columns (group, subgroup, ...).
+            ytransform (Transform | None): Transform applied to y values.
+            xtransform (Transform | None): Transform applied to x values.
+
+        Returns:
+            dict[tuple, dict]: ``{group_key: {n, x?, y?}}`` - one entry per
+            subject (sorted by ``x``) when ``unique_id`` is given, one per
+            group otherwise.
+
+        Raises:
+            ValueError: If neither ``x`` nor ``y`` is given, or a paired
+                series fails validation.
+        """
         if x is None and y is None:
             raise ValueError("Identity requires an x or y column.")
         levels = tuple(levels)
@@ -217,20 +260,20 @@ class Identity(Transform):
 class Aggregate(Transform):
     """Aggregate y per group — optionally along x, optionally nested by ``unique_id``.
 
-    Args:
-        func: aggregation function applied to y within each group (or within
+    Attributes:
+        func (Agg): Aggregation function applied to y within each group (or within
             each unique_id first).
-        err_func: error function applied to the same values; the result is
+        err_func (Error | None): Error function applied to the same values; the result is
             normalized to ``error_low``/``error_high``.
-        agg_func: second-level aggregation applied across unique_id samples
+        agg_func (Agg | None): Second-level aggregation applied across unique_id samples
             when ``unique_id`` is given. ``None`` (default) keeps one center
             per unique_id, keyed ``(group..., uid)`` — the legacy
             ``summaryu(agg_func=None)`` per-subject summary lines; give a
             function to re-aggregate across unique_ids into one center per
             group.
-        unique_id: column whose unique values are first aggregated with
+        unique_id (str | None): Column whose unique values are first aggregated with
             ``func``, then re-aggregated per group with ``agg_func``.
-        how: per-x aggregation strategy when ``x`` is given (``x`` must be
+        how ("auto" | "groupby" | "matrix"): Per-x aggregation strategy when ``x`` is given (``x`` must be
             numeric and sortable):
 
             - ``"groupby"``: aggregate per (levels, x) — handles ragged data
@@ -270,6 +313,23 @@ class Aggregate(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
+        """Compute aggregate geometry per group (or per unique x value).
+
+        Args:
+            data (DataHolder): The input data.
+            y (str | None): Value column.
+            x (str | None): Independent column; enables per-x aggregation.
+            levels (Levels): Grouping columns (group, subgroup, ...).
+            ytransform (Transform | None): Transform applied to y values.
+            xtransform (Transform | None): Transform applied to x values.
+
+        Returns:
+            dict[tuple, dict]: ``{group_key: geometry}`` per group; see the
+            class docstring for the geometry contract.
+
+        Raises:
+            ValueError: If ``y`` is not given.
+        """
         if y is None:
             raise ValueError("Aggregate requires a y column.")
         levels = tuple(levels)
@@ -472,6 +532,14 @@ class _DensityTransform(Transform):
     or one subject) and ``_aggregate_geometry(...)`` (two-level per group),
     and may override ``_common_edges``/``_group_edges`` (shared bin edges)
     and ``_validate``.
+
+    Attributes:
+        unique_id (str | None): Column whose values nest the group key (one
+            density per subject).
+        agg_func (Agg | None): Aggregation applied across the subject curves
+            when ``unique_id`` is given (enables the two-level geometry).
+        err_func (Error | None): Error function applied across the subject
+            curves, normalized per grid point to ``error_low``/``error_high``.
     """
 
     name: str = "density"
@@ -494,6 +562,26 @@ class _DensityTransform(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
+        """Compute density geometry per group (or per subject).
+
+        Args:
+            data (DataHolder): The input data.
+            y (str | None): Value column.
+            x (str | None): Not used by density transforms; accepted for the
+                shared call signature.
+            levels (Levels): Grouping columns (group, subgroup, ...).
+            ytransform (Transform | None): Transform applied to y values.
+            xtransform (Transform | None): Transform applied to x values.
+
+        Returns:
+            dict[tuple, dict]: Density geometry per group - one entry per
+            subject when ``unique_id`` is given; a single aggregated entry
+            per group with ``unique_id`` + ``agg_func``.
+
+        Raises:
+            ValueError: If ``y`` is not given or validation fails (e.g.
+                ``agg_func`` without ``unique_id``).
+        """
         if y is None:
             raise ValueError(f"{type(self).__name__} requires a y column.")
         self._validate()
@@ -591,6 +679,14 @@ class KDE(_DensityTransform):
     Geometry per group/subject: ``{x, y, n}``; two-level per group:
     ``{x, y, error_low, error_high, n}`` (``n`` = subjects, errors per grid
     point).
+
+    Attributes:
+        kernel (Kernels): KDEpy kernel name.
+        bw (BW): Bandwidth method (e.g. ``"ISJ"``).
+        tol (float | int | tuple): Relative grid padding, or an explicit
+            ``(low, high)`` grid range tuple.
+        kde_length (int | None): Number of grid points (power-of-2 default).
+        KDEType (KDEType): ``"fft"`` or ``"tree"`` evaluation.
     """
 
     name: str = "kde"
@@ -601,6 +697,7 @@ class KDE(_DensityTransform):
     KDEType: KDEType = "fft"
 
     def _density_geometry(self, vals: np.ndarray, edges: np.ndarray | None = None) -> dict:
+        """KDE geometry for one set of values (zeros below 2 points)."""
         if vals.size < 2:
             xv, yv = vals, np.zeros_like(vals, dtype=float)
         else:
@@ -667,6 +764,14 @@ class Histogram(_DensityTransform):
     Geometry per group/subject: ``{edges, height, binwidth, centers, stat,
     n}``; two-level per group: ``{edges, height, error_low, error_high,
     binwidth, centers, stat, n}`` (``n`` = subjects, errors per bin).
+
+    Attributes:
+        bins (NBins): Bin count or binning strategy name.
+        bin_limits (HistBinLimits): Range control - ``None`` (per-group auto
+            range), ``"common"`` (pooled global range), or an explicit
+            ``(low, high)``.
+        stat (HistStat): Histogram statistic (e.g. ``"density"``,
+            ``"count"``).
     """
 
     name: str = "histogram"
@@ -676,6 +781,7 @@ class Histogram(_DensityTransform):
 
     def _validate(self) -> None:
         super()._validate()
+        """Extend validation: ``bins`` must be an integer when ``agg_func`` is given."""
         if self.agg_func is not None and isinstance(self.bins, str):
             raise ValueError("bins must be an integer when agg_func is given.")
 
@@ -685,6 +791,7 @@ class Histogram(_DensityTransform):
         return np.histogram_bin_edges(vals, bins=self.bins, range=limits)
 
     def _common_edges(self, data: DataHolder, y: str, ytransform: Transform | None) -> np.ndarray | None:
+        """Pooled global edges for ``bin_limits="common"``; ``None`` otherwise."""
         if self.bin_limits == "common":
             all_vals = _get_column_values(data, np.arange(data.shape[0]), y, ytransform)
             return self._edges(all_vals)
@@ -748,6 +855,11 @@ class ECDF(_DensityTransform):
     Geometry per group/subject: ``{x, y, n}``; two-level per group:
     ``{x, y, error_low, error_high, n}`` (``n`` = subjects, errors per grid
     point).
+
+    Attributes:
+        ecdf_type ("bootstrap" | "spline" | "none"): ECDF variant.
+        ecdf_args (dict): Extra arguments for the chosen variant (e.g.
+            ``size`` for ``"spline"``/``"bootstrap"``).
     """
 
     name: str = "ecdf"
@@ -756,6 +868,7 @@ class ECDF(_DensityTransform):
 
     def _validate(self) -> None:
         super()._validate()
+        """Extend validation: two-level aggregation requires the shared probability grid."""
         if self.agg_func is not None and self.ecdf_type != "spline":
             raise ValueError("ecdf_type must be 'spline' when agg_func is given (shared probability grid).")
 
@@ -789,14 +902,14 @@ class ECDF(_DensityTransform):
 class Summary(Transform):
     """Compute summary/box-whisker geometry per group.
 
-    Args:
-        func: center value of each group (default median).
-        err_func: error function applied to the same values as ``func``.
-        whisker: what the whisker extent should represent - ``"quantiles"``
+    Attributes:
+        func (Agg): Center value of each group (default median).
+        err_func (Error | None): Error function applied to the same values as ``func``.
+        whisker ("quantiles" | "minmax" | "none"): What the whisker extent should represent - ``"quantiles"``
             (default), ``"minmax"`` or ``"none"``.
-        whisker_quantiles: (low, high) percentiles used by
+        whisker_quantiles (tuple[float, float]): (low, high) percentiles used by
             ``whisker="quantiles"``.
-        notch: whether to compute (approx Gaussian) notch bounds around the
+        notch (bool): Whether to compute (approx Gaussian) notch bounds around the
             median (standard boxplot formula).
     """
 
@@ -817,6 +930,24 @@ class Summary(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
+        """Compute summary/box-whisker geometry per group.
+
+        Args:
+            data (DataHolder): The input data.
+            y (str | None): Value column.
+            x (str | None): Value column used when ``y`` is not given
+                (horizontal layouts).
+            levels (Levels): Grouping columns (group, subgroup, ...).
+            ytransform (Transform | None): Transform applied to y values.
+            xtransform (Transform | None): Transform applied to x values.
+
+        Returns:
+            dict[tuple, dict]: ``{group_key: summary geometry}``; see the
+            class docstring for the geometry contract.
+
+        Raises:
+            ValueError: If neither ``y`` nor ``x`` is given.
+        """
         if y is not None:
             column = y
             transform = ytransform
@@ -872,7 +1003,23 @@ class Summary(Transform):
 
 @dataclass
 class Fit(Transform):
-    """Fit a function to x/y per group and return the fit line + CI band."""
+    """Fit a function to x/y per group and return the fit line + CI band.
+
+    ``fit_func`` selects a built-in fit by name (linear regression, sine,
+    polynomial) or any callable; extra keyword arguments for the fit live in
+    ``fit_args`` (e.g. ``degree``). ``ci_func`` selects the interval around
+    the fit (confidence interval, prediction interval, bootstrap confidence
+    interval) or ``None`` for no band.
+
+    Geometry per group: ``{x, y, ci, n}`` - ``x`` is the fit grid, ``y`` the
+    fitted values, and ``ci`` the (low, high) interval offsets (``None``
+    without a ``ci_func``).
+
+    Attributes:
+        fit_func (FitFunc): Built-in fit name or callable.
+        ci_func (CIFunc): Interval type around the fit, or ``None``.
+        fit_args (dict): Extra keyword arguments passed to the fit function.
+    """
 
     name: str = "fit"
     fit_func: FitFunc = "linear"
@@ -889,6 +1036,22 @@ class Fit(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
+        """Compute the fit line and CI band per group.
+
+        Args:
+            data (DataHolder): The input data.
+            y (str | None): Dependent (value) column.
+            x (str | None): Independent column.
+            levels (Levels): Grouping columns (group, subgroup, ...).
+            ytransform (Transform | None): Transform applied to y values.
+            xtransform (Transform | None): Transform applied to x values.
+
+        Returns:
+            dict[tuple, dict]: ``{group_key: {x, y, ci, n}}``.
+
+        Raises:
+            ValueError: If ``x`` or ``y`` is not given.
+        """
         if x is None or y is None:
             raise ValueError("Fit requires both x and y columns.")
         output = {}

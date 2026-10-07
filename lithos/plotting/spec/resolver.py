@@ -37,6 +37,18 @@ def locate_key(key: tuple, positions: dict) -> float:
     Geometry keys may be longer than the grouping levels (e.g. nested by
     ``unique_id``); the resolver matches the group prefix. Keys that match no
     prefix fall back to the single ``("",)`` slot of ungrouped layouts.
+
+    Args:
+        key (tuple): Geometry group key (possibly nested beyond the grouping
+            levels).
+        positions (dict): The layout ``loc_dict`` mapping slot keys to axis
+            positions.
+
+    Returns:
+        float: The resolved axis position.
+
+    Raises:
+        KeyError: If no slot matches the key.
     """
     if key in positions:
         return positions[key]
@@ -49,7 +61,20 @@ def locate_key(key: tuple, positions: dict) -> float:
 
 
 def slot_key(key: tuple, positions: dict) -> tuple:
-    """The layout slot a (possibly nested) geometry key resolves to."""
+    """The layout slot a (possibly nested) geometry key resolves to.
+
+    Args:
+        key (tuple): Geometry group key (possibly nested beyond the grouping
+            levels).
+        positions (dict): The layout ``loc_dict`` mapping slot keys to axis
+            positions.
+
+    Returns:
+        tuple: The slot key the geometry key resolves to.
+
+    Raises:
+        KeyError: If no slot matches the key.
+    """
     if key in positions:
         return key
     for size in range(len(key) - 1, 0, -1):
@@ -61,6 +86,7 @@ def slot_key(key: tuple, positions: dict) -> tuple:
 
 
 def _as_values(values) -> np.ndarray:
+    """Coerce values to a flat float array."""
     return np.atleast_1d(np.asarray(values, dtype=float))
 
 
@@ -104,7 +130,23 @@ def _even_columns(keys, context: dict, spread: float) -> dict:
 def _resolved_coordinates(
     layer: dict, context: dict, position: float, values, column: float | None = None
 ) -> np.ndarray:
-    """Positions for the missing axis, given the layer's position mode."""
+    """Positions for the missing axis, given the layer's position mode.
+
+    Args:
+        layer (dict): The processed layer spec (``position``, ``width``,
+            ``jitter_type``, ``seed``).
+        context (dict): The layout context.
+        position (float): The group's resolved slot position.
+        values: The geometry values along the other axis.
+        column (float | None): Precomputed even-column position for
+            ``unique_id``-nested geometry.
+
+    Returns:
+        np.ndarray: Positions for the missing axis.
+
+    Raises:
+        ValueError: If the position mode cannot supply a missing coordinate.
+    """
     if layer["position"] == "dodge":
         values = _as_values(values)
         if column is not None:
@@ -130,7 +172,17 @@ def _resolved_coordinates(
 
 
 def resolve_layer(layer: dict, context: dict) -> dict:
-    """Resolve one layer's processed geometry against the layout context."""
+    """Resolve one layer's processed geometry against the layout context.
+
+    Args:
+        layer (dict): A processed layer (transform spec, element specs and
+            fresh geometry).
+        context (dict): The layout context produced by the plot class.
+
+    Returns:
+        dict: The layer with per-key positions, facets, extents and any
+        resolver-supplied missing-axis coordinates.
+    """
     geometry = {}
     categorical = context["layout"] == "categorical"
     unique_id = _layer_unique_id(layer)
@@ -169,5 +221,13 @@ def resolve_layer(layer: dict, context: dict) -> dict:
 
 
 def resolve_layers(layers: list[dict], context: dict) -> list[dict]:
-    """Resolve every layer of a plot against the layout context."""
+    """Resolve every layer of a plot against the layout context.
+
+    Args:
+        layers (list[dict]): The processed layers.
+        context (dict): The layout context produced by the plot class.
+
+    Returns:
+        list[dict]: The resolved layers, ready for the plotter.
+    """
     return [resolve_layer(layer, context) for layer in layers]

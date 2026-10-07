@@ -74,16 +74,33 @@ class CategoricalPlot(Plot):
         above 1 add whitespace between groups; values below 1 squeeze them
         together. The spread of points *within* a slot is set per layer with
         the ``width`` argument of ``.add()``, not here.
+
+        Args:
+            pitch (float): Distance between group centers in axis units.
+                Defaults to 1.0.
+
+        Returns:
+            Self: The plot, for chaining.
         """
         self._layout_options["pitch"] = pitch
         return self
 
     def categorical_labels(self, labels: CategoricalLabels = "style1") -> Self:
-        """Categorical tick label style (style1: groups, style2: subgroups, style3: both)."""
+        """Categorical tick label style (style1: groups, style2: subgroups, style3: both).
+
+        Args:
+            labels (CategoricalLabels): Tick label style - ``"style1"``
+                (group labels), ``"style2"`` (subgroup labels) or
+                ``"style3"`` (both).
+
+        Returns:
+            Self: The plot, for chaining.
+        """
         self._layout_options["labels"] = labels
         return self
 
     def _layout_context(self, data: DataHolder) -> dict:
+        """Build the categorical layout context (slot positions, ticks, label style)."""
         group = self._grouping["group"]
         pitch = self._layout_options["pitch"]
         group_order, subgroup_order, unique_groups, levels = _create_groupings(

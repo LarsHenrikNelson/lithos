@@ -1,3 +1,15 @@
+"""Matplotlib renderers for the legacy plot methods and the spec plot API.
+
+``Plotter`` holds the shared figure/axes/formatting machinery; ``LinePlotter``
+and ``CategoricalPlotter`` add the continuous and categorical layouts. The
+spec plotters (:mod:`lithos.plotting.spec.plotter`) reuse these classes for
+figure creation and axis/label formatting while replacing the plot-method
+dispatch with element rendering.
+
+Only the ``Plotter`` classes call matplotlib directly; the plot classes
+configure artists through them.
+"""
+
 import io
 from dataclasses import asdict
 from pathlib import Path
@@ -56,6 +68,23 @@ HATCHES = [
 
 
 class Plotter:
+    """Base matplotlib renderer: shared figure, axes and formatting machinery.
+
+    Attributes:
+        plot_data (list[PlotTypes]): The plot types driving formatting
+            special cases (legacy plot tuples or spec layer views).
+        plot_format (dict): Label/axis/grid/figure formatting options.
+        plot_dict (dict): The layout context (group order, slot positions,
+            ...).
+        plot_transforms (dict): Scale transforms and tick back-transform
+            flags.
+        plot_labels (dict): Axis/title label text.
+        fig (Figure): The rendered figure.
+        axes (list[Axes]): The rendered axes (one per facet/group).
+        filetypes (ClassVar[set[str]]): File formats accepted by
+            :meth:`savefig`.
+    """
+
     filetypes: ClassVar[set[str]] = {
         "eps",
         "jpeg",
@@ -85,6 +114,23 @@ class Plotter:
         axes: Axes | PolarAxes | list[Axes | PolarAxes] | None = None,
         figure: Figure | None = None,
     ):
+        """Initialize the renderer and create (or receive) the figure and axes.
+
+        Args:
+            plot_data (list[PlotTypes]): The plot types driving formatting.
+            plot_dict (dict): The layout context.
+            metadata (dict): The plot metadata (format, transforms, labels).
+            savefig (bool): Save the rendered figure to disk on ``plot()``.
+            path (SavePath): Save directory (or full file path).
+            filetype (str): Output file format.
+            filename (str): Output file name.
+            axes (Axes | PolarAxes | list | None): Existing axes to render
+                onto; created via ``create_figure()`` when ``None``.
+            figure (Figure | None): Figure owning the existing axes.
+
+        Raises:
+            ValueError: If existing axes are passed without a figure.
+        """
         self.plot_data = plot_data
         self.plot_format = metadata["format"]
         self.plot_dict = plot_dict
@@ -111,6 +157,7 @@ class Plotter:
             raise ValueError("self.fig cannot be None.")
 
     def create_figure(self) -> tuple[Figure, list[Axes]]:
+        """Create and return the figure and axes list (subclass hook)."""
         raise NotImplementedError("Implement create_figure. Must return Figure and list[Axes].")
 
     def _ticklabel_size(self, axis: Literal["x", "y"]) -> float:
@@ -119,6 +166,7 @@ class Plotter:
         return labels.get(f"{axis}ticklabel_size", labels.get("ticklabel_size", 12))
 
     def _process_color(self, color, alpha):
+        """Convert a color (or list of colors) to RGBA with the given alpha."""
         if color is None:
             color = "none"
         if isinstance(color, list):
@@ -127,6 +175,7 @@ class Plotter:
             return to_rgba(color, alpha=alpha) if color != "none" else "none"
 
     def _set_grid(self, sub_ax):
+        """Apply the major/minor grid settings to one axes."""
         if self.plot_format["grid"]["ygrid"] > 0:
             sub_ax.yaxis.grid(
                 linewidth=self.plot_format["grid"]["ygrid"],
@@ -162,6 +211,7 @@ class Plotter:
         sub_ax.tick_params(axis="both", which="minor", bottom=False, left=False, zorder=1)
 
     def _plot_axlines(self, line_dict, ax):
+        """Draw the hline/vline reference lines on one axes."""
         for ll in line_dict["lines"]:
             if line_dict["linetype"] == "vline":
                 ax.axvline(
@@ -189,6 +239,7 @@ class Plotter:
         ticks,
         axis: Literal["x", "y"] = "x",
     ):
+        """Set one axis' limits, spine truncation and scale."""
         if axis == "y":
             if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
                 ax.set_ylim(bottom=lim[0], top=lim[1])
@@ -222,6 +273,7 @@ class Plotter:
         axis: Literal["y", "x"] = "x",
         style: Literal["lithos", "default"] = "lithos",
     ):
+        """Format tick positions and labels for one axis (decimals, back-transform, tick window)."""
         if axis == "y":
             if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
                 if self.plot_transforms.get("back_transform_yticks"):
@@ -304,6 +356,7 @@ class Plotter:
         axis: Literal["x", "y"] = "x",
         style: Literal["default", "lithos"] = "lithos",
     ):
+        """Set ticks, limits and minor ticks for one axis (lithos or default style)."""
         if axis == "y":
             ticks = ax.get_yticks()
             if style == "lithos":
@@ -346,6 +399,7 @@ class Plotter:
         transform: str,
         axis: Literal["y", "x"],
     ):
+        """Set evenly spaced minor ticks between the major ticks."""
         ticks = get_backtransform(transform)(ticks)
         mticks = np.zeros((len(ticks) - 1) * nticks)
         for index in range(ticks.size - 1):
@@ -381,6 +435,7 @@ class Plotter:
         )
 
     def _make_legend_patches(self, color_dict, alpha, group, subgroup):
+        """Legend patches (one per group) from a per-group color dict."""
         legend_patches = []
         # for j in group:
         #     if j in color_dict:
@@ -397,6 +452,7 @@ class Plotter:
         return legend_patches
 
     def get_plot_func(self, plot_type):
+        """Map a plot type name to its legacy plot method."""
         if plot_type == "rectangle":
             return self._plot_rectangles
         elif plot_type == "line":
@@ -417,6 +473,7 @@ class Plotter:
             raise ValueError(f"Unsupported plot function: {plot_type}")
 
     def format_plot(self):
+        """Format the axes (subclass hook)."""
         raise NotImplementedError("format_plot() not implemented")
 
     def _marker_line(
@@ -437,6 +494,7 @@ class Plotter:
         direction: Direction = "horizontal",
         **kwargs,
     ):
+        """Draw a line with markers per group (legacy ``marker_line``)."""
         for x, y, ls, lc, lw, fc, ec, m, ms, fi, z in zip(
             x_data,
             y_data,
@@ -483,6 +541,7 @@ class Plotter:
         direction: Direction = "vertical",
         **kwargs,
     ):
+        """Draw histogram-style rectangles (bars) per group."""
         if facet_index is None:
             facet_index = [0] * len(heights)
         for t, b, loc, bw, fc, ec, ht, facet, z in zip(
@@ -538,6 +597,7 @@ class Plotter:
         direction: Direction = "vertical",
         **kwargs,
     ):
+        """Draw per-group jitter markers on a single axes (legacy ``jitter``)."""
         for x, y, mk, mf, me, ms, z in zip(
             x_data, y_data, marker, markerfacecolor, markeredgecolor, markersize, zorder
         ):
@@ -571,6 +631,7 @@ class Plotter:
         ax: list | np.ndarray,
         **kwargs,
     ):
+        """Draw per-group scatter markers, facet-aware (legacy ``scatter``)."""
         for x, y, mk, mf, me, ms, facet, z in zip(
             x_data,
             y_data,
@@ -609,6 +670,7 @@ class Plotter:
         direction: Direction = "vertical",
         **kwargs,
     ):
+        """Draw summary lines with error bars per group (legacy ``summary``)."""
         for xd, yd, e, c, w, z in zip(x_data, y_data, error_data, colors, widths, zorder):
             if direction == "horizontal":
                 yd, xd = xd, yd
@@ -670,6 +732,7 @@ class Plotter:
         direction: Direction = "vertical",
         **kwargs,
     ):
+        """Draw boxplots per group (legacy ``box``)."""
         for x, y, fcs, ecs, z in zip(x_data, y_data, facecolors, edgecolors, zorder):
             props = {
                 "boxprops": {
@@ -722,6 +785,7 @@ class Plotter:
         direction: Direction = "vertical",
         **kwargs,
     ):
+        """Draw half/full/alternating violin densities per group (legacy ``violin``)."""
         if style in {"left", "right"}:
             zorder = zorder[::-1]
         alt = True
@@ -791,6 +855,7 @@ class Plotter:
         linealpha: float | None = None,
         **kwargs,
     ):
+        """Draw lines, error bands and fill-under curves per group (legacy ``line`` family)."""
         for x, y, err, ls, lc, lw, fc, mf, me, mk, fi, z in zip(
             x_data,
             y_data,
@@ -923,6 +988,11 @@ class Plotter:
                 )
 
     def plot_legend(self):
+        """Render a standalone legend figure for the plot's groups.
+
+        Returns:
+            tuple[Figure, Axes]: A figure holding only the legend patches.
+        """
         fig, ax = plt.subplots()
 
         handles = self._make_legend_patches(
@@ -937,6 +1007,7 @@ class Plotter:
         return fig, ax
 
     def _plot(self):
+        """Dispatch every legacy plot type to its plot method."""
         for p in self.plot_data:
             plot_func = self.get_plot_func(p.plot_type)
             p_dict = asdict(p)
@@ -944,6 +1015,14 @@ class Plotter:
             plot_func(**p_dict, ax=self.axes)
 
     def plot(self):
+        """Render the plot data, format the axes and optionally save.
+
+        Returns:
+            tuple[Figure, list[Axes]]: The rendered figure and axes.
+
+        Raises:
+            ValueError: If no figure was created.
+        """
         self._plot()
         self.format_plot()
 
@@ -967,6 +1046,19 @@ class Plotter:
         filetype: str | None = None,
         transparent: bool = False,
     ):
+        """Save a figure to disk.
+
+        Args:
+            path (SavePath): Directory (or full path) to save to; the file
+                name/type are appended unless the path carries a known file
+                suffix.
+            fig (Figure): The figure to save.
+            filename (str | None): File name used when the path is a
+                directory.
+            filetype (str | None): File format used when the path is a
+                directory.
+            transparent (bool): Save with a transparent background.
+        """
         if isinstance(path, str):
             path = Path(path)
         if isinstance(path, Path):
@@ -983,7 +1075,10 @@ class Plotter:
 
 
 class LinePlotter(Plotter):
+    """Continuous-layout renderer: one axes (or one per group when faceting)."""
+
     def create_figure(self) -> tuple[Figure, list[Axes]]:
+        """Create the figure/axes; faceted plots get one axes per group."""
         if self.plot_format["figure"]["nrows"] is None and self.plot_format["figure"]["ncols"] is None:
             nrows = len(self.plot_dict["group_order"]) if self.plot_dict["facet"] else 1
             ncols = 1
@@ -1027,6 +1122,7 @@ class LinePlotter(Plotter):
         return fig, ax
 
     def format_rectilinear(self, ax: Axes | PolarAxes, xdecimals: int, ydecimals: int):
+        """Format a rectilinear axes: spines, ticks/limits, margins, labels."""
         ax.autoscale()
         for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
             if lw == 0:
@@ -1057,6 +1153,7 @@ class LinePlotter(Plotter):
         )
 
     def format_polar(self, ax: PolarAxes):
+        """Format a polar axes (radian tick labels, spine, r-max)."""
         if self.plot_format["axis"]["xunits"] == "radian" or self.plot_format["axis"]["xunits"] == "wradian":
             xticks = ax.get_xticks()
             labels = (
@@ -1116,6 +1213,7 @@ class LinePlotter(Plotter):
         # )
 
     def format_plot(self):
+        """Format every axes (grids, ticks, spines, labels, reference lines)."""
         for p in self.plot_data:
             if p.plot_type == "kde" or p.plot_type == "hist":
                 if self.plot_labels["x"] is not None:
@@ -1180,7 +1278,10 @@ class LinePlotter(Plotter):
 
 
 class CategoricalPlotter(Plotter):
+    """Categorical-layout renderer: one axes with slot positions and tick labels."""
+
     def create_figure(self) -> tuple[Figure, list[Axes]]:
+        """Create a single-axes figure."""
         fig, ax = plt.subplots(
             subplot_kw={"box_aspect": self.plot_format["figure"]["aspect"]},
             figsize=self.plot_format["figure"]["figsize"],
@@ -1189,6 +1290,15 @@ class CategoricalPlotter(Plotter):
         return fig, [ax]
 
     def set_categorical_axis(self, ax, axis="x"):
+        """Set the categorical axis: two-tier group/subgroup ticks and labels.
+
+        Args:
+            ax: The axes to format.
+            axis ("x" | "y"): Which axis is categorical.
+
+        Raises:
+            ValueError: If the label style is unknown.
+        """
         bottom_labels = None
         bottom_ticks = None
         if self.plot_dict["labels"] == "style1":
@@ -1268,6 +1378,7 @@ class CategoricalPlotter(Plotter):
                 sec.tick_params(axis="y", left=False)
 
     def format_plot(self):
+        """Format the categorical axes (spines, grid, ticks, labels, title)."""
         ax = self.axes[0]
 
         direction = "vertical" if self.plot_labels["x"] is None else "horizontal"
