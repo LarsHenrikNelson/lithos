@@ -12,6 +12,7 @@ from lithos import (
 )
 from lithos.plotting.transforms import as_error_pair
 from lithos.stats import ecdf as stats_ecdf
+from lithos.stats import fit as stats_fit
 from lithos.stats import hist as stats_hist
 from lithos.stats import kde as stats_kde
 from lithos.utils import DataHolder, get_transform
@@ -534,10 +535,95 @@ class TestFit:
         assert set(geometry.keys()) == {(0, 2), (0, 3), (1, 2), (1, 3)}
         for gkey, g in geometry.items():
             assert g["x"].shape == g["y"].shape
-            assert g["ci"] is not None
-            assert g["ci"].shape == g["x"].shape
+            assert g["error_low"] is not None
+            assert g["error_low"].shape == g["x"].shape
+            # the ci band is symmetric half-widths
+            np.testing.assert_allclose(g["error_low"], g["error_high"])
+
+    def test_polynomial_fit(self, two_grouping):
+        data, _ = two_grouping
+        geometry = Fit(fit_func="polynomial", fit_args={"degree": 3}, ci_func="ci")(
+            _holder(data), y="y", x="x", levels=("grouping_1", "grouping_2")
+        )
+        for gkey, g in geometry.items():
+            assert g["x"].shape == g["y"].shape == (30,)
+            assert g["error_low"] is not None
+            assert g["error_low"].shape == g["x"].shape
+
+    def test_no_ci_func(self, one_grouping):
+        data, _ = one_grouping
+        geometry = Fit(ci_func=None)(_holder(data), y="y", x="x", levels=("grouping_1",))
+        for gkey, g in geometry.items():
+            assert g["error_low"] is None
+            assert g["error_high"] is None
+            assert g["n"] == 30
+
+    def test_bootstrap_ci_pair(self, one_grouping):
+        data, _ = one_grouping
+        geometry = Fit(ci_func="bootstrap_ci")(_holder(data), y="y", x="x", levels=("grouping_1",))
+        for gkey, g in geometry.items():
+            assert g["error_low"].shape == g["x"].shape
+            assert g["error_high"].shape == g["x"].shape
+            assert np.all(g["error_low"] >= 0)
+            assert np.all(g["error_high"] >= 0)
 
     def test_requires_x(self, one_grouping):
         data, _ = one_grouping
         with pytest.raises(ValueError):
             Fit()(_holder(data), y="y", x=None)
+
+    def test_agg_func_requires_unique_id(self, one_grouping):
+        data, _ = one_grouping
+        with pytest.raises(ValueError, match="unique_id"):
+            Fit(agg_func="mean")(_holder(data), y="y", x="x", levels=("grouping_1",))
+
+    def test_too_few_points_raises(self):
+        data = {"grouping_1": [0, 0, 0, 0], "x": [0.0, 1.0, 2.0, 3.0], "y": [1.0, 2.0, 3.0, 4.0]}
+        # degree 3 has 4 parameters; 4 points cannot fit them
+        with pytest.raises(ValueError, match="more points"):
+            Fit(fit_func="polynomial", fit_args={"degree": 3})(_holder(data), y="y", x="x", levels=("grouping_1",))
+
+    def test_constant_x_collapses_to_mean(self):
+        data = {"grouping_1": [0] * 6, "x": [3.0] * 6, "y": [1.0, 2.0, 4.0, 5.0, 8.0, 10.0]}
+        geometry = Fit()(_holder(data), y="y", x="x", levels=("grouping_1",))
+        g = geometry[(0,)]
+        # slope 0 with the mean as intercept: a constant fit
+        np.testing.assert_allclose(g["y"], np.mean(data["y"]))
+        # the interval is the mean's CI: a constant band
+        assert np.all(g["error_low"] == g["error_low"][0])
+        assert np.all(g["error_high"] == g["error_high"][0])
+        np.testing.assert_allclose(g["error_low"], g["error_high"])
+        assert g["n"] == 6
+
+    def test_unique_id_per_subject(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        geometry = Fit(unique_id="unique_grouping")(_holder(data), y="y", x="x", levels=("grouping_1",))
+        # nested (group, uid) keys: one fit per subject
+        assert all(len(key) == 2 for key in geometry)
+        for gkey, g in geometry.items():
+            assert g["x"].shape == g["y"].shape
+            assert g["error_low"].shape == g["x"].shape
+            assert g["n"] == g["x"].size
+
+    def test_unique_id_aggregated(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        geometry = Fit(unique_id="unique_grouping", agg_func="mean", err_func="sem")(
+            _holder(data), y="y", x="x", levels=("grouping_1",)
+        )
+        assert all(len(key) == 1 for key in geometry)
+        mask = np.asarray(data["grouping_1"]) == 0
+        xv = np.asarray(data["x"], dtype=float)[mask]
+        yv = np.asarray(data["y"], dtype=float)[mask]
+        uid = np.asarray(data["unique_grouping"])[mask]
+        uids = np.unique(uid)
+        grid = np.linspace(xv.min(), xv.max(), num=100)
+        for gkey, g in geometry.items():
+            assert g["x"].shape == (100,)  # shared grid
+            assert g["y"].shape == (100,)
+            assert g["error_low"].shape == (100,)
+            assert g["n"] == uids.size  # subjects
+        # manual aggregation: per-subject fits on the shared grid, mean/sem across subjects
+        hold = np.vstack([stats_fit("linear", x=xv[uid == u], y=yv[uid == u], fit_x=grid)[1] for u in uids])
+        np.testing.assert_allclose(geometry[(0,)]["x"], grid)
+        np.testing.assert_allclose(geometry[(0,)]["y"], hold.mean(axis=0))
+        np.testing.assert_allclose(geometry[(0,)]["error_low"], get_transform("sem")(hold, axis=0))

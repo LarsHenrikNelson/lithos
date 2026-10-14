@@ -76,7 +76,7 @@ element computes values.
 | `Histogram` | `bins, bin_limits, stat` + `unique_id, agg_func, err_func` | `{edges, height, binwidth, centers, stat, n}`. `bin_limits`: `None` = per-group auto range, `"common"` = global shared edges, `(low, high)` = explicit range. With `unique_id`: per-group shared edges per subject; with `agg_func`: per-subject heights aggregated per group with per-bin errors (integer `bins`) |
 | `ECDF` | `ecdf_type, ecdf_args` + `unique_id, agg_func, err_func` | `{x, y, n}` per group/subject. With `unique_id` + `agg_func` (spline): shared probability grid, `x` = aggregated quantile values (legacy axis swap): `{x, y, error_low, error_high, n}` |
 | `Summary` | `func, err_func, whisker, whisker_quantiles, notch` | `{center, mean, median, q1, q3, whisker_low, whisker_high, error_low, error_high, notch_low, notch_high, n}` |
-| `Fit` | `fit_func, ci_func, fit_args` | `{x, y, ci, n}` |
+| `Fit` | `fit_func, ci_func, fit_args, unique_id, agg_func, err_func` | `{x, y, error_low, error_high, n}` — fit grid `x`, fitted `y`, and CI half-widths as symmetric `error_low`/`error_high` (`None` without a `ci_func`; replaces the orphan `ci` key so `ErrorBand` renders fit bands without special-casing). With `unique_id` and `agg_func=None`: one geometry per subject (nested `(group..., uid)` keys) — per-subject fits with per-subject CI. With `unique_id` + `agg_func`: shared `linspace(min(group x), max(group x), 100)` grid, `agg_func` across subject curves, `err_func` per-grid-point errors — legacy `fit(unique_id=...)` parity. `n` = fitted points, or subjects in the aggregated branch |
 
 Error normalization contract: error funcs must return a scalar or a (low, high)
 pair; `Aggregate`/`Summary` normalize both to `error_low`/`error_high`.
@@ -196,6 +196,22 @@ Notes:
   exposed as `how="auto"|"groupby"|"matrix"`, not a statistical contract.
   Geometry is always arrays so elements/resolvers index uniformly whether
   there is one value per group (bars) or one per unique x (aggline).
+- The `Fit` stats layer is unified on numpy's `Polynomial` model:
+  `fit_func="linear"` is a degree-1 `Polynomial` fit (scipy `linregress`
+  removed; slope/intercept come from the coefficients), `"polynomial"` takes
+  `degree` via `fit_args` (the `"polynimial"` `FIT_DICT` key typo is fixed),
+  and sine keeps scipy `curve_fit` with its residual computation fixed.
+  CI machinery is generalized to the model: `dof = n - n_params` (linear 2,
+  polynomial `degree + 1`, sine 4) and `bootstrap_ci` refits the
+  `Polynomial` model per resample (works for linear and polynomial; constant
+  x resamples collapse to the resampled mean). `CIFunc` gains
+  `"bootstrap_ci"`. Validation: a fit raises `ValueError` when the number of
+  points is not greater than the number of fit parameters. Constant-x
+  bifurcation: a linear/polynomial fit with all-identical x collapses to
+  slope 0 / intercept `mean(y)` and the interval becomes the mean's CI
+  (`t * s_err / sqrt(n)`; the prediction interval adds 1 under the root,
+  `dof = n - 1`) — a constant band instead of a division by zero. Sine
+  raises on constant x (its FFT-based initial guess needs x spacing).
 - `Fill` is the single source of fill styling (including hatch) for density
   fill-under curves and bar faces. `ErrorBand` is strictly the center +/- error
   band. No `Connector`: paired connectors are just `Line`

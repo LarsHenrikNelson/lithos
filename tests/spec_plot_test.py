@@ -24,7 +24,7 @@ from lithos.plotting.spec.metadata import (
 )
 from lithos.plotting.spec.plotter import SpecPlotter
 from lithos.plotting.spec.resolver import locate_key, resolve_layers
-from lithos.plotting.transforms import Aggregate, Identity
+from lithos.plotting.transforms import Aggregate, Fit, Identity
 from lithos.utils import DataHolder
 
 
@@ -688,6 +688,33 @@ class TestRenderSmoke:
         plot.plot(y="y", x="x", data=data)
 
         assert len(plot.plotter.axes) == 3
+
+    def test_render_continuous_fit(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot().grouping(group="grouping_1").labels(ylabel="value").add(Fit(), Line(), ErrorBand())
+        plot.plot(y="y", x="x", data=data)
+
+        assert plot.plotter is not None
+        assert len(plot.plotter.axes) == 1
+        # the fit line and the interval band both draw
+        assert len(plot.plotter.axes[0].lines) == 3
+        assert len(plot.plotter.axes[0].collections) == 3
+
+    def test_render_continuous_fit_polynomial(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot().grouping(group="grouping_1")
+        plot.add(Fit(fit_func="polynomial", fit_args={"degree": 3}), Line())
+        plot.plot(y="y", x="x", data=data)
+
+        assert plot.plotter.axes[0].has_data()
+
+    def test_render_continuous_fit_aggregated(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        plot = LinePlot().grouping(group="grouping_1")
+        plot.add(Fit(unique_id="unique_grouping", agg_func="mean", err_func="sem"), Line(), ErrorBand())
+        plot.plot(y="y", x="x", data=data)
+
+        assert plot.plotter.axes[0].has_data()
 
     def test_render_categorical(self, one_grouping):
         data, _ = one_grouping

@@ -28,7 +28,13 @@ Geometry contract per transform:
   ``n`` = subjects, errors per grid point/bin
 - ``Summary``: ``{center, mean, median, q1, q3, whisker_low, whisker_high,
   error_low, error_high, notch_low, notch_high, n}``
-- ``Fit``: ``{x, y, ci, n}``
+- ``Fit``: ``{x, y, error_low, error_high, n}`` — the fit grid, fitted values
+  and interval offsets (symmetric half-widths for ``"ci"``/``"pi"``, a
+  ``(low, high)`` pair for ``"bootstrap_ci"``; ``None`` without a
+  ``ci_func``). With ``unique_id``: one geometry dict per subject (nested
+  keys); with ``unique_id`` + ``agg_func``: per-subject fits on a shared
+  ``linspace(min(x), max(x), 100)`` grid aggregated across subjects,
+  ``err_func`` giving per-grid-point errors (``n`` = subjects)
 
 Error normalization contract: an error function must return a scalar
 (symmetric) or a pair ``(low, high)``; transforms normalize both to
@@ -1003,28 +1009,47 @@ class Summary(Transform):
 
 @dataclass
 class Fit(Transform):
-    """Fit a function to x/y per group and return the fit line + CI band.
+    """Fit a function to x/y per group and return the fit line + interval band.
 
     ``fit_func`` selects a built-in fit by name (linear regression, sine,
     polynomial) or any callable; extra keyword arguments for the fit live in
-    ``fit_args`` (e.g. ``degree``). ``ci_func`` selects the interval around
-    the fit (confidence interval, prediction interval, bootstrap confidence
-    interval) or ``None`` for no band.
+    ``fit_args`` (e.g. ``degree`` for polynomial fits). ``ci_func`` selects
+    the interval around the fit (confidence interval, prediction interval,
+    bootstrap confidence interval) or ``None`` for no band.
 
-    Geometry per group: ``{x, y, ci, n}`` - ``x`` is the fit grid, ``y`` the
-    fitted values, and ``ci`` the (low, high) interval offsets (``None``
-    without a ``ci_func``).
+    ``unique_id`` fits per subject: without ``agg_func`` every subject gets
+    its own fit (one geometry dict per ``(group..., uid)`` nested key, with a
+    per-subject interval); with ``agg_func`` the per-subject fits are
+    evaluated on a shared ``linspace(min(x), max(x), 100)`` grid over the
+    group's x range and aggregated across subjects, ``err_func`` giving
+    per-grid-point errors (legacy ``LinePlot.fit(unique_id=...)`` parity).
+
+    Geometry per group: ``{x, y, error_low, error_high, n}`` - ``x`` is the
+    fit grid, ``y`` the fitted values, and ``error_low``/``error_high`` the
+    interval offsets (symmetric half-widths for ``"ci"``/``"pi"``, a
+    ``(low, high)`` pair for ``"bootstrap_ci"``; ``None`` without a
+    ``ci_func``, or the ``err_func`` offsets in the aggregated branch); ``n``
+    is the number of fitted points, or the number of subjects in the
+    aggregated branch.
 
     Attributes:
         fit_func (FitFunc): Built-in fit name or callable.
         ci_func (CIFunc): Interval type around the fit, or ``None``.
         fit_args (dict): Extra keyword arguments passed to the fit function.
+        unique_id (str | None): Subject column; fits per subject when given.
+        agg_func (Agg | None): Aggregation across the per-subject fits
+            (requires ``unique_id``).
+        err_func (Error | None): Error across the per-subject fits per grid
+            point (aggregated branch).
     """
 
     name: str = "fit"
     fit_func: FitFunc = "linear"
     ci_func: CIFunc = "ci"
     fit_args: dict = field(default_factory=dict)
+    unique_id: str | None = None
+    agg_func: Agg | None = None
+    err_func: Error = None
 
     def __call__(
         self,
@@ -1036,7 +1061,7 @@ class Fit(Transform):
         xtransform: Transform | None = None,
         **kwargs,
     ) -> dict[tuple, dict]:
-        """Compute the fit line and CI band per group.
+        """Compute the fit line and interval band per group (or per subject).
 
         Args:
             data (DataHolder): The input data.
@@ -1047,28 +1072,96 @@ class Fit(Transform):
             xtransform (Transform | None): Transform applied to x values.
 
         Returns:
-            dict[tuple, dict]: ``{group_key: {x, y, ci, n}}``.
+            dict[tuple, dict]: ``{group_key: fit geometry}``; see the class
+            docstring for the geometry contract.
 
         Raises:
-            ValueError: If ``x`` or ``y`` is not given.
+            ValueError: If ``x`` or ``y`` is not given, or ``agg_func`` is
+                set without ``unique_id``.
         """
         if x is None or y is None:
             raise ValueError("Fit requires both x and y columns.")
+        if self.agg_func is not None and self.unique_id is None:
+            raise ValueError("Fit agg_func requires unique_id to fit per subject.")
         output = {}
-        for group_key, indexes in self._groups(data, levels).items():
+        groups = self._groups(data, levels)
+        unique_groups = data.groups(tuple(levels) + (self.unique_id,)) if self.unique_id is not None else None
+        for group_key, indexes in groups.items():
             xv = _get_column_values(data, indexes, x, xtransform)
             yv = _get_column_values(data, indexes, y, ytransform)
-            fit_output = fit(
-                self.fit_func,
-                x=xv,
-                y=yv,
-                ci_func=self.ci_func,
-                **self.fit_args,
-            )
-            output[group_key] = {
-                "x": fit_output[2],
-                "y": fit_output[1],
-                "ci": fit_output[3],
-                "n": int(xv.size),
-            }
+            if self.unique_id is None:
+                fit_output = fit(self.fit_func, x=xv, y=yv, ci_func=self.ci_func, **self.fit_args)
+                low, high = self._interval_pair(fit_output[3])
+                output[group_key] = {
+                    "x": np.asarray(fit_output[2], dtype=float),
+                    "y": np.asarray(fit_output[1], dtype=float),
+                    "error_low": low,
+                    "error_high": high,
+                    "n": int(xv.size),
+                }
+            else:
+                uids = np.unique(data[indexes, self.unique_id])
+                if self.agg_func is None:
+                    # one fit per subject (nested group keys), per-subject interval
+                    for uid in uids:
+                        sub_indexes = unique_groups[group_key + (uid,)]
+                        sub_x = _get_column_values(data, sub_indexes, x, xtransform)
+                        sub_y = _get_column_values(data, sub_indexes, y, ytransform)
+                        fit_output = fit(self.fit_func, x=sub_x, y=sub_y, ci_func=self.ci_func, **self.fit_args)
+                        low, high = self._interval_pair(fit_output[3])
+                        output[group_key + (uid,)] = {
+                            "x": np.asarray(fit_output[2], dtype=float),
+                            "y": np.asarray(fit_output[1], dtype=float),
+                            "error_low": low,
+                            "error_high": high,
+                            "n": int(sub_x.size),
+                        }
+                else:
+                    # per-subject fits on a shared grid, aggregated across subjects (legacy parity)
+                    grid = np.linspace(np.min(xv), np.max(xv), num=100)
+                    hold = np.zeros((uids.size, grid.size))
+                    for uindex, uid in enumerate(uids):
+                        sub_indexes = unique_groups[group_key + (uid,)]
+                        sub_x = _get_column_values(data, sub_indexes, x, xtransform)
+                        sub_y = _get_column_values(data, sub_indexes, y, ytransform)
+                        fit_output = fit(
+                            self.fit_func,
+                            x=sub_x,
+                            y=sub_y,
+                            fit_x=grid,
+                            ci_func=self.ci_func,
+                            **self.fit_args,
+                        )
+                        hold[uindex, :] = fit_output[1]
+                    center = np.asarray(get_transform(self.agg_func)(hold, axis=0), dtype=float)
+                    low, high = self._subject_error(hold)
+                    output[group_key] = {
+                        "x": grid,
+                        "y": center,
+                        "error_low": low,
+                        "error_high": high,
+                        "n": int(uids.size),
+                    }
         return output
+
+    def _interval_pair(self, ci) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """Normalize a fit interval output to per-grid-point (low, high) offsets.
+
+        ``"ci"``/``"pi"`` return symmetric half-widths; ``"bootstrap_ci"``
+        returns a ``(2, n)`` ``(low, high)`` pair; ``None`` stays ``None``.
+        """
+        if ci is None:
+            return None, None
+        ci = np.asarray(ci, dtype=float)
+        if ci.ndim == 2 and ci.shape[0] == 2:
+            return ci[0], ci[1]
+        return ci, ci.copy()
+
+    def _subject_error(self, hold: np.ndarray) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """Normalize ``err_func`` output across subjects to per-grid-point (low, high)."""
+        if self.err_func is None:
+            return None, None
+        error = np.asarray(get_transform(self.err_func)(hold, axis=0), dtype=float)
+        if error.ndim == 2 and error.shape[0] == 2:
+            return error[0], error[1]
+        return error, error.copy()
