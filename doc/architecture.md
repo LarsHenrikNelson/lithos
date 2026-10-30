@@ -28,7 +28,7 @@ Stats                   lithos.stats (pure functions: kde, ecdf, histogram, curv
 Dependency direction is strictly downward: plot classes -> processors -> stats/transforms.
 `lithos/stats` must stay free of `lithos.plotting` imports. Do not introduce cycles.
 
-## New element/transform API (Phase 1, in progress)
+## New element/transform API (Phase 2, in progress)
 
 - `lithos/plotting/elements.py` — formatting-only dataclasses (`Line`, `Marker`, `Bar`,
   `Fill`, `ErrorBand`, `ErrorBar`, `Annotation`) that

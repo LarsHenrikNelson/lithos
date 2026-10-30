@@ -4,7 +4,8 @@ This document captures the architecture target and the step-by-step migration
 away from the verbose per-method plotting API (`LinePlot.line()`,
 `CategoricalPlot.jitter()`, ...) toward an element/transform API. It exists to
 keep the refactor reviewable and to pin down design decisions *before* large
-amounts of code are written.
+amounts of code are written. Phases below are marked **done** / **(current)** /
+pending as the migration proceeds; the catalogs describe the API as built.
 
 ## Motivation
 
@@ -25,7 +26,7 @@ User API (plot classes)
   .add(transform, *elements)          + high-level sugar methods
         |
         v
-Transforms  (pure stats: Identity, Aggregate, Density, Summary, Fit)
+Transforms  (pure stats: Identity, Aggregate, KDE, Histogram, ECDF, Summary, Fit)
         |
         v
 Position resolver (shared; replaces line/categorical processor split)
@@ -43,7 +44,7 @@ Aggregation and error computation live once in the **transform**. Elements are
 pure formatting and never compute statistics. Consequence:
 
 ```python
-.add(Aggregate(func="mean", error="sem"), Marker(), ErrorBar(), ErrorBand())
+.add(Aggregate(func="mean", err_func="sem"), Marker(), ErrorBar(), ErrorBand())
 ```
 
 draws the marker, error bar, and error band from the *single* error geometry
@@ -57,9 +58,18 @@ other.
 | `Line` | `linecolor, linestyle, linewidth, linealpha` | joined lines (incl. paired connectors) |
 | `Marker` | `marker, markercolor, edgecolor, markeredgewidth, markersize, alpha, edge_alpha` | points at geometry |
 | `Bar` | `edgecolor, barwidth, linewidth, edge_alpha` | rectangle outlines (hist bars, categorical bars) |
-
 | `Fill` | `fillcolor, fillalpha, hatch, edgecolor, edgealpha` | filled regions (density fill-under, bar faces); the single source of fill styling |
 | `ErrorBand` | `fillcolor, fillalpha, edgecolor, edgealpha, linewidth` | shaded band between center +/- error bounds |
+| `ErrorBar` | `linecolor, linealpha, linewidth, capsize, capstyle` | capped error bars around a center (also box-plot whiskers over `Summary` geometry) |
+| `SummaryLine` | `linecolor, linewidth, linealpha, capstyle` | short line across an aggregate center (legacy `summary`/`summaryu` line); the length comes from the layer `width` in `.add()` (slot fraction, default 0.9; `unique_id`-nested lines fill their subject column) |
+| `Annotation` | `text, x, y, fontsize, color, ha, va, rotation` | free text |
+
+Every element also carries a `zorder` field (`int | float | None`; `None` = the
+plotter default, with layers stacking in `.add()` order), and a `type` ClassVar
+that identifies the element in serialized specs but is not an `__init__` field.
+There is deliberately no `Whisker` element: box-plot whiskers render through
+`ErrorBar` over the `whisker_low`/`whisker_high` geometry the `Summary`
+transform already computes.
 
 ## Transform catalog and geometry contract
 
@@ -83,39 +93,63 @@ pair; `Aggregate`/`Summary` normalize both to `error_low`/`error_high`.
 
 ## Migration phases
 
-### Phase 0 - Spec foundation (current)
+### Phase 0 - Spec foundation (done)
 - `lithos/plotting/elements.py` (element dataclasses, `to_spec()`)
-- `lithos/plotting/transforms.py` (transform dataclasses over `lithos/stats`)
-- Unit tests: element serialization; transform geometry contracts on synthetic
-  grouped data.
+- `lithos/plotting/transforms.py` (transform dataclasses over `lithos.stats`)
+- Unit tests: element serialization (`tests/elements_test.py`); transform
+  geometry contracts on synthetic grouped data (`tests/transforms_test.py`).
 - Exit: both modules import cleanly, tests green, zero behavior change.
 
-### Phase 1 - `Plot` prototype
-- Single `Plot(data, layout="continuous"|"categorical")` class with
-  `.grouping()`, `.add(transform, *elements)`, `.plot()`.
-- Position resolution in the spec resolver (modes: passthrough / dodge). Point
-  spread within a categorical slot is a per-layer concern: `width` (fraction of
-  the slot; 0 = slot center), `jitter_type`, `seed` in `.add()`. Transforms
-  nesting by `unique_id` place one even column per subject across the width
-  (legacy `jitteru`/`summaryu` positions) — decided, no `dodge_group`/
-  `dodge_subgroup` layout knobs.
+### Phase 1 - `Plot` prototype (done)
+- `lithos/plotting/spec/` package: `base.py` (the `Plot` base class with
+  `.grouping()`, `.labels()`, `.add()`, `.transform()`, `process_data()`,
+  `.plot()` and metadata save/load), `line.py` / `categorical.py` (the layout
+  subclasses), `resolver.py`, `plotter.py`, `metadata.py` and
+  `significance.py`.
+- Landed as two layout classes rather than a single `Plot(layout=...)`:
+  `LinePlot` (continuous axes; default position `passthrough`, plus
+  `.facet()`) and `CategoricalPlot` (default position `dodge`, positions
+  `passthrough`/`dodge`, plus `.spacing()` / `.categorical_labels()`).
+- `.add(transform, *elements, position=, width=, jitter_type=, seed=)` holds
+  raw transform/element objects; all geometry is computed in a single
+  `Plot._process_data()` pass at plot time (also exposed as the public
+  `process_data()`), so `.grouping()`/`.transform()` calls made after `.add()`
+  are honored. A `unique_id` that collides with a grouping column raises
+  `ValueError` (nesting keys would collide with the group slots).
+- Point spread within a categorical slot is a per-layer concern: `width`
+  (fraction of the slot; 0 = slot center), `jitter_type`, `seed` in `.add()`.
+  Transforms nesting by `unique_id` place one even column per subject across
+  the width (legacy `jitteru`/`summaryu` positions) — decided, no
+  `dodge_group`/`dodge_subgroup` layout knobs. Single-value-per-group geometry
+  (aggregate centers) stays anchored at the slot center.
 - Categorical layout: group clusters span a fixed 1 unit; `.spacing(pitch=)`
   is the distance between group centers (unlike legacy `group_spacing`, which
   was really the cluster width). The layout context still passes
   `group_spacing=1.0` for the legacy axis-margin math.
-- `SpecPlotter` (matplotlib) mapping element dicts -> existing `_plot_*`
-  renderers. `metadata()`/save/load extended with the element spec.
+- `SpecPlotter` (matplotlib) maps element dicts -> the existing `_plot_*`
+  renderers. Metadata is version-3 JSON saved/loaded via
+  `save_metadata()`/`load_metadata()`; it stores pure layer specs (no
+  geometry) and `load_metadata` recomputes geometry by replaying `.add()`
+  against the data.
 - Exit: prototype renders a categorical and a continuous example.
 
-### Phase 2 - Method family ports (dual API; legacy untouched)
+### Phase 2 - Method family ports (current; dual API, legacy untouched)
 Port one family at a time, each time asserting parity between the element-spec
 pipeline and the legacy processor output:
 
-1. scatter/jitter/paired -> `Identity` + `Marker` (+ `Line`)
-2. summary/bar/aggline/summaryu -> `Aggregate` + elements
-3. kde/hist/ecdf/violin/percent -> `KDE`/`Histogram`/`ECDF` + elements
-4. box -> `Summary` + `Bar`/`Fill`/`Line`/`Marker`
-5. fit -> `Fit` + `Line` + `ErrorBand`
+1. done - scatter/jitter/paired -> `Identity` + `Marker` (+ `Line`);
+   parity in `tests/processing/paired_parity_test.py`.
+2. in progress - summary/bar/aggline/summaryu -> `Aggregate` +
+   `SummaryLine`/`ErrorBar`/`Bar`/`Fill`; the `SummaryLine` element landed,
+   processor parity tests pending.
+3. pending - kde/hist/ecdf/violin/percent -> `KDE`/`Histogram`/`ECDF` +
+   elements (the transforms themselves are landed and tested in
+   `tests/transforms_test.py`; the parity port is pending).
+4. pending - box -> `Summary` + `Bar`/`Fill`/`Line`/`Marker`/`ErrorBar`
+   (no `Whisker` element: whiskers render via `ErrorBar` over the
+   `whisker_low`/`whisker_high` geometry `Summary` already computes).
+5. done - fit -> `Fit` + `Line` + `ErrorBand`; parity in
+   `tests/processing/fit_parity_test.py`.
 
 Parity tests live in `tests/processing/` and compare `Plot.add(...)` processed
 geometry to the legacy `LineProcessor`/`CategoricalProcessor` output for the
@@ -125,7 +159,8 @@ same inputs and defaults.
 - Remove legacy methods (or keep as thin aliases if still in use).
 - Merge `LineProcessor`/`CategoricalProcessor` into the shared resolver.
 - Decide `LinePlot`/`CategoricalPlot` fate: either thin facades over
-  `Plot(layout=...)` or removed entirely (open question, revisit after Phase 1).
+  `Plot(layout=...)` or removed entirely (open question, revisit after
+  Phase 2).
 
 ## Open questions (parked until their phase)
 
@@ -135,11 +170,6 @@ same inputs and defaults.
   (resolved: `Histogram(bin_limits="common")` computes global edges, shared
   by every group/subject hist).
 - Whether `LinePlot`/`CategoricalPlot` survive as facades (Phase 3).
-
-| `ErrorBar` | `linecolor, linealpha, linewidth, capsize, capstyle` | caps error bars |
-| `SummaryLine` | `linecolor, linewidth, linealpha, capstyle` | short line across an aggregate center (legacy `summary`/`summaryu` line); the length comes from the layer `width` in `.add()` (slot fraction, default 0.9; `unique_id`-nested lines fill their subject column) |
-| `Whisker` | `linecolor, linealpha, linewidth, capsize, capstyle` | whisker lines from quantile geometry |
-| `Annotation` | `text, x, y, fontsize, color, ha, va, rotation` | free text |
 
 ## Layout decorations (`add_axline`, `add_significance`)
 
