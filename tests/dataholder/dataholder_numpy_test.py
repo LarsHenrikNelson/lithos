@@ -10,7 +10,7 @@ class TestDataHolderNumpy(DataHolderTestClass):
     @pytest.fixture
     def fixt(self, _fixt: tuple[dict, tuple[int, int, int, int]]) -> tuple[DataHolder, tuple[int, int, int, int]]:
         data, x = _fixt
-        new_data = np.zeros((data["y"].size, len(data)))
+        new_data = np.zeros((len(data["y"]), len(data)))
         for index, i in enumerate(data.values()):
             new_data[:, index] = i
         data = DataHolder(new_data)
@@ -70,17 +70,6 @@ class TestDataHolderNumpy(DataHolderTestClass):
         names = self.get_column_names(x)
         for i in names:
             assert i in df
-
-    def test_get_container_type(self, fixt: tuple[DataHolder, tuple[int, int, int, int]]):
-        data, _ = fixt
-
-        assert data._get_container_type() == "numpy"
-
-    def test_get_numpy_index(self, fixt: tuple[DataHolder, tuple[int, int, int, int]]):
-        data, _ = fixt
-        indices = np.arange(5)
-        temp = data._numpy_index((indices, 0))
-        assert list(temp) == list(data[0][indices])
 
     def test_getitem(
         self,

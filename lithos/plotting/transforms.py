@@ -476,10 +476,13 @@ class Aggregate(Transform):
         for indexes in groups.values():
             uid_vals = np.asarray(data[indexes, self.unique_id])
             x_vals = np.asarray(data[indexes, x])
-            if indexes.size != np.unique(uid_vals).size * np.unique(x_vals).size:
+            uids = np.unique(uid_vals)
+            xs = np.unique(x_vals)
+            if indexes.size != uids.size * xs.size:
                 return False
-            pairs = np.unique(np.stack([x_vals, uid_vals], axis=1), axis=0)
-            if pairs.shape[0] != indexes.size:
+            # slot-uniqueness is dtype-agnostic (np.unique(axis=0) fails on object columns)
+            slots = np.searchsorted(uids, uid_vals) * xs.size + np.searchsorted(xs, x_vals)
+            if np.unique(slots).size != indexes.size:
                 return False
         return True
 
@@ -499,14 +502,17 @@ class Aggregate(Transform):
         yvals = _get_column_values(data, indexes, y, ytransform)
         xs = np.unique(x_vals)
         uids = np.unique(uid_vals)
-        pairs = np.unique(np.stack([x_vals, uid_vals], axis=1), axis=0)
-        if indexes.size != uids.size * xs.size or pairs.shape[0] != indexes.size:
+        rows = np.searchsorted(uids, uid_vals)
+        cols = np.searchsorted(xs, x_vals)
+        # slot-uniqueness is dtype-agnostic (np.unique(axis=0) fails on object columns)
+        slots = rows * xs.size + cols
+        if indexes.size != uids.size * xs.size or np.unique(slots).size != indexes.size:
             raise ValueError(
                 "Aggregate how='matrix' requires every unique_id to share the same x grid "
                 "(each (unique_id, x) pair appearing at most once); use how='groupby' or 'auto'."
             )
         matrix = np.full((uids.size, xs.size), np.nan)
-        matrix[np.searchsorted(uids, uid_vals), np.searchsorted(xs, x_vals)] = yvals
+        matrix[rows, cols] = yvals
         if self.err_func is not None:
             error = np.asarray(get_transform(self.err_func)(matrix, axis=0), dtype=float)
             error_low = error_high = error

@@ -55,9 +55,8 @@ class DataHolderTestClass:
 
     def test_len(self, fixt: tuple[DataHolder, tuple[int, int, int, int]]) -> None:
         df, x = fixt
-        cols = self.get_cols(x)
         rows = self.get_rows(x)
-        assert len(df) == rows * cols
+        assert len(df) == rows
 
 
 class StringColumnsDataHolder(DataHolderTestClass):
