@@ -102,6 +102,25 @@ its maximum spans `width` x the slot extent around the position
 elements over violin geometry raise until their Phase 2 port, and the legacy
 split/alternate violin styles remain pending.
 
+Density parity (`tests/processing/density_parity_test.py`) pins the shared
+computation between `Plot.add(KDE()/Histogram(), ...)` and the legacy
+`_kde`/`_hist`/`_violin` processors, with explicit parameters where defaults
+deliberately differ: legacy `kde` defaults `bw="silverman"` (transform:
+`"ISJ"`), legacy `hist` defaults `stat="count"` (transform: `"density"`),
+legacy `violin` defaults `kde_length=128` (transform: `None`). Parity only
+sets the matching axis transform (the legacy transform-crossing bug would
+otherwise compare against wrongly-transformed geometry). Known positional
+divergences, documented in the test: subgrouped violins (legacy width is
+absolute axis units; the resolver scales by the slot extent) and nested
+violins (legacy `overlap` stacks subjects on the slot center; the resolver
+places even columns). Legacy `_hist` also computes the auto bin range from
+the first group and reuses it for every later group, while the transform
+computes true per-group ranges — histogram parity therefore pins
+`bin_limits="common"` (global edges, identical on both sides). The legacy
+per-subject hist branch additionally double-truncates the bin edges (it
+appends left edges where every other branch appends full edges), silently
+dropping the last bin; the transform keeps every bin.
+
 | Transform | Parameters | Geometry per group |
 | --- | --- | --- |
 | `Identity` | `unique_id` | `{n, x?, y?}` — at least one of x/y; the omitted axis is supplied by the position resolver (jitter/dodge; horizontal layouts use `x` only). With `unique_id`: one geometry dict per subject's ordered series (paired connectors), sorted by `x` when given, with pair-completeness validation |

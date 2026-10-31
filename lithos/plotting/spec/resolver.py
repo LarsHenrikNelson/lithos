@@ -238,8 +238,15 @@ def resolve_layer(layer: dict, context: dict) -> dict:
     unique_id = _layer_unique_id(layer)
     value_axis = _layer_value_axis(layer)
     violin = categorical and _layer_transform_name(layer) == "kde"
+    # even columns apply only to keys nested beyond the grouping levels
+    # (per-subject geometry); aggregated group-level keys resolve like flat keys
+    levels_size = len(context.get("levels", ()))
     columns = (
-        _even_columns(layer["geometry"], context, layer.get("width", 0.0) * context.get("width", 1.0))
+        _even_columns(
+            [key for key in layer["geometry"] if len(key) > levels_size],
+            context,
+            layer.get("width", 0.0) * context.get("width", 1.0),
+        )
         if categorical and unique_id is not None
         else {}
     )
