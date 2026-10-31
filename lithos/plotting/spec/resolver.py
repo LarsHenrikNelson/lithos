@@ -22,6 +22,14 @@ Position modes (per ``.add()`` layer):
   - ``width > 0`` with ``unique_id``-nested geometry: one even column per
     subject across the width — deterministic, no randomness (legacy
     ``jitteru``/``summaryu``).
+
+Density orientation: ``KDE``/``Histogram`` layers carry a resolved
+``value_axis`` (the axis of the layer's value column — ``y`` or ``x``);
+renderers place the values on that axis so horizontal and vertical density
+plots work like ``Identity``/``Summary`` horizontal layouts. On categorical
+layouts a ``KDE`` layer resolves to *violin* geometry instead: values on the
+value axis, the density normalized to the layer ``width`` around the slot
+position (``unique_id``-nested keys: around their even column).
 """
 
 from collections import defaultdict
@@ -98,6 +106,27 @@ def _layer_unique_id(layer: dict):
     return getattr(transform, "unique_id", None)
 
 
+def _layer_transform_name(layer: dict) -> str | None:
+    """The transform name of a layer spec (``"kde"``, ``"histogram"``, ...)."""
+    transform = layer.get("transform")
+    if isinstance(transform, dict):
+        return transform.get("name")
+    return getattr(transform, "name", None)
+
+
+def _layer_value_axis(layer: dict) -> str | None:
+    """The value axis of a density layer: ``"y"`` or ``"x"``; ``None`` otherwise.
+
+    Density geometry is canonical (``x`` holds the evaluated values, ``y``
+    the density); the value column's axis decides the render orientation.
+    ``ECDF`` stays canonical (values on x, probabilities on y) and therefore
+    has no value axis.
+    """
+    if _layer_transform_name(layer) not in ("kde", "histogram"):
+        return None
+    return "y" if layer.get("y") is not None else "x"
+
+
 def _even_columns(keys, context: dict, spread: float) -> dict:
     """Even column position and per-column extent for ``unique_id``-nested keys.
 
@@ -171,6 +200,24 @@ def _resolved_coordinates(
     )
 
 
+def _violin_geometry(resolved: dict, value_axis: str, width: float) -> dict:
+    """Slot-relative violin geometry for one categorical ``KDE`` group.
+
+    The canonical geometry (``x`` = values, ``y`` = density) becomes values
+    on the value axis plus a normalized ``spread`` around the slot position
+    on the other axis (legacy ``violin`` semantics): the density is scaled
+    so its maximum reaches ``width`` x the resolved extent (half-spread
+    ``width * extent / 2``).
+    """
+    values = _as_values(resolved.pop("x"))
+    density = _as_values(resolved.pop("y"))
+    dmax = float(density.max()) if density.size else 0.0
+    half = width * resolved.get("extent", 1.0) / 2
+    resolved["spread"] = density / dmax * half if dmax > 0 else np.zeros_like(density)
+    resolved[value_axis] = values
+    return resolved
+
+
 def resolve_layer(layer: dict, context: dict) -> dict:
     """Resolve one layer's processed geometry against the layout context.
 
@@ -181,11 +228,16 @@ def resolve_layer(layer: dict, context: dict) -> dict:
 
     Returns:
         dict: The layer with per-key positions, facets, extents and any
-        resolver-supplied missing-axis coordinates.
+        resolver-supplied missing-axis coordinates. Density layers
+        (``KDE``/``Histogram``) additionally carry ``value_axis``; a
+        categorical ``KDE`` layer is resolved to violin geometry (values on
+        the value axis, ``spread`` around the slot).
     """
     geometry = {}
     categorical = context["layout"] == "categorical"
     unique_id = _layer_unique_id(layer)
+    value_axis = _layer_value_axis(layer)
+    violin = categorical and _layer_transform_name(layer) == "kde"
     columns = (
         _even_columns(layer["geometry"], context, layer.get("width", 0.0) * context.get("width", 1.0))
         if categorical and unique_id is not None
@@ -197,6 +249,9 @@ def resolve_layer(layer: dict, context: dict) -> dict:
         resolved["position"] = position
         # continuous layouts use loc_dict for facet (axes) indices
         resolved["facet"] = int(position) if context["layout"] == "continuous" else 0
+        if value_axis is not None:
+            # density layers: the axis holding the values (render orientation)
+            resolved["value_axis"] = value_axis
 
         if categorical:
             if key in columns:
@@ -208,7 +263,12 @@ def resolve_layer(layer: dict, context: dict) -> dict:
             else:
                 resolved["extent"] = context["width"]
                 column = None
-            if "x" not in resolved and ("y" in resolved or "center" in resolved):
+            if violin:
+                # KDE on a categorical layout renders as a violin: values on
+                # the value axis, the density normalized to the layer width
+                # around the slot (unique_id-nested keys: their column)
+                resolved = _violin_geometry(resolved, value_axis, layer.get("width", 0.9))
+            elif "x" not in resolved and ("y" in resolved or "center" in resolved):
                 # vertical layouts: supply x positions from the group location
                 resolved["x"] = _resolved_coordinates(
                     layer, context, position, resolved.get("y", resolved.get("center")), column=column

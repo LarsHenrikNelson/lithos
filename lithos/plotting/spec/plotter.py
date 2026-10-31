@@ -13,6 +13,15 @@ and ``Annotation``. Combinations needed by the ``Summary`` transform
 elements: the specs added with ``add_significance()`` render once per bracket
 after the layers, still inside ``_plot()`` so the axis limits are formatted
 afterwards and expand to include them.
+
+Density orientation: ``KDE``/``Histogram`` layers carry a resolved
+``value_axis`` (the axis of the value column). Vertical (``y``-column)
+layers render with the values on the y axis - curves, bands and bars swap
+axes (``fill_betweenx``/``barh``); horizontal (``x``-column) layers render
+as-is; ``ECDF`` stays canonical (values on x, probabilities on y). A ``KDE``
+layer on a categorical layout renders as a violin through ``Fill`` (values
+on the value axis, the density normalized to the layer ``width`` around the
+slot); other elements over violin geometry raise until their Phase 2 port.
 """
 
 import numpy as np
@@ -111,6 +120,10 @@ class SpecPlotter(Plotter):
     # -- element dispatch --------------------------------------------------
     def _render_element(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float, layer: dict):
         """Dispatch one element spec to its renderer."""
+        if "spread" in geometry and spec["type"] != "fill":
+            raise NotImplementedError(
+                f"{spec['type']!r} cannot render violin geometry yet; use Fill for the violin body."
+            )
         element_type = spec["type"]
         if element_type == "marker":
             self._render_marker(ax, spec, gkey, geometry, zorder)
@@ -192,6 +205,9 @@ class SpecPlotter(Plotter):
     def _render_marker(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
         """Draw markers at the geometry's (x, y) points."""
         x, y = self._curve_values(geometry)
+        if geometry.get("value_axis") == "y":
+            # vertical density curve: values on the y axis, density on x
+            x, y = y, x
         markercolor = self._color_dict(spec["markercolor"])
         edgecolor = self._color_dict(spec["edgecolor"])
         markersize = spec["markersize"]
@@ -210,6 +226,9 @@ class SpecPlotter(Plotter):
     def _render_line(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
         """Draw a line through the geometry's (x, y) points."""
         x, y = self._curve_values(geometry)
+        if geometry.get("value_axis") == "y":
+            # vertical density curve: values on the y axis, density on x
+            x, y = y, x
         linecolor = self._color_dict(spec["linecolor"])
         ax.plot(
             x,
@@ -230,10 +249,12 @@ class SpecPlotter(Plotter):
         if center.size != x.size or low.size != center.size or high.size != center.size:
             raise ValueError("ErrorBar x, center and error arrays must have the same length.")
         linecolor = self._color_dict(spec["linecolor"])
+        vertical = geometry.get("value_axis") == "y"
         container = ax.errorbar(
-            x,
-            center,
-            yerr=np.vstack([low, high]),
+            center if vertical else x,
+            x if vertical else center,
+            xerr=np.vstack([low, high]) if vertical else None,
+            yerr=None if vertical else np.vstack([low, high]),
             fmt="none",
             color=self._group_color(linecolor, gkey, spec["linealpha"]),
             linewidth=spec["linewidth"],
@@ -255,15 +276,27 @@ class SpecPlotter(Plotter):
         low = np.atleast_1d(np.asarray(geometry["error_low"], dtype=float))
         high = np.atleast_1d(np.asarray(geometry["error_high"], dtype=float))
         fillcolor = self._color_dict(spec["fillcolor"])
-        ax.fill_between(
-            x,
-            center - low,
-            center + high,
-            color=self._group_color(fillcolor, gkey, spec["fillalpha"]),
-            edgecolor=self._process_color(spec["edgecolor"], spec["edgealpha"]),
-            linewidth=spec["linewidth"],
-            zorder=zorder,
-        )
+        if geometry.get("value_axis") == "y":
+            # vertical density curve: the band extends along x around the density
+            ax.fill_betweenx(
+                x,
+                center - low,
+                center + high,
+                color=self._group_color(fillcolor, gkey, spec["fillalpha"]),
+                edgecolor=self._process_color(spec["edgecolor"], spec["edgealpha"]),
+                linewidth=spec["linewidth"],
+                zorder=zorder,
+            )
+        else:
+            ax.fill_between(
+                x,
+                center - low,
+                center + high,
+                color=self._group_color(fillcolor, gkey, spec["fillalpha"]),
+                edgecolor=self._process_color(spec["edgecolor"], spec["edgealpha"]),
+                linewidth=spec["linewidth"],
+                zorder=zorder,
+            )
 
     def _render_summaryline(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float, layer: dict):
         """Line spanning the layer ``width`` across the center (legacy ``summary``/``summaryu``).
@@ -302,6 +335,19 @@ class SpecPlotter(Plotter):
         if "edges" in geometry:
             # histogram rectangles from bin edges
             x, height, width = geometry["centers"], geometry["height"], geometry["binwidth"]
+            if geometry.get("value_axis") == "y":
+                # vertical histogram: bin centers (values) on the y axis
+                edgecolor = self._color_dict(spec["edgecolor"])
+                ax.barh(
+                    x,
+                    height,
+                    height=width,
+                    facecolor="none",
+                    edgecolor=self._group_color(edgecolor, gkey, spec["edge_alpha"]),
+                    linewidth=spec["linewidth"],
+                    zorder=zorder,
+                )
+                return
         elif "position" in geometry and ("center" in geometry or "y" in geometry):
             # group-centered bar at the resolved categorical position
             x = [geometry["position"]]
@@ -321,16 +367,53 @@ class SpecPlotter(Plotter):
         )
 
     def _render_fill(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Draw a filled region: histogram bars, a density fill-under curve or a bar face."""
+        """Draw a filled region: histogram bars, a violin body, a density fill-under curve or a bar face."""
         fillcolor = self._color_dict(spec["fillcolor"])
         facecolor = self._group_color(fillcolor, gkey, spec["fillalpha"])
         edgecolor = self._process_color(spec["edgecolor"], spec["edgealpha"])
         edge_width = 0 if spec["edgecolor"] == "none" else 1
         if "edges" in geometry:
-            ax.bar(
-                geometry["centers"],
-                geometry["height"],
-                width=geometry["binwidth"],
+            if geometry.get("value_axis") == "y":
+                # vertical histogram: bin centers (values) on the y axis
+                ax.barh(
+                    geometry["centers"],
+                    geometry["height"],
+                    height=geometry["binwidth"],
+                    facecolor=facecolor,
+                    edgecolor=edgecolor,
+                    linewidth=edge_width,
+                    hatch=spec["hatch"],
+                    zorder=zorder,
+                )
+            else:
+                ax.bar(
+                    geometry["centers"],
+                    geometry["height"],
+                    width=geometry["binwidth"],
+                    facecolor=facecolor,
+                    edgecolor=edgecolor,
+                    linewidth=edge_width,
+                    hatch=spec["hatch"],
+                    zorder=zorder,
+                )
+        elif "spread" in geometry and "y" in geometry:
+            # vertical violin (categorical KDE): values on the y axis, density around the slot
+            ax.fill_betweenx(
+                geometry["y"],
+                geometry["position"] - geometry["spread"],
+                geometry["position"] + geometry["spread"],
+                facecolor=facecolor,
+                edgecolor=edgecolor,
+                linewidth=edge_width,
+                hatch=spec["hatch"],
+                zorder=zorder,
+            )
+        elif "spread" in geometry and "x" in geometry:
+            # horizontal violin: values on the x axis, density around the slot
+            ax.fill_between(
+                geometry["x"],
+                geometry["position"] - geometry["spread"],
+                geometry["position"] + geometry["spread"],
                 facecolor=facecolor,
                 edgecolor=edgecolor,
                 linewidth=edge_width,
@@ -338,17 +421,30 @@ class SpecPlotter(Plotter):
                 zorder=zorder,
             )
         elif "x" in geometry and ("y" in geometry or "center" in geometry):
-            # density fill-under curve
-            ax.fill_between(
-                geometry["x"],
-                geometry.get("y", geometry.get("center")),
-                0,
-                color=facecolor,
-                edgecolor=edgecolor,
-                linewidth=0,
-                hatch=spec["hatch"],
-                zorder=zorder,
-            )
+            if geometry.get("value_axis") == "y":
+                # vertical density curve: fill toward x=0 with the values on y
+                ax.fill_betweenx(
+                    geometry["x"],
+                    geometry.get("y", geometry.get("center")),
+                    0,
+                    color=facecolor,
+                    edgecolor=edgecolor,
+                    linewidth=0,
+                    hatch=spec["hatch"],
+                    zorder=zorder,
+                )
+            else:
+                # density fill-under curve
+                ax.fill_between(
+                    geometry["x"],
+                    geometry.get("y", geometry.get("center")),
+                    0,
+                    color=facecolor,
+                    edgecolor=edgecolor,
+                    linewidth=0,
+                    hatch=spec["hatch"],
+                    zorder=zorder,
+                )
         elif "position" in geometry and ("center" in geometry or "y" in geometry):
             height = np.atleast_1d(np.asarray(geometry.get("center", geometry.get("y")), dtype=float))
             ax.bar(

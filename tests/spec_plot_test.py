@@ -24,7 +24,7 @@ from lithos.plotting.spec.metadata import (
 )
 from lithos.plotting.spec.plotter import SpecPlotter
 from lithos.plotting.spec.resolver import locate_key, resolve_layers
-from lithos.plotting.transforms import Aggregate, Fit, Identity
+from lithos.plotting.transforms import ECDF, KDE, Aggregate, Fit, Histogram, Identity
 from lithos.utils import DataHolder
 
 
@@ -656,6 +656,173 @@ class TestMetadata:
         assert "x" not in serialized
         # the serialized layer is plain JSON
         json.loads(json.dumps(serialized))
+
+
+class TestDensityOrientation:
+    """KDE/Histogram values land on the value column's axis; categorical KDE renders as violins."""
+
+    def teardown_method(self):
+        plt.close("all")
+
+    def test_continuous_density_layers_carry_value_axis(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot().grouping(group="grouping_1").add(KDE(), Line())
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved_y = resolve_layers(plot._process_data(holder, y="y"), context)[0]
+        resolved_x = resolve_layers(plot._process_data(holder, x="y"), context)[0]
+        assert all(g["value_axis"] == "y" for g in resolved_y["geometry"].values())
+        assert all(g["value_axis"] == "x" for g in resolved_x["geometry"].values())
+        # continuous layouts keep the canonical geometry keys untouched
+        for g in resolved_y["geometry"].values():
+            assert "x" in g and "y" in g and "spread" not in g
+
+    def test_ecdf_layers_have_no_value_axis(self, one_grouping):
+        data, _ = one_grouping
+        plot = LinePlot().grouping(group="grouping_1").add(ECDF(), Line())
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]
+        for g in resolved["geometry"].values():
+            assert "value_axis" not in g
+
+    def test_continuous_vertical_kde_puts_values_on_y(self, one_grouping):
+        data, _ = one_grouping
+        expected = KDE()(DataHolder(data), y="y", levels=("grouping_1",))
+        plot = LinePlot().grouping(group="grouping_1").add(KDE(), Line())
+        plot.plot(y="y", data=data)
+        lines = plot.plotter.axes[0].lines
+        assert len(lines) == len(expected)
+        for gkey, g in expected.items():
+            matches = [line for line in lines if np.allclose(np.asarray(line.get_ydata(), dtype=float), g["x"])]
+            assert len(matches) == 1
+            np.testing.assert_allclose(np.asarray(matches[0].get_xdata(), dtype=float), g["y"])
+
+    def test_continuous_horizontal_kde_keeps_values_on_x(self, one_grouping):
+        data, _ = one_grouping
+        expected = KDE()(DataHolder(data), x="y", levels=("grouping_1",))
+        plot = LinePlot().grouping(group="grouping_1").add(KDE(), Line())
+        plot.plot(x="y", data=data)
+        lines = plot.plotter.axes[0].lines
+        assert len(lines) == len(expected)
+        for gkey, g in expected.items():
+            matches = [line for line in lines if np.allclose(np.asarray(line.get_xdata(), dtype=float), g["x"])]
+            assert len(matches) == 1
+            np.testing.assert_allclose(np.asarray(matches[0].get_ydata(), dtype=float), g["y"])
+
+    def test_continuous_vertical_kde_fill_under(self, one_grouping):
+        data, _ = one_grouping
+        expected = KDE()(DataHolder(data), y="y", levels=("grouping_1",))
+        plot = LinePlot().grouping(group="grouping_1").add(KDE(), Fill())
+        plot.plot(y="y", data=data)
+        collections = plot.plotter.axes[0].collections
+        assert len(collections) == len(expected)
+        for collection, (gkey, g) in zip(collections, expected.items()):
+            vertices = np.vstack([path.vertices for path in collection.get_paths()])
+            # values on the y axis, the density filling toward x=0
+            np.testing.assert_allclose(vertices[:, 1].min(), g["x"].min())
+            np.testing.assert_allclose(vertices[:, 1].max(), g["x"].max())
+            np.testing.assert_allclose(vertices[:, 0].min(), 0.0)
+            np.testing.assert_allclose(vertices[:, 0].max(), g["y"].max())
+
+    def test_continuous_vertical_kde_error_band(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        transform = KDE(unique_id="unique_grouping", agg_func="mean", err_func="sem", kde_length=64)
+        expected = transform(DataHolder(data), y="y", levels=("grouping_1",))
+        plot = LinePlot().grouping(group="grouping_1").add(transform, ErrorBand())
+        plot.plot(y="y", data=data)
+        collections = plot.plotter.axes[0].collections
+        assert len(collections) == len(expected)
+        for collection, (gkey, g) in zip(collections, expected.items()):
+            vertices = np.vstack([path.vertices for path in collection.get_paths()])
+            # the band extends along x (density +/- error); values stay on y
+            np.testing.assert_allclose(vertices[:, 1].min(), g["x"].min())
+            np.testing.assert_allclose(vertices[:, 1].max(), g["x"].max())
+            np.testing.assert_allclose(vertices[:, 0].max(), (g["y"] + g["error_high"]).max())
+            np.testing.assert_allclose(vertices[:, 0].min(), (g["y"] - g["error_low"]).min())
+
+    def test_continuous_vertical_histogram_bars_run_horizontal(self, one_grouping):
+        data, _ = one_grouping
+        expected = Histogram(bins=10)(DataHolder(data), y="y", levels=("grouping_1",))
+        plot = LinePlot().grouping(group="grouping_1").add(Histogram(bins=10), Fill())
+        plot.plot(y="y", data=data)
+        patches = plot.plotter.axes[0].patches
+        assert len(patches) == sum(g["height"].size for g in expected.values())
+        heights = np.concatenate([g["height"] for g in expected.values()])
+        binwidths = np.concatenate([g["binwidth"] for g in expected.values()])
+        centers = np.concatenate([g["centers"] for g in expected.values()])
+        # vertical histogram: bin centers (values) on y, heights along x from 0
+        np.testing.assert_allclose([p.get_width() for p in patches], heights)
+        np.testing.assert_allclose([p.get_height() for p in patches], binwidths)
+        np.testing.assert_allclose([p.get_y() + p.get_height() / 2 for p in patches], centers)
+        assert all(p.get_x() == 0.0 for p in patches)
+
+    def test_continuous_horizontal_histogram_bars_run_vertical(self, one_grouping):
+        data, _ = one_grouping
+        expected = Histogram(bins=10)(DataHolder(data), x="y", levels=("grouping_1",))
+        plot = LinePlot().grouping(group="grouping_1").add(Histogram(bins=10), Fill())
+        plot.plot(x="y", data=data)
+        patches = plot.plotter.axes[0].patches
+        heights = np.concatenate([g["height"] for g in expected.values()])
+        binwidths = np.concatenate([g["binwidth"] for g in expected.values()])
+        centers = np.concatenate([g["centers"] for g in expected.values()])
+        # horizontal histogram: bin centers (values) on x, heights along y from 0
+        np.testing.assert_allclose([p.get_height() for p in patches], heights)
+        np.testing.assert_allclose([p.get_width() for p in patches], binwidths)
+        np.testing.assert_allclose([p.get_x() + p.get_width() / 2 for p in patches], centers)
+        assert all(p.get_y() == 0.0 for p in patches)
+
+    def test_categorical_kde_resolves_to_violin_geometry(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill())
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]
+        expected = KDE()(holder, y="y", levels=("grouping_1",))
+        for gkey, geometry in resolved["geometry"].items():
+            g = expected[gkey]
+            assert geometry["value_axis"] == "y"
+            assert geometry["position"] == context["loc_dict"][gkey]
+            # values on the value axis; the density becomes a slot-relative spread
+            np.testing.assert_allclose(geometry["y"], g["x"])
+            np.testing.assert_allclose(geometry["spread"].max(), 0.9 * context["width"] / 2)
+            assert "x" not in geometry
+
+    def test_categorical_kde_horizontal_violin(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill())
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, x="y"), context)[0]
+        expected = KDE()(holder, x="y", levels=("grouping_1",))
+        for gkey, geometry in resolved["geometry"].items():
+            assert geometry["value_axis"] == "x"
+            np.testing.assert_allclose(geometry["x"], expected[gkey]["x"])
+            assert "y" not in geometry
+            assert "spread" in geometry
+
+    def test_categorical_kde_renders_violin(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill())
+        plot.plot(y="y", data=data)
+        expected = KDE()(DataHolder(data), y="y", levels=("grouping_1",))
+        context = plot._layout_context(DataHolder(data))
+        collections = plot.plotter.axes[0].collections
+        assert len(collections) == len(expected)
+        for collection, (gkey, g) in zip(collections, expected.items()):
+            loc = context["loc_dict"][gkey]
+            vertices = np.vstack([path.vertices for path in collection.get_paths()])
+            # values on the y axis, the spread filling the slot around the group position
+            np.testing.assert_allclose(vertices[:, 1].min(), g["x"].min())
+            np.testing.assert_allclose(vertices[:, 1].max(), g["x"].max())
+            np.testing.assert_allclose(vertices[:, 0].max(), loc + 0.45)
+            np.testing.assert_allclose(vertices[:, 0].min(), loc - 0.45)
+
+    def test_violin_geometry_rejects_line(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Line())
+        with pytest.raises(NotImplementedError, match="violin"):
+            plot.plot(y="y", data=data)
 
 
 class TestRenderSmoke:

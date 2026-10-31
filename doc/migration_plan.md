@@ -90,6 +90,18 @@ values, `y`/`height` the density - and orientation is decided at render time
 from the value column's axis (values land on their named axis, like
 `Identity`/`Summary` horizontal layouts), never baked into the geometry.
 
+Density orientation is resolved, not swapped in transforms: the resolver
+marks every `KDE`/`Histogram` geometry with `value_axis` (the value column's
+axis) and renderers place the values on that axis. Vertical (`y`-column) KDE
+curves and histogram bars render through `fill_betweenx`/`barh`; horizontal
+(`x`-column) layers render as-is; `ECDF` stays canonical (values on x,
+probabilities on y, either column). On categorical layouts a `KDE` layer
+resolves to violin geometry - values on the value axis, the density scaled so
+its maximum spans `width` x the slot extent around the position
+(`unique_id`-nested keys: their even column) - rendered through `Fill`; other
+elements over violin geometry raise until their Phase 2 port, and the legacy
+split/alternate violin styles remain pending.
+
 | Transform | Parameters | Geometry per group |
 | --- | --- | --- |
 | `Identity` | `unique_id` | `{n, x?, y?}` — at least one of x/y; the omitted axis is supplied by the position resolver (jitter/dodge; horizontal layouts use `x` only). With `unique_id`: one geometry dict per subject's ordered series (paired connectors), sorted by `x` when given, with pair-completeness validation |
