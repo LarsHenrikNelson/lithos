@@ -18,7 +18,12 @@ Geometry contract per transform:
   error_high, n}`` (one value per unique x; per-x aggregation, legacy
   ``aggline``/``line`` parity)
 - ``KDE``/``ECDF``: ``{x, y, n}``; ``Histogram``: ``{edges, height,
-  binwidth, centers, stat, n}``. With ``unique_id``: one geometry dict per
+  binwidth, centers, stat, n}``. Density transforms take exactly one value
+  column (``y`` or ``x``, never both), each paired with its own axis
+  transform; the geometry is canonical — ``x``/``edges`` hold the evaluated
+  values, ``y``/``height`` the density — and orientation is decided at
+  render time from the value column's axis, never baked into the geometry.
+  With ``unique_id``: one geometry dict per
   subject (nested group keys; per-group shared bin edges for ``Histogram``).
   With ``unique_id`` + ``agg_func``: per-subject densities on a shared grid,
   re-aggregated per group — ``KDE``: ``{x, y, error_low, error_high, n}``;
@@ -540,6 +545,10 @@ class _DensityTransform(Transform):
     errors are symmetric). In the two-level geometry ``n`` is the subject
     count; otherwise ``n`` is the value count.
 
+    The value column is ``y`` or ``x`` (never both), paired with its own
+    axis transform before any computation; the geometry is canonical and
+    orientation-free (see the module docstring).
+
     Subclasses implement ``_density_geometry(vals, edges=None)`` (one group
     or one subject) and ``_aggregate_geometry(...)`` (two-level per group),
     and may override ``_common_edges``/``_group_edges`` (shared bin edges)
@@ -579,8 +588,9 @@ class _DensityTransform(Transform):
         Args:
             data (DataHolder): The input data.
             y (str | None): Value column.
-            x (str | None): Not used by density transforms; accepted for the
-                shared call signature.
+            x (str | None): Value column used when ``y`` is not given
+                (horizontal layouts). Exactly one of ``y``/``x`` may be
+                given; each is paired with its own axis transform.
             levels (Levels): Grouping columns (group, subgroup, ...).
             ytransform (Transform | None): Transform applied to y values.
             xtransform (Transform | None): Transform applied to x values.
@@ -591,21 +601,28 @@ class _DensityTransform(Transform):
             per group with ``unique_id`` + ``agg_func``.
 
         Raises:
-            ValueError: If ``y`` is not given or validation fails (e.g.
-                ``agg_func`` without ``unique_id``).
+            ValueError: If both ``y`` and ``x`` are given, neither is given,
+                or validation fails (e.g. ``agg_func`` without
+                ``unique_id``).
         """
-        if y is None:
-            raise ValueError(f"{type(self).__name__} requires a y column.")
+        if y is not None and x is not None:
+            raise ValueError(f"{type(self).__name__} takes a single value column; pass y or x, not both.")
+        if y is not None:
+            column, transform = y, ytransform
+        elif x is not None:
+            column, transform = x, xtransform
+        else:
+            raise ValueError(f"{type(self).__name__} requires a y or x column.")
         self._validate()
 
         levels = tuple(levels)
         groups = self._groups(data, levels)
         unique_groups = self._groups(data, levels + (self.unique_id,)) if self.unique_id is not None else None
-        common_edges = self._common_edges(data, y, ytransform)
+        common_edges = self._common_edges(data, column, transform)
 
         output = {}
         for group_key, indexes in groups.items():
-            vals = _get_column_values(data, indexes, y, ytransform)
+            vals = _get_column_values(data, indexes, column, transform)
             edges = self._group_edges(vals) if common_edges is None else common_edges
             if self.unique_id is None:
                 output[group_key] = self._density_geometry(vals, edges=edges)
@@ -616,12 +633,12 @@ class _DensityTransform(Transform):
                 # nesting: one geometry dict per (group, subject)
                 for uid in uids:
                     sub_indexes = unique_groups[group_key + (uid,)]
-                    sub_vals = _get_column_values(data, sub_indexes, y, ytransform)
+                    sub_vals = _get_column_values(data, sub_indexes, column, transform)
                     output[group_key + (uid,)] = self._density_geometry(sub_vals, edges=edges)
             else:
                 # two-level: per-subject densities on the shared grid, re-aggregated per group
                 output[group_key] = self._aggregate_geometry(
-                    vals, uids, group_key, unique_groups, data, y, ytransform, edges
+                    vals, uids, group_key, unique_groups, data, column, transform, edges
                 )
         return output
 
@@ -631,11 +648,11 @@ class _DensityTransform(Transform):
         uids: np.ndarray,
         unique_groups: dict[tuple, np.ndarray],
         data: DataHolder,
-        y: str,
-        ytransform: Transform | None,
+        column: str,
+        transform: Transform | None,
     ) -> list[np.ndarray]:
         """Per-subject value arrays within a group, in uid order."""
-        return [_get_column_values(data, unique_groups[group_key + (uid,)], y, ytransform) for uid in uids]
+        return [_get_column_values(data, unique_groups[group_key + (uid,)], column, transform) for uid in uids]
 
     def _density_geometry(self, vals: np.ndarray, edges: np.ndarray | None = None) -> dict:
         """Density geometry for one set of values (one group or one subject)."""
@@ -648,14 +665,14 @@ class _DensityTransform(Transform):
         group_key: tuple,
         unique_groups: dict[tuple, np.ndarray],
         data: DataHolder,
-        y: str,
-        ytransform: Transform | None,
+        column: str,
+        transform: Transform | None,
         edges: np.ndarray | None,
     ) -> dict:
         """Two-level geometry: per-subject densities on a shared grid, aggregated per group."""
         raise NotImplementedError("Density transforms must implement _aggregate_geometry.")
 
-    def _common_edges(self, data: DataHolder, y: str, ytransform: Transform | None) -> np.ndarray | None:
+    def _common_edges(self, data: DataHolder, column: str, transform: Transform | None) -> np.ndarray | None:
         """Global shared bin edges (``bin_limits="common"``); ``None`` otherwise."""
         return None
 
@@ -730,12 +747,12 @@ class KDE(_DensityTransform):
         group_key: tuple,
         unique_groups: dict[tuple, np.ndarray],
         data: DataHolder,
-        y: str,
-        ytransform: Transform | None,
+        column: str,
+        transform: Transform | None,
         edges: np.ndarray | None,
     ) -> dict:
         grid = self._shared_grid(vals)
-        sub_vals = self._subject_values(group_key, uids, unique_groups, data, y, ytransform)
+        sub_vals = self._subject_values(group_key, uids, unique_groups, data, column, transform)
         # grid evaluation is FFT-only (legacy behavior, made explicit)
         hold = np.vstack(
             [kde(v, kernel=self.kernel, bw=self.bw, tol=self.tol, x=grid, KDEType="fft")[1] for v in sub_vals]
@@ -802,10 +819,10 @@ class Histogram(_DensityTransform):
         limits = self.bin_limits if isinstance(self.bin_limits, tuple) else None
         return np.histogram_bin_edges(vals, bins=self.bins, range=limits)
 
-    def _common_edges(self, data: DataHolder, y: str, ytransform: Transform | None) -> np.ndarray | None:
+    def _common_edges(self, data: DataHolder, column: str, transform: Transform | None) -> np.ndarray | None:
         """Pooled global edges for ``bin_limits="common"``; ``None`` otherwise."""
         if self.bin_limits == "common":
-            all_vals = _get_column_values(data, np.arange(data.shape[0]), y, ytransform)
+            all_vals = _get_column_values(data, np.arange(data.shape[0]), column, transform)
             return self._edges(all_vals)
         return None
 
@@ -832,12 +849,12 @@ class Histogram(_DensityTransform):
         group_key: tuple,
         unique_groups: dict[tuple, np.ndarray],
         data: DataHolder,
-        y: str,
-        ytransform: Transform | None,
+        column: str,
+        transform: Transform | None,
         edges: np.ndarray | None,
     ) -> dict:
         edges = self._edges(vals) if edges is None else edges
-        sub_vals = self._subject_values(group_key, uids, unique_groups, data, y, ytransform)
+        sub_vals = self._subject_values(group_key, uids, unique_groups, data, column, transform)
         hold = np.vstack([hist(v, edges, self.stat) for v in sub_vals])
         center = np.asarray(get_transform(self.agg_func)(hold, axis=0), dtype=float)
         low, high = self._pair_error(hold)
@@ -895,13 +912,13 @@ class ECDF(_DensityTransform):
         group_key: tuple,
         unique_groups: dict[tuple, np.ndarray],
         data: DataHolder,
-        y: str,
-        ytransform: Transform | None,
+        column: str,
+        transform: Transform | None,
         edges: np.ndarray | None,
     ) -> dict:
         # shared probability grid; x holds the aggregated quantile values (legacy axis swap)
         args = dict(self.ecdf_args)
-        sub_vals = self._subject_values(group_key, uids, unique_groups, data, y, ytransform)
+        sub_vals = self._subject_values(group_key, uids, unique_groups, data, column, transform)
         size = args.pop("size", max(v.size for v in sub_vals))
         grid_y = np.arange(size) / size
         hold = np.vstack([ecdf(v, "spline", size=size, **args)[1] for v in sub_vals])

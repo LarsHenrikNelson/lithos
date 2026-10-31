@@ -78,6 +78,18 @@ xtransform=None, **kwargs)` returns a `dict[group_key, geometry_dict]`. The
 geometry dict is the **only** source of numbers that elements render - no
 element computes values.
 
+Density transforms (`KDE`/`Histogram`/`ECDF`) take exactly one value column -
+`y` or `x`, never both (legacy silently preferred `x` when both were given) -
+each paired with its own axis transform. Legacy `kde`/`hist`/`ecdf` crossed
+the transforms (`transform = ytransform if xtransform is None else
+xtransform`, plus a `xtransfrom` typo in `_hist` and hardcoded `ytransform`
+in `_violin`/`_bar`), so the wrong-axis transform was applied whenever both
+were set; the new API pairs column and transform unconditionally. Density
+geometry is canonical and orientation-free - `x`/`edges` hold the evaluated
+values, `y`/`height` the density - and orientation is decided at render time
+from the value column's axis (values land on their named axis, like
+`Identity`/`Summary` horizontal layouts), never baked into the geometry.
+
 | Transform | Parameters | Geometry per group |
 | --- | --- | --- |
 | `Identity` | `unique_id` | `{n, x?, y?}` — at least one of x/y; the omitted axis is supplied by the position resolver (jitter/dodge; horizontal layouts use `x` only). With `unique_id`: one geometry dict per subject's ordered series (paired connectors), sorted by `x` when given, with pair-completeness validation |

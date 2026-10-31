@@ -497,6 +497,103 @@ class TestECDFUniqueId:
             )
 
 
+def _positive_density_data():
+    rng = np.random.default_rng(3)
+    vals = np.concatenate([rng.uniform(1.0, 50.0, size=20), rng.uniform(10.0, 100.0, size=20)])
+    return {"grouping_1": [0] * 20 + [1] * 20, "y": vals.tolist()}
+
+
+POSITIVE_DENSITY = _positive_density_data()
+
+
+class TestDensityValueColumn:
+    """The density family takes exactly one value column (y or x), paired with its own axis transform."""
+
+    def test_kde_x_only_matches_y_only(self, one_grouping):
+        data, _ = one_grouping
+        via_y = KDE()(_holder(data), y="y", levels=("grouping_1",))
+        via_x = KDE()(_holder(data), x="y", levels=("grouping_1",))
+        assert via_x.keys() == via_y.keys()
+        for gkey in via_y:
+            np.testing.assert_allclose(via_x[gkey]["x"], via_y[gkey]["x"])
+            np.testing.assert_allclose(via_x[gkey]["y"], via_y[gkey]["y"])
+            assert via_x[gkey]["n"] == via_y[gkey]["n"]
+
+    def test_histogram_x_only_matches_y_only(self, one_grouping):
+        data, _ = one_grouping
+        via_y = Histogram(bins=10)(_holder(data), y="y", levels=("grouping_1",))
+        via_x = Histogram(bins=10)(_holder(data), x="y", levels=("grouping_1",))
+        for gkey in via_y:
+            np.testing.assert_allclose(via_x[gkey]["edges"], via_y[gkey]["edges"])
+            np.testing.assert_allclose(via_x[gkey]["height"], via_y[gkey]["height"])
+            assert via_x[gkey]["n"] == via_y[gkey]["n"]
+
+    def test_ecdf_x_only_matches_y_only(self, one_grouping):
+        data, _ = one_grouping
+        via_y = ECDF()(_holder(data), y="y", levels=("grouping_1",))
+        via_x = ECDF()(_holder(data), x="y", levels=("grouping_1",))
+        for gkey in via_y:
+            np.testing.assert_allclose(via_x[gkey]["x"], via_y[gkey]["x"])
+            np.testing.assert_allclose(via_x[gkey]["y"], via_y[gkey]["y"])
+            assert via_x[gkey]["n"] == via_y[gkey]["n"]
+
+    def test_x_only_pairs_with_xtransform(self):
+        # regression: legacy kde/hist/ecdf applied the wrong-axis transform
+        # when both transforms (or only the wrong one) were set
+        via_x = KDE()(_holder(POSITIVE_DENSITY), x="y", levels=("grouping_1",), xtransform="log10")
+        via_y = KDE()(_holder(POSITIVE_DENSITY), y="y", levels=("grouping_1",), ytransform="log10")
+        for gkey in via_y:
+            np.testing.assert_allclose(via_x[gkey]["x"], via_y[gkey]["x"])
+            np.testing.assert_allclose(via_x[gkey]["y"], via_y[gkey]["y"])
+
+    def test_x_only_ignores_ytransform(self):
+        via_x = KDE()(_holder(POSITIVE_DENSITY), x="y", levels=("grouping_1",), ytransform="log10")
+        plain = KDE()(_holder(POSITIVE_DENSITY), y="y", levels=("grouping_1",))
+        for gkey in plain:
+            np.testing.assert_allclose(via_x[gkey]["x"], plain[gkey]["x"])
+            np.testing.assert_allclose(via_x[gkey]["y"], plain[gkey]["y"])
+
+    def test_y_only_ignores_xtransform(self):
+        via_y = KDE()(_holder(POSITIVE_DENSITY), y="y", levels=("grouping_1",), xtransform="log10")
+        plain = KDE()(_holder(POSITIVE_DENSITY), y="y", levels=("grouping_1",))
+        for gkey in plain:
+            np.testing.assert_allclose(via_y[gkey]["x"], plain[gkey]["x"])
+            np.testing.assert_allclose(via_y[gkey]["y"], plain[gkey]["y"])
+
+    def test_aggregated_x_only_matches_y_only(self):
+        via_x = KDE(unique_id="unique_grouping", agg_func="mean", err_func="sem", kde_length=64)(
+            _holder(DENSITY_UID), x="y", levels=("grouping_1",)
+        )
+        via_y = KDE(unique_id="unique_grouping", agg_func="mean", err_func="sem", kde_length=64)(
+            _holder(DENSITY_UID), y="y", levels=("grouping_1",)
+        )
+        for gkey in via_y:
+            np.testing.assert_allclose(via_x[gkey]["x"], via_y[gkey]["x"])
+            np.testing.assert_allclose(via_x[gkey]["y"], via_y[gkey]["y"])
+            np.testing.assert_allclose(via_x[gkey]["error_low"], via_y[gkey]["error_low"])
+            assert via_x[gkey]["n"] == via_y[gkey]["n"]
+
+    def test_common_edges_honor_xtransform(self):
+        via_x = Histogram(bins=10, bin_limits="common")(
+            _holder(POSITIVE_DENSITY), x="y", levels=("grouping_1",), xtransform="log10"
+        )
+        log_vals = get_transform("log10")(np.asarray(POSITIVE_DENSITY["y"], dtype=float))
+        common = np.histogram_bin_edges(log_vals, bins=10)
+        for g in via_x.values():
+            np.testing.assert_allclose(g["edges"], common)
+
+    @pytest.mark.parametrize("transform", [KDE(), Histogram(bins=10), ECDF()])
+    def test_both_columns_raise(self, one_grouping, transform):
+        data, _ = one_grouping
+        with pytest.raises(ValueError, match="single value column"):
+            transform(_holder(data), y="y", x="x", levels=("grouping_1",))
+
+    @pytest.mark.parametrize("transform", [KDE(), Histogram(bins=10), ECDF()])
+    def test_no_column_raises(self, transform):
+        with pytest.raises(ValueError, match="requires a y or x column"):
+            transform(_holder(POSITIVE_DENSITY), levels=("grouping_1",))
+
+
 class TestSummary:
     def test_default_quantiles(self, one_grouping):
         data, _ = one_grouping
