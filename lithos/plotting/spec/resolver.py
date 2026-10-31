@@ -30,6 +30,18 @@ plots work like ``Identity``/``Summary`` horizontal layouts. On categorical
 layouts a ``KDE`` layer resolves to *violin* geometry instead: values on the
 value axis, the density normalized to the layer ``width`` around the slot
 position (``unique_id``-nested keys: around their even column).
+
+Layer form styles (``.add(..., style=...)``): forms that need cross-group
+information are resolved here - never computed by transforms (per-group by
+contract) or elements (pure per-artist formatting). ``left``/``right``/
+``alternate`` turn a violin's symmetric ``spread`` into one-sided
+``spread_low``/``spread_high`` bounds (the flat edge on the slot boundary,
+legacy ``violin`` styles; ``alternate`` picks the side by slot order);
+``overlap`` places ``unique_id``-nested keys on the slot center at full
+extent (legacy violin ``unique_style="overlap"``); ``stack``/``fill`` give
+histogram geometry cumulative ``bottom`` offsets in geometry order per facet
+(``fill`` first normalizes heights by the per-bin total - legacy
+``hist_type`` stack modes).
 """
 
 from collections import defaultdict
@@ -156,6 +168,34 @@ def _even_columns(keys, context: dict, spread: float) -> dict:
     return output
 
 
+def _overlap_columns(keys, context: dict) -> dict:
+    """Slot-center placement for ``unique_id``-nested keys (legacy violin ``overlap``).
+
+    Every nested key in a slot resolves to the slot center with the full slot
+    extent, so per-subject densities overlay at full width (legacy
+    ``unique_style="overlap"`` violins); the index keeps ``uid_index``-based
+    element cycling (marker lists) working.
+
+    Args:
+        keys (list): Geometry keys nested beyond the grouping levels.
+        context (dict): The layout context.
+
+    Returns:
+        dict: ``{key: (center, extent, uid_index)}`` for every nested key.
+    """
+    by_slot: dict[tuple, list] = defaultdict(list)
+    for key in keys:
+        by_slot[slot_key(key, context["loc_dict"])].append(key)
+
+    output = {}
+    for keys_in_slot in by_slot.values():
+        center = context["loc_dict"][slot_key(keys_in_slot[0], context["loc_dict"])]
+        extent = float(context["width"])
+        for uid_index, key in enumerate(sorted(keys_in_slot)):
+            output[key] = (float(center), extent, uid_index)
+    return output
+
+
 def _resolved_coordinates(
     layer: dict, context: dict, position: float, values, column: float | None = None
 ) -> np.ndarray:
@@ -218,6 +258,76 @@ def _violin_geometry(resolved: dict, value_axis: str, width: float) -> dict:
     return resolved
 
 
+def _violin_side_bounds(spread: np.ndarray, side: str) -> tuple[np.ndarray, np.ndarray]:
+    """(low, high) offsets from the slot position for a one-sided violin.
+
+    ``"left"``/``"right"`` draw one half spanning the same total extent as
+    the full violin, with the flat edge on the opposite slot boundary
+    (legacy ``violin`` styles): ``left`` -> ``[h - 2*spread, h]`` and
+    ``right`` -> ``[-h, -h + 2*spread]`` with ``h`` the maximum spread.
+
+    Args:
+        spread (np.ndarray): The symmetric violin spread (max ``h``).
+        side (str): ``"left"`` or ``"right"``.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: The ``(spread_low, spread_high)``
+        offsets from the slot position.
+    """
+    spread = _as_values(spread)
+    h = float(spread.max()) if spread.size else 0.0
+    if side == "left":
+        return h - 2.0 * spread, np.full_like(spread, h)
+    return np.full_like(spread, -h), 2.0 * spread - h
+
+
+def _stack_density(geometry: dict, style: str) -> None:
+    """Add cumulative stacking to resolved histogram geometry (in place).
+
+    Groups stack in geometry order within each facet - the legacy
+    ``_post_process_density`` row order. ``style="fill"`` first normalizes
+    every height by the per-bin total across the facet (100% stacked, legacy
+    ``hist_type="fill"``); ``style="stack"`` keeps the heights and only adds
+    the offsets (legacy ``hist_type="stack"``). Each resolved geometry gains
+    a ``bottom`` array (the exclusive cumulative sum before it, zeroed where
+    its own height is zero, matching the legacy quirks exactly).
+
+    Args:
+        geometry (dict): The resolved geometry dict of one layer.
+        style (str): ``"stack"`` or ``"fill"``.
+
+    Raises:
+        ValueError: If the layer carries error geometry (stacked errors are
+            ill-defined) or the bins do not share edges within a facet
+            (per-group auto ranges; pass ``bin_limits="common"``).
+    """
+    if any(resolved.get("error_low") is not None for resolved in geometry.values()):
+        raise ValueError("style='stack' cannot render error geometry; drop err_func from the Histogram transform.")
+
+    proportion = style == "fill"
+    by_facet: dict[int, list] = defaultdict(list)
+    for key, resolved in geometry.items():
+        by_facet[resolved.get("facet", 0)].append(key)
+
+    for keys in by_facet.values():
+        raw = np.vstack([np.atleast_1d(np.asarray(geometry[key]["height"], dtype=float)) for key in keys])
+        edges = [np.asarray(geometry[key]["edges"], dtype=float) for key in keys]
+        if any(edge.shape != edges[0].shape or not np.array_equal(edge, edges[0]) for edge in edges[1:]):
+            raise ValueError("style='stack' requires shared bin edges; pass bin_limits='common' to Histogram.")
+        if proportion:
+            totals = raw.sum(axis=0)
+            heights = np.divide(raw, totals, where=totals > 0)
+            heights[raw == 0] = 0.0
+        else:
+            heights = raw
+        bottoms = np.zeros_like(heights)
+        bottoms[1:, :] = heights.cumsum(axis=0)[:-1, :]
+        bottoms[heights == 0] = 0.0
+        for key, height, bottom in zip(keys, heights, bottoms):
+            geometry[key]["height"] = height
+            geometry[key]["bottom"] = bottom
+
+
 def resolve_layer(layer: dict, context: dict) -> dict:
     """Resolve one layer's processed geometry against the layout context.
 
@@ -231,25 +341,35 @@ def resolve_layer(layer: dict, context: dict) -> dict:
         resolver-supplied missing-axis coordinates. Density layers
         (``KDE``/``Histogram``) additionally carry ``value_axis``; a
         categorical ``KDE`` layer is resolved to violin geometry (values on
-        the value axis, ``spread`` around the slot).
+        the value axis, ``spread`` around the slot). Layer styles add form
+        fields: one-sided violins carry ``spread_low``/``spread_high``,
+        stacked histograms carry ``bottom`` (``"fill"`` also normalizes
+        ``height``).
     """
     geometry = {}
     categorical = context["layout"] == "categorical"
     unique_id = _layer_unique_id(layer)
     value_axis = _layer_value_axis(layer)
     violin = categorical and _layer_transform_name(layer) == "kde"
+    style = layer.get("style")
     # even columns apply only to keys nested beyond the grouping levels
     # (per-subject geometry); aggregated group-level keys resolve like flat keys
     levels_size = len(context.get("levels", ()))
-    columns = (
-        _even_columns(
-            [key for key in layer["geometry"] if len(key) > levels_size],
-            context,
-            layer.get("width", 0.0) * context.get("width", 1.0),
-        )
-        if categorical and unique_id is not None
-        else {}
+    nested_keys = (
+        [key for key in layer["geometry"] if len(key) > levels_size] if categorical and unique_id is not None else []
     )
+    if nested_keys and style == "overlap":
+        # legacy violin unique_style="overlap": subjects overlay on the slot center
+        columns = _overlap_columns(nested_keys, context)
+    elif nested_keys:
+        columns = _even_columns(nested_keys, context, layer.get("width", 0.0) * context.get("width", 1.0))
+    else:
+        columns = {}
+    violin_sides = {}
+    if violin and style == "alternate":
+        # the side alternates by slot order (the legacy draw-order flip)
+        ordered = sorted(layer["geometry"], key=lambda key: (locate_key(key, context["loc_dict"]), key))
+        violin_sides = {key: ("left" if index % 2 == 0 else "right") for index, key in enumerate(ordered)}
     for key, group_geometry in layer["geometry"].items():
         resolved = dict(group_geometry)
         position = locate_key(key, context["loc_dict"])
@@ -275,6 +395,10 @@ def resolve_layer(layer: dict, context: dict) -> dict:
                 # the value axis, the density normalized to the layer width
                 # around the slot (unique_id-nested keys: their column)
                 resolved = _violin_geometry(resolved, value_axis, layer.get("width", 0.9))
+                side = violin_sides.get(key, style)
+                if side in ("left", "right"):
+                    # one-sided violin (legacy style="left"/"right"/"alternate")
+                    resolved["spread_low"], resolved["spread_high"] = _violin_side_bounds(resolved["spread"], side)
             elif "x" not in resolved and ("y" in resolved or "center" in resolved):
                 # vertical layouts: supply x positions from the group location
                 resolved["x"] = _resolved_coordinates(
@@ -284,6 +408,9 @@ def resolve_layer(layer: dict, context: dict) -> dict:
                 # horizontal layouts: supply y positions from the group location
                 resolved["y"] = _resolved_coordinates(layer, context, position, resolved["x"], column=column)
         geometry[key] = resolved
+    if style in ("stack", "fill"):
+        # histogram stacking: cumulative bottoms in geometry order per facet
+        _stack_density(geometry, style)
     return {**layer, "geometry": geometry}
 
 

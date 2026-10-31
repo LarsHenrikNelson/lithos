@@ -99,8 +99,39 @@ probabilities on y, either column). On categorical layouts a `KDE` layer
 resolves to violin geometry - values on the value axis, the density scaled so
 its maximum spans `width` x the slot extent around the position
 (`unique_id`-nested keys: their even column) - rendered through `Fill`; other
-elements over violin geometry raise until their Phase 2 port, and the legacy
-split/alternate violin styles remain pending.
+elements over violin geometry raise until their Phase 2 port. The legacy
+split/alternate/overlap violin styles are covered by the `style` form option
+(see the form-styles section below).
+
+### Layer form styles (`.add(..., style=...)`)
+
+Forms that need cross-group information cannot live in transforms (per-group
+by contract) or elements (pure per-artist formatting); they are layer-level
+`style` options validated at `.add()` time (transform + layout) and resolved
+in the position pass into explicit geometry fields, so backends render them
+without recomputing cross-group logic:
+
+- `KDE` (categorical = violin geometry): `"full"` (default), `"left"`,
+  `"right"`, `"alternate"` - one-sided violins carrying explicit
+  `spread_low`/`spread_high` (the flat edge on the slot boundary, the bulge
+  spanning the same total extent as the full violin; exact legacy parity on
+  flat layouts; `alternate` picks the side by slot order, reproducing the
+  legacy draw-order flip). `"overlap"` places `unique_id`-nested keys on the
+  slot center at full extent (legacy `unique_style="overlap"`; the default
+  even-column nesting is legacy `unique_style="split"`).
+- `Histogram`: `"stack"` (cumulative `bottom` per facet, in geometry order =
+  the legacy `_post_process_density` row order) and `"fill"` (heights
+  normalized by the per-bin total first - legacy `hist_type` values).
+  Outline-vs-fill (legacy `hist_type="bar"`/`"step"`) is element composition
+  instead: `Fill`/`Bar` draw bars, `Line` draws the step outline (also over
+  stacked geometry).
+
+Deliberate divergences: the legacy left/right zorder reversal is not ported
+(explicit element `zorder` covers it); nested half violins are allowed
+(legacy forced `style="full"` when `unique_id` was given); stacked
+histograms require shared bin edges within a facet (`bin_limits="common"`)
+and cannot render error geometry; the legacy split `uwidth` formula differs
+from the even-column extent.
 
 Density parity (`tests/processing/density_parity_test.py`) pins the shared
 computation between `Plot.add(KDE()/Histogram(), ...)` and the legacy
@@ -112,8 +143,9 @@ sets the matching axis transform (the legacy transform-crossing bug would
 otherwise compare against wrongly-transformed geometry). Known positional
 divergences, documented in the test: subgrouped violins (legacy width is
 absolute axis units; the resolver scales by the slot extent) and nested
-violins (legacy `overlap` stacks subjects on the slot center; the resolver
-places even columns). Legacy `_hist` also computes the auto bin range from
+split violins (the legacy `uwidth` formula differs from the even-column
+extent; `style="overlap"` reproduces the legacy overlap placement). Legacy
+`_hist` also computes the auto bin range from
 the first group and reuses it for every later group, while the transform
 computes true per-group ranges — histogram parity therefore pins
 `bin_limits="common"` (global edges, identical on both sides). The legacy
@@ -153,7 +185,7 @@ pair; `Aggregate`/`Summary` normalize both to `error_low`/`error_high`.
   `LinePlot` (continuous axes; default position `passthrough`, plus
   `.facet()`) and `CategoricalPlot` (default position `dodge`, positions
   `passthrough`/`dodge`, plus `.spacing()` / `.categorical_labels()`).
-- `.add(transform, *elements, position=, width=, jitter_type=, seed=)` holds
+- `.add(transform, *elements, position=, width=, jitter_type=, seed=, style=)` holds
   raw transform/element objects; all geometry is computed in a single
   `Plot._process_data()` pass at plot time (also exposed as the public
   `process_data()`), so `.grouping()`/`.transform()` calls made after `.add()`

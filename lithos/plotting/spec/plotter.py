@@ -22,6 +22,12 @@ as-is; ``ECDF`` stays canonical (values on x, probabilities on y). A ``KDE``
 layer on a categorical layout renders as a violin through ``Fill`` (values
 on the value axis, the density normalized to the layer ``width`` around the
 slot); other elements over violin geometry raise until their Phase 2 port.
+Layer styles resolved by the position resolver render here: one-sided
+violins (``style="left"/"right"/"alternate"``) draw between the resolved
+``spread_low``/``spread_high`` bounds, stacked histograms
+(``style="stack"/"fill"``) draw bars and step outlines from the cumulative
+``bottom``, and ``Line`` over histogram geometry draws the step outline
+(legacy ``hist_type="step"``).
 """
 
 import numpy as np
@@ -171,6 +177,21 @@ class SpecPlotter(Plotter):
         return self._bar_width(spec) * width
 
     @staticmethod
+    def _violin_bounds(geometry: dict) -> tuple[np.ndarray, np.ndarray]:
+        """(low, high) offsets from the slot position for a violin body.
+
+        Symmetric violins carry a single ``spread``; one-sided styles
+        (``style="left"/"right"/"alternate"``) carry explicit
+        ``spread_low``/``spread_high`` resolved by the position resolver.
+        """
+        spread = np.asarray(geometry["spread"], dtype=float)
+        if "spread_low" in geometry or "spread_high" in geometry:
+            low = np.asarray(geometry.get("spread_low", -spread), dtype=float)
+            high = np.asarray(geometry.get("spread_high", spread), dtype=float)
+            return low, high
+        return -spread, spread
+
+    @staticmethod
     def _marker_symbol(spec: dict, gkey: tuple, geometry: dict) -> str:
         """Marker symbol for one geometry key.
 
@@ -224,10 +245,38 @@ class SpecPlotter(Plotter):
         )
 
     def _render_line(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Draw a line through the geometry's (x, y) points."""
+        """Draw a line through the geometry's (x, y) points, or a step outline over histogram bins."""
+        if "edges" in geometry:
+            self._render_step(ax, spec, gkey, geometry, zorder)
+            return
         x, y = self._curve_values(geometry)
         if geometry.get("value_axis") == "y":
             # vertical density curve: values on the y axis, density on x
+            x, y = y, x
+        linecolor = self._color_dict(spec["linecolor"])
+        ax.plot(
+            x,
+            y,
+            linestyle=spec["linestyle"],
+            linewidth=spec["linewidth"],
+            color=self._group_color(linecolor, gkey, spec["linealpha"]),
+            zorder=zorder,
+        )
+
+    def _render_step(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw a step outline over histogram bins (legacy ``hist_type="step"``).
+
+        The outline walks the bin edges: from the (stacked) bottom up to the
+        (stacked) top and across each bin. The ``bottom`` offsets come from
+        the resolver's ``style="stack"/"fill"`` form pass.
+        """
+        edges = np.atleast_1d(np.asarray(geometry["edges"], dtype=float))
+        height = np.atleast_1d(np.asarray(geometry["height"], dtype=float))
+        bottom = np.atleast_1d(np.asarray(geometry.get("bottom", np.zeros_like(height)), dtype=float))
+        x = np.repeat(edges, 2)
+        y = np.concatenate([[bottom[0]], np.repeat(bottom + height, 2), [bottom[-1]]])
+        if geometry.get("value_axis") == "y":
+            # vertical histogram: values on the y axis, density along x
             x, y = y, x
         linecolor = self._color_dict(spec["linecolor"])
         ax.plot(
@@ -342,6 +391,7 @@ class SpecPlotter(Plotter):
                     x,
                     height,
                     height=width,
+                    left=geometry.get("bottom", 0.0),
                     facecolor="none",
                     edgecolor=self._group_color(edgecolor, gkey, spec["edge_alpha"]),
                     linewidth=spec["linewidth"],
@@ -360,6 +410,7 @@ class SpecPlotter(Plotter):
             x,
             height,
             width=width,
+            bottom=geometry.get("bottom", 0.0),
             facecolor="none",
             edgecolor=self._group_color(edgecolor, gkey, spec["edge_alpha"]),
             linewidth=spec["linewidth"],
@@ -379,6 +430,7 @@ class SpecPlotter(Plotter):
                     geometry["centers"],
                     geometry["height"],
                     height=geometry["binwidth"],
+                    left=geometry.get("bottom", 0.0),
                     facecolor=facecolor,
                     edgecolor=edgecolor,
                     linewidth=edge_width,
@@ -390,6 +442,7 @@ class SpecPlotter(Plotter):
                     geometry["centers"],
                     geometry["height"],
                     width=geometry["binwidth"],
+                    bottom=geometry.get("bottom", 0.0),
                     facecolor=facecolor,
                     edgecolor=edgecolor,
                     linewidth=edge_width,
@@ -398,10 +451,11 @@ class SpecPlotter(Plotter):
                 )
         elif "spread" in geometry and "y" in geometry:
             # vertical violin (categorical KDE): values on the y axis, density around the slot
+            low, high = self._violin_bounds(geometry)
             ax.fill_betweenx(
                 geometry["y"],
-                geometry["position"] - geometry["spread"],
-                geometry["position"] + geometry["spread"],
+                geometry["position"] + low,
+                geometry["position"] + high,
                 facecolor=facecolor,
                 edgecolor=edgecolor,
                 linewidth=edge_width,
@@ -410,10 +464,11 @@ class SpecPlotter(Plotter):
             )
         elif "spread" in geometry and "x" in geometry:
             # horizontal violin: values on the x axis, density around the slot
+            low, high = self._violin_bounds(geometry)
             ax.fill_between(
                 geometry["x"],
-                geometry["position"] - geometry["spread"],
-                geometry["position"] + geometry["spread"],
+                geometry["position"] + low,
+                geometry["position"] + high,
                 facecolor=facecolor,
                 edgecolor=edgecolor,
                 linewidth=edge_width,

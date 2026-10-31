@@ -825,6 +825,196 @@ class TestDensityOrientation:
             plot.plot(y="y", data=data)
 
 
+class TestLayerStyleResolution:
+    """The resolver form pass: violin sides, overlap nesting, histogram stacking."""
+
+    def test_violin_left_side_bounds(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill(), style="left")
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
+        for g in resolved.values():
+            spread = np.asarray(g["spread"], dtype=float)
+            h = spread.max()
+            # flat edge on the right slot boundary, bulge reaching the left one
+            np.testing.assert_allclose(g["spread_high"], h)
+            np.testing.assert_allclose(g["spread_low"], h - 2.0 * spread)
+            assert g["spread_low"].min() == pytest.approx(-h)
+
+    def test_violin_right_side_bounds(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill(), style="right")
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
+        for g in resolved.values():
+            spread = np.asarray(g["spread"], dtype=float)
+            h = spread.max()
+            # mirror of the left style: flat edge on the left slot boundary
+            np.testing.assert_allclose(g["spread_low"], -h)
+            np.testing.assert_allclose(g["spread_high"], 2.0 * spread - h)
+            assert g["spread_high"].max() == pytest.approx(h)
+
+    def test_violin_alternate_sides_by_slot_order(self, two_grouping):
+        data, _ = two_grouping
+        plot = (
+            CategoricalPlot().grouping(group="grouping_1", subgroup="grouping_2").add(KDE(), Fill(), style="alternate")
+        )
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
+        ordered = sorted(resolved.items(), key=lambda item: (item[1]["position"], item[0]))
+        for index, (gkey, g) in enumerate(ordered):
+            if index % 2 == 0:
+                # even slots: left side (constant high bound at the max spread)
+                np.testing.assert_allclose(g["spread_high"], g["spread"].max())
+            else:
+                # odd slots: right side (constant low bound at -max spread)
+                np.testing.assert_allclose(g["spread_low"], -g["spread"].max())
+
+    def test_overlap_places_nested_violins_on_the_slot_center(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        plot = (
+            CategoricalPlot()
+            .grouping(group="grouping_1")
+            .add(KDE(unique_id="unique_grouping"), Fill(), style="overlap")
+        )
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
+        assert all(len(key) == 2 for key in resolved)
+        for gkey, g in resolved.items():
+            assert g["position"] == context["loc_dict"][(gkey[0],)]
+            assert g["extent"] == context["width"]
+            assert "uid_index" in g
+            # every subject violin normalizes to the full slot width
+            np.testing.assert_allclose(g["spread"].max(), 0.9 * context["width"] / 2)
+
+    def test_histogram_stack_bottoms_accumulate(self, one_grouping):
+        data, _ = one_grouping
+        plot = (
+            LinePlot().grouping(group="grouping_1").add(Histogram(bins=10, bin_limits="common"), Fill(), style="stack")
+        )
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
+        running = None
+        for g in resolved.values():  # geometry order == the legacy row order
+            height = np.asarray(g["height"], dtype=float)
+            if running is None:
+                running = np.zeros_like(height)
+            # legacy zeroes the bottom of empty bins (the bars are invisible there)
+            np.testing.assert_allclose(g["bottom"], np.where(height == 0, 0.0, running))
+            running = running + height
+
+    def test_histogram_fill_normalizes_then_stacks(self, one_grouping):
+        data, _ = one_grouping
+        transform = Histogram(bins=10, bin_limits="common")
+        expected = transform(DataHolder(data), y="y", levels=("grouping_1",))
+        plot = LinePlot().grouping(group="grouping_1").add(transform, Fill(), style="fill")
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        resolved = resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
+        totals = sum(np.asarray(g["height"], dtype=float) for g in expected.values())
+        running = np.zeros_like(totals)
+        for (gkey, raw), g in zip(expected.items(), resolved.values()):
+            normalized = np.divide(np.asarray(raw["height"], dtype=float), totals, where=totals > 0)
+            np.testing.assert_allclose(g["height"], normalized)
+            # legacy zeroes the bottom of empty bins (the bars are invisible there)
+            np.testing.assert_allclose(g["bottom"], np.where(normalized == 0, 0.0, running))
+            running = running + normalized
+        # 100% stacked: every bin's normalized heights sum to 1
+        np.testing.assert_allclose(sum(np.asarray(g["height"], dtype=float) for g in resolved.values()), 1.0)
+
+    def test_histogram_stack_requires_shared_edges(self):
+        rng = np.random.default_rng(3)
+        data = {
+            "grouping_1": [0] * 30 + [1] * 30,
+            "y": np.concatenate([rng.uniform(0.0, 5.0, 30), rng.uniform(10.0, 15.0, 30)]).tolist(),
+        }
+        plot = LinePlot().grouping(group="grouping_1").add(Histogram(bins=10), Fill(), style="stack")
+        with pytest.raises(ValueError, match="common"):
+            resolve_layers(plot._process_data(DataHolder(data), y="y"), plot._layout_context(DataHolder(data)))
+
+    def test_histogram_stack_rejects_error_geometry(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        plot = (
+            LinePlot()
+            .grouping(group="grouping_1")
+            .add(
+                Histogram(bins=10, bin_limits="common", unique_id="unique_grouping", agg_func="mean", err_func="sem"),
+                Fill(),
+                style="stack",
+            )
+        )
+        with pytest.raises(ValueError, match="err_func"):
+            resolve_layers(plot._process_data(DataHolder(data), y="y"), plot._layout_context(DataHolder(data)))
+
+
+class TestStyleRendering:
+    """Layer styles reach matplotlib artists (Agg smoke tests)."""
+
+    def teardown_method(self):
+        plt.close("all")
+
+    def test_left_violin_renders_one_sided(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill(), style="left")
+        plot.plot(y="y", data=data)
+        context = plot._layout_context(DataHolder(data))
+        collections = plot.plotter.axes[0].collections
+        expected = KDE()(DataHolder(data), y="y", levels=("grouping_1",))
+        assert len(collections) == len(expected)
+        for collection, (gkey, g) in zip(collections, expected.items()):
+            loc = context["loc_dict"][gkey]
+            vertices = np.vstack([path.vertices for path in collection.get_paths()])
+            # flat edge on the right slot boundary, bulge to the left boundary
+            np.testing.assert_allclose(vertices[:, 0].max(), loc + 0.45)
+            np.testing.assert_allclose(vertices[:, 0].min(), loc - 0.45)
+
+    def test_stacked_histogram_bars_use_bottoms(self, one_grouping):
+        data, _ = one_grouping
+        transform = Histogram(bins=10, bin_limits="common")
+        plot = LinePlot().grouping(group="grouping_1").add(transform, Fill(), style="stack")
+        plot.plot(y="y", data=data)
+        patches = plot.plotter.axes[0].patches
+        expected = list(transform(DataHolder(data), y="y", levels=("grouping_1",)).items())
+        assert len(patches) == sum(g["height"].size for _, g in expected)
+        index = 0
+        running = None
+        for gkey, g in expected:
+            height = np.asarray(g["height"], dtype=float)
+            if running is None:
+                running = np.zeros_like(height)
+            for value, bottom in zip(height, running):
+                # vertical histograms render as horizontal bars: x is the stacked left edge;
+                # legacy zeroes the bottom of empty bins (the bars are invisible there)
+                assert patches[index].get_x() == pytest.approx(bottom if value > 0 else 0.0)
+                assert patches[index].get_width() == pytest.approx(value)
+                index += 1
+            running = running + height
+
+    def test_step_outline_over_histogram(self, one_grouping):
+        data, _ = one_grouping
+        transform = Histogram(bins=10, bin_limits="common")
+        plot = LinePlot().grouping(group="grouping_1").add(transform, Line())
+        plot.plot(y="y", data=data)
+        expected = transform(DataHolder(data), y="y", levels=("grouping_1",))
+        lines = plot.plotter.axes[0].lines
+        assert len(lines) == len(expected)
+        for line, (gkey, g) in zip(lines, expected.items()):
+            xdata = np.asarray(line.get_xdata(), dtype=float)
+            ydata = np.asarray(line.get_ydata(), dtype=float)
+            # vertical histogram: values (edges) on the y axis, the density walk on x;
+            # the outline walks every bin edge and closes back at zero
+            assert xdata.size == 2 * g["height"].size + 2
+            np.testing.assert_allclose(xdata.min(), 0.0)
+            np.testing.assert_allclose(xdata.max(), g["height"].max())
+            np.testing.assert_allclose(ydata.min(), g["edges"][0])
+            np.testing.assert_allclose(ydata.max(), g["edges"][-1])
+
+
 class TestRenderSmoke:
     def teardown_method(self):
         plt.close("all")
@@ -954,3 +1144,48 @@ class TestRenderSmoke:
 
         assert plot.plotter is not None
         assert plot.plotter.axes[0].has_data()
+
+
+class TestAddStyleValidation:
+    """``style`` is checked at ``.add()`` time against the transform and layout."""
+
+    def test_rejects_style_on_non_density_transform(self):
+        plot = LinePlot()
+        with pytest.raises(ValueError, match="not supported"):
+            plot.add(Identity(), Marker(), style="left")
+
+    def test_rejects_violin_style_on_continuous_layout(self):
+        plot = LinePlot()
+        with pytest.raises(ValueError, match="CategoricalPlot"):
+            plot.add(KDE(), Fill(), style="left")
+
+    def test_rejects_stack_style_on_kde(self):
+        plot = CategoricalPlot()
+        with pytest.raises(ValueError, match="KDE style"):
+            plot.add(KDE(), Fill(), style="stack")
+
+    def test_rejects_violin_style_on_histogram(self):
+        plot = LinePlot()
+        with pytest.raises(ValueError, match="Histogram style"):
+            plot.add(Histogram(), Fill(), style="alternate")
+
+    def test_rejects_overlap_without_unique_id(self):
+        plot = CategoricalPlot()
+        with pytest.raises(ValueError, match="unique_id"):
+            plot.add(KDE(), Fill(), style="overlap")
+
+    def test_rejects_overlap_with_agg_func(self):
+        plot = CategoricalPlot()
+        with pytest.raises(ValueError, match="agg_func"):
+            plot.add(KDE(unique_id="unique_grouping", agg_func="mean"), Fill(), style="overlap")
+
+    def test_layer_holds_the_style(self):
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill(), style="alternate")
+        assert plot.layers[0]["style"] == "alternate"
+
+    def test_style_round_trips_through_metadata(self):
+        plot = CategoricalPlot().grouping(group="grouping_1").add(KDE(), Fill(), style="left")
+        assert layer_to_json(plot.layers[0])["style"] == "left"
+
+        loaded = CategoricalPlot().load_metadata(plot.metadata())
+        assert loaded.layers[0]["style"] == "left"

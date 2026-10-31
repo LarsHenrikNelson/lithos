@@ -5,6 +5,7 @@ from lithos import KDE, CategoricalPlot, Histogram, LinePlot
 from lithos.plotting.elements import Fill
 from lithos.plotting.processing import CategoricalProcessor, LineProcessor
 from lithos.plotting.spec import CategoricalPlot as SpecCategoricalPlot
+from lithos.plotting.spec import LinePlot as SpecLinePlot
 from lithos.plotting.spec.resolver import resolve_layers
 from lithos.utils import DataHolder
 
@@ -252,8 +253,9 @@ class TestViolinParity:
 
     Flat grouping only: the legacy violin width is absolute axis units (the
     spec resolver scales by the slot extent, so subgrouped slots differ) and
-    the legacy nested ``overlap`` style stacks subjects on the slot center
-    (the resolver places them on even columns) — both documented divergences.
+    the legacy nested ``split`` ``uwidth`` formula differs from the
+    even-column extent - both documented divergences. The legacy nested
+    ``overlap`` placement is reproduced by ``style="overlap"`` below.
     """
 
     def _legacy(self, data, **violin_kwargs):
@@ -262,8 +264,8 @@ class TestViolinParity:
         output, _ = processor(plot.data, plot.metadata())
         return output[0]
 
-    def _resolved(self, data, transform):
-        plot = SpecCategoricalPlot().grouping(group="grouping_1").add(transform, Fill())
+    def _resolved(self, data, transform, style=None):
+        plot = SpecCategoricalPlot().grouping(group="grouping_1").add(transform, Fill(), style=style)
         holder = DataHolder(data)
         context = plot._layout_context(holder)
         return resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
@@ -296,3 +298,79 @@ class TestViolinParity:
             np.testing.assert_allclose(legacy.x_data[i], g["y"])
             np.testing.assert_allclose(legacy.y_data[i], g["spread"])
             assert legacy.location[i] == g["position"]
+
+    @pytest.mark.parametrize("style", ["left", "right", "alternate"])
+    def test_split_violin_styles_match_legacy(self, one_grouping, style):
+        data, _ = one_grouping
+        legacy = self._legacy(data, bw="ISJ", kde_length=128, style=style)
+        resolved = self._resolved(data, KDE(bw="ISJ", kde_length=128), style=style)
+
+        # the legacy styles keep the un-halved width; with m = ymax/2 the
+        # half violin spans [loc + m - y, loc + m] (left) / [loc - m, loc - m + y]
+        # (right), which the resolver expresses as spread_low/spread_high offsets
+        assert len(legacy.x_data) == len(resolved)
+        for i, label in enumerate(legacy.group_labels):
+            g = resolved[_as_group_key(label)]
+            m = legacy.y_data[i].max() / 2.0
+            side = ("left" if i % 2 == 0 else "right") if style == "alternate" else style
+            np.testing.assert_allclose(legacy.x_data[i], g["y"])
+            if side == "left":
+                np.testing.assert_allclose(g["spread_high"], m)
+                np.testing.assert_allclose(g["spread_low"], m - legacy.y_data[i])
+            else:
+                np.testing.assert_allclose(g["spread_low"], -m)
+                np.testing.assert_allclose(g["spread_high"], legacy.y_data[i] - m)
+            assert legacy.location[i] == g["position"]
+
+    def test_overlap_violins_match_legacy(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        legacy = self._legacy(data, bw="ISJ", kde_length=128, unique_id="unique_grouping", unique_style="overlap")
+        resolved = self._resolved(data, KDE(bw="ISJ", kde_length=128, unique_id="unique_grouping"), style="overlap")
+
+        # per-subject violins in data order, all overlaid on the slot center
+        # at the full (halved-width) normalization
+        items = list(resolved.items())
+        assert len(legacy.x_data) == len(items)
+        for i, (gkey, g) in enumerate(items):
+            assert gkey[:1] == _as_group_key(legacy.group_labels[i])
+            np.testing.assert_allclose(legacy.x_data[i], g["y"])
+            np.testing.assert_allclose(legacy.y_data[i], g["spread"])
+            assert legacy.location[i] == g["position"]
+
+
+class TestHistStackParity:
+    """Parity: resolved ``Histogram`` stacking (``style``) vs legacy ``hist_type`` post-processing.
+
+    ``bin_limits="common"`` on both sides: stacking compares heights across
+    groups, so the bins must match (the legacy ``_post_process_density``
+    stacks by bin index regardless; the resolver raises on mismatched edges).
+    Groups stack in geometry order within each facet - the legacy row order.
+    """
+
+    def _legacy(self, data, **hist_kwargs):
+        plot = LinePlot(data).grouping(group="grouping_1").hist(**hist_kwargs).plot_data(y="y")
+        processor = LineProcessor(markers=("o", "X", "^", "s", "d"), hatches=("/", "o", "-", "*", "+"))
+        output, _ = processor(plot.data, plot.metadata())
+        return output[0]
+
+    def _resolved(self, data, style):
+        plot = (
+            SpecLinePlot()
+            .grouping(group="grouping_1")
+            .add(Histogram(bins=10, stat="density", bin_limits="common"), Fill(), style=style)
+        )
+        holder = DataHolder(data)
+        context = plot._layout_context(holder)
+        return resolve_layers(plot._process_data(holder, y="y"), context)[0]["geometry"]
+
+    @pytest.mark.parametrize("style", ["stack", "fill"])
+    def test_stacked_heights_and_bottoms_match_legacy(self, one_grouping, style):
+        data, _ = one_grouping
+        legacy = self._legacy(data, nbins=10, stat="density", bin_limits="common", hist_type=style)
+        resolved = self._resolved(data, style)
+
+        assert len(legacy.heights) == len(resolved)
+        for i, label in enumerate(legacy.group_labels):
+            g = resolved[_as_group_key(label)]
+            np.testing.assert_allclose(legacy.heights[i], g["height"])
+            np.testing.assert_allclose(legacy.bottoms[i], g["bottom"])

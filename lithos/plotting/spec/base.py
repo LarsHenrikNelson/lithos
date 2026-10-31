@@ -38,7 +38,7 @@ from typing import ClassVar, Literal
 import numpy as np
 from typing_extensions import Self
 
-from ...types.basic_types import InputData, JitterType, SavePath, Transform
+from ...types.basic_types import InputData, JitterType, LayerStyle, SavePath, Transform
 from ...types.plot_input import Grouping, Subgrouping
 from ...utils import DataHolder
 from ..elements import Element
@@ -61,6 +61,46 @@ class Unset:
 
 
 UNSET = Unset()
+
+VIOLIN_STYLES: tuple[str, ...] = ("full", "left", "right", "alternate", "overlap")
+"""``.add()`` style values that shape a categorical ``KDE`` layer (legacy ``violin`` styles)."""
+
+STACK_STYLES: tuple[str, ...] = ("stack", "fill")
+"""``.add()`` style values that stack a ``Histogram`` layer (legacy ``hist_type`` stack modes)."""
+
+
+def _validate_style(style: str, transform: StatTransform, layout: str) -> None:
+    """Check a ``style`` against the layer's transform and the plot layout.
+
+    Args:
+        style (str): The ``.add()`` style value.
+        transform (Transform): The layer's transform instance.
+        layout (str): The plot's layout name (``"categorical"``/``"continuous"``).
+
+    Raises:
+        ValueError: If the style does not apply to the transform/layout
+            combination.
+    """
+    name = getattr(transform, "name", None)
+    if name == "kde":
+        if layout != "categorical":
+            raise ValueError(
+                f"style={style!r} shapes violins and needs CategoricalPlot; a KDE layer on this layout renders as a curve."
+            )
+        if style not in VIOLIN_STYLES:
+            raise ValueError(f"KDE style must be one of {VIOLIN_STYLES}, got {style!r}.")
+        if style == "overlap":
+            if transform.unique_id is None:
+                raise ValueError("style='overlap' requires KDE(unique_id=...) so per-subject violins exist to overlay.")
+            if transform.agg_func is not None:
+                raise ValueError(
+                    "style='overlap' has no effect with agg_func; the subject violins are already aggregated into one."
+                )
+    elif name == "histogram":
+        if style not in STACK_STYLES:
+            raise ValueError(f"Histogram style must be one of {STACK_STYLES} (or None), got {style!r}.")
+    else:
+        raise ValueError(f"style is not supported for the {name!r} transform.")
 
 
 class Plot:
@@ -191,6 +231,7 @@ class Plot:
         width: float = 0.9,
         jitter_type: JitterType = "fill",
         seed: int = 42,
+        style: LayerStyle | None = None,
     ) -> Self:
         """Add a layer: one transform plus the elements that render its geometry.
 
@@ -218,6 +259,23 @@ class Plot:
         :class:`~lithos.plotting.elements.SummaryLine` spans the footprint
         (flat) or fills its subject column (nested).
 
+        ``style`` selects a *form* for the layer's regions that needs
+        cross-group information and therefore cannot live on a transform
+        (per-group by contract) or an element (per-artist formatting). A
+        ``KDE`` layer on a categorical layout accepts the legacy violin forms
+        ``"full"`` (default), ``"left"``, ``"right"`` and ``"alternate"``
+        (split violins; the side alternates by slot order) plus
+        ``"overlap"`` (per-subject violins overlaid on the slot center,
+        legacy ``unique_style="overlap"`` — requires ``unique_id`` without
+        ``agg_func``; the default even-column nesting is the legacy
+        ``unique_style="split"``). A ``Histogram`` layer accepts ``"stack"``
+        (cumulative bars) and ``"fill"`` (100% stacked) — the legacy
+        ``hist_type`` stack modes; outline-vs-fill (legacy
+        ``hist_type="bar"``/``"step"``) is element composition instead
+        (``Fill``/``Bar`` draw bars, ``Line`` draws the step outline).
+        Styles that do not apply to the transform/layout raise at ``.add()``
+        time.
+
         Args:
             transform (Transform): The layer's statistical transform.
             *elements (Element): The elements rendering the transform's
@@ -230,6 +288,9 @@ class Plot:
             jitter_type (JitterType): Shape of the random point spread within
                 the footprint.
             seed (int): Seed for the reproducible random spread.
+            style (LayerStyle | None): Region form for the layer - violin
+                sides (``KDE``) or stacking (``Histogram``); ``None`` keeps
+                the geometry default.
 
         Returns:
             Self: The plot, for chaining.
@@ -238,7 +299,8 @@ class Plot:
             TypeError: If ``transform`` is not a ``Transform`` or an element
                 is not an ``Element``.
             ValueError: If no element is given, the position mode is not
-                allowed for the layout, or ``width`` is negative.
+                allowed for the layout, ``width`` is negative, or ``style``
+                does not apply to the transform/layout.
         """
         if not isinstance(transform, StatTransform):
             raise TypeError(f"add() expects a Transform instance, got {type(transform).__name__!r}.")
@@ -253,6 +315,8 @@ class Plot:
             raise ValueError(f"position must be one of {self.positions} for {type(self).__name__}, got {position!r}.")
         if width < 0:
             raise ValueError(f"width must be >= 0, got {width!r}.")
+        if style is not None:
+            _validate_style(style, transform, self.layout)
 
         self.layers.append(
             {
@@ -262,6 +326,7 @@ class Plot:
                 "width": width,
                 "jitter_type": jitter_type,
                 "seed": seed,
+                "style": style,
             }
         )
 
@@ -412,6 +477,7 @@ class Plot:
                     "width": layer["width"],
                     "jitter_type": layer["jitter_type"],
                     "seed": layer["seed"],
+                    "style": layer["style"],
                     "geometry": geometry,
                 }
             )
@@ -902,6 +968,7 @@ class Plot:
                 width=layer.get("width", 0.0),
                 jitter_type=layer.get("jitter_type", "fill"),
                 seed=layer.get("seed", 42),
+                style=layer.get("style"),
             )
         self.significances = [Significance(**spec) for spec in metadata.get("significances", [])]
 

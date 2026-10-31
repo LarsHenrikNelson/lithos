@@ -53,6 +53,7 @@ SavePath: TypeAlias = str | Path | BytesIO | StringIO
 FitFunc: TypeAlias = Callable | Literal["linear", "sine", "polynomial"]
 CIFunc: TypeAlias = Literal["ci", "pi", "none", "bootstrap_ci"]
 HistType: TypeAlias = Literal["bar", "step", "stack", "fill"]
+LayerStyle: TypeAlias = Literal["full", "left", "right", "alternate", "stack", "fill", "overlap"]
 JitterType: TypeAlias = Literal["fill", "dist"]
 HistBinLimits: TypeAlias = tuple[float, float] | Literal["common"] | None
 HistStat: TypeAlias = Literal["density", "probability", "count"]
