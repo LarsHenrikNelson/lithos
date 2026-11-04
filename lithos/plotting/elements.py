@@ -117,10 +117,10 @@ class Marker(Element):
     type: ClassVar[str] = "marker"
     marker: str | dict | list = "o"
     markercolor: ColorParameters = "glasbey_category10"
-    edgecolor: ColorParameters = "white"
+    edgecolor: ColorParameters = "none"
     markeredgewidth: float = 1.0
     markersize: float | str | tuple = 5.0
-    alpha: AlphaRange = 1.0
+    alpha: AlphaRange = 0.75
     edge_alpha: AlphaRange = 1.0
 
 
