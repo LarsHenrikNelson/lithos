@@ -46,7 +46,7 @@ def create_dict(
     return output_dict
 
 
-def _get_colormap(colormap: str | None) -> str | list:
+def _get_colormap(colormap: str | None) -> Any:
     if colormap is None:
         colormap = "glasbey_category10"
     if colormap in cc.palette:
@@ -57,7 +57,7 @@ def _get_colormap(colormap: str | None) -> str | list:
         else:
             t = mpl.colormaps[colormap]
             if isinstance(t, ListedColormap):
-                return mpl.colormaps[colormap].colors
+                return t.colors
             else:
                 raise AttributeError("Colormap does not have colors attribute.")
     else:
@@ -189,7 +189,7 @@ def process_duplicates(values, output=None):
         values,
         return_counts=True,
     )
-    track_counts = {}
+    track_counts: dict = {}
     if output is None:
         output = np.zeros(values.size)
     for key, val in zip(vals, counts):
@@ -451,7 +451,9 @@ def _process_positions(group_spacing, group_order, subgroup_order=None):
     return loc_dict, width
 
 
-def _create_groupings(data, group, subgroup, group_order, subgroup_order) -> tuple[list, list, list, tuple]:
+def _create_groupings(
+    data, group, subgroup, group_order, subgroup_order
+) -> tuple[list | np.ndarray | tuple, list | np.ndarray | tuple | None, list, tuple]:
     if group is None:
         unique_groups = [("",)]
         group_order = [""]

@@ -29,7 +29,10 @@ jobs:
           cache-dependency-path: uv.lock
 
       - name: Install package and test dependencies
-        run: uv sync --locked --no-default-groups --group test
+        run: uv sync --locked --no-default-groups --group test --group lint
+
+      - name: Run type check
+        run: uv run ty check
 
       - name: Run tests
         run: uv run pytest -vv --cov-report=term --cov-report=xml tests

@@ -143,6 +143,10 @@ def _resolve_span(
         if keys:
             positions = [pos for key in keys for pos in _slot_positions(key, context["loc_dict"])]
             return min(positions), max(positions), 0, _union_rows(keys, groups_index)
+        if sig.x1 is None or sig.x2 is None:
+            raise ValueError(
+                "Positional significance brackets need x1/x2 on a categorical layout; pass groups instead."
+            )
         # absolute positions: cover the slots that fall inside the window
         in_window = [slot for slot, pos in context["loc_dict"].items() if sig.x1 <= pos <= sig.x2]
         rows = _union_rows(in_window, groups_index) if in_window else np.arange(data.shape[0])
@@ -158,6 +162,8 @@ def _resolve_span(
         facet, rows = 0, np.arange(data.shape[0])
 
     if sig.x1 is not None:
+        if sig.x2 is None:
+            raise ValueError("Significance x-window needs both x1 and x2; set both or neither.")
         if x is not None:
             xvals = np.asarray(data[rows, x], dtype=float)
             rows = rows[(xvals >= sig.x1) & (xvals <= sig.x2)]
@@ -173,7 +179,7 @@ def _resolve_span(
 def _resolve_bracket(
     sig: Significance,
     data: DataHolder,
-    y: str,
+    y: str | None,
     x: str | None,
     context: dict,
     groups_index: dict,
@@ -184,9 +190,13 @@ def _resolve_bracket(
     """Resolve one bracket into a concrete, renderer-ready dict."""
     x1, x2, facet, rows = _resolve_span(sig, data, x, context, groups_index)
     same_facet = [bracket for bracket in earlier if bracket["facet"] == facet]
-    top = float(np.nanmax(_column_values(data, rows, y, ytransform)))
+    # ``top`` needs the y column; ``resolve_significance`` guarantees ``y`` is
+    # given whenever any bracket is auto-y or a bracket-style bracket.
+    top: float | None = float(np.nanmax(_column_values(data, rows, y, ytransform))) if y is not None else None
 
     if sig.y is None:
+        if top is None:
+            raise ValueError("Significance auto-y needs the y column; pass y to plot().")
         overlapping = [
             bracket["level"] + 1
             for bracket in same_facet
@@ -199,6 +209,8 @@ def _resolve_bracket(
 
     cap_bottoms = None
     if sig.style == "bracket":
+        if top is None:
+            raise ValueError("Significance bracket caps need the y column; pass y to plot() or use style='line'.")
         # caps descend to the top of what is plotted: the data under the
         # span, or a nested lower bracket's line covering the cap position.
         cap_bottoms = []
@@ -269,11 +281,15 @@ def resolve_significance(
         )
     groups_index = data.groups(context["levels"])
 
-    # gap/step are fractions of the full (transformed) y-range
-    all_vals = _column_values(data, np.arange(data.shape[0]), y, ytransform)
-    y_span = float(np.nanmax(all_vals) - np.nanmin(all_vals))
-    if y_span == 0:
+    # gap/step are fractions of the full (transformed) y-range; they only
+    # matter for auto-y brackets, and ``y`` is guaranteed above for those.
+    if y is None:
         y_span = 1.0
+    else:
+        all_vals = _column_values(data, np.arange(data.shape[0]), y, ytransform)
+        y_span = float(np.nanmax(all_vals) - np.nanmin(all_vals))
+        if y_span == 0:
+            y_span = 1.0
 
     resolved: list[dict] = []
     for sig in significances:

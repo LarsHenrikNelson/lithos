@@ -9,11 +9,11 @@ clustered/categorical and nested data (e.g. neurons per mouse, repeated measures
 Python >= 3.10. BSD-3-Clause license. Versioning is dynamic via setuptools-scm (git tags) —
 **never hardcode a version** anywhere.
 
-## Toolchain: uv + ruff
+## Toolchain: uv + ruff + ty
 
-This project uses [uv](https://docs.astral.sh/uv/) for environment/dependency management and
-[ruff](https://docs.astral.sh/ruff/) for linting/formatting. Always run tools through uv so the
-pinned environment is used:
+This project uses [uv](https://docs.astral.sh/uv/) for environment/dependency management,
+[ruff](https://docs.astral.sh/ruff/) for linting/formatting and [ty](https://docs.astral.sh/ty/)
+for type checking. Always run tools through uv so the pinned environment is used:
 
 | Task | Command |
 | --- | --- |
@@ -25,12 +25,21 @@ pinned environment is used:
 | Lint + auto-fix | `uv run ruff check --fix .` |
 | Format | `uv run ruff format .` |
 | Check formatting only | `uv run ruff format --check .` |
+| Type check | `uv run ty check` |
 
-CI (`.github/workflows/ci.yaml`) runs `uv sync --locked --no-default-groups --group test`
-then pytest on Python 3.10-3.14. Before pushing, `uv run ruff check .` and `uv run pytest`
-must both pass. Do not edit `uv.lock` by hand — regenerate with `uv lock` if needed.
+CI (`.github/workflows/ci.yaml`) runs `uv sync --locked --no-default-groups --group test --group lint`,
+then `ty check` and pytest on Python 3.10-3.14. Before pushing, `uv run ruff check .`,
+`uv run ty check` and `uv run pytest` must all pass. Do not edit `uv.lock` by hand — regenerate
+with `uv lock` if needed.
 
-Dev tools (pytest, ruff, ipykernel, nbconvert) live in `[dependency-groups]` in `pyproject.toml`.
+Dev tools (pytest, ruff, ty, ipykernel, nbconvert) live in `[dependency-groups]` in `pyproject.toml`.
+
+### Type checking (ty)
+
+ty is configured in `pyproject.toml` under `[tool.ty]` and currently checks the `lithos/`
+package only (`[tool.ty.src] include = ["lithos"]`); the test suite is not type checked yet.
+Update annotations to match real runtime types rather than `# ty: ignore` comments; the codebase
+uses group-key dicts (`dict[tuple, ...]`) whose keys come from `DataHolder.groups()`.
 
 ## Ruff configuration
 

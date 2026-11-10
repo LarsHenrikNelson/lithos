@@ -54,6 +54,7 @@ test = [
 ]
 lint = [
     "ruff>=0.12",
+    "ty>=0.0.100",
 ]
 docs = [
     "ipykernel>=7.1.0",
@@ -74,3 +75,6 @@ select = [
     "UP",              # pyupgrade
 ]
 ignore = ["F401", "F403"]  # intentional: __init__ re-exports and star imports
+
+[tool.ty.src]
+include = ["lithos"]  # tests/ are not type checked yet; add them once the suite is ty-clean

@@ -4,7 +4,7 @@ from numba import njit
 from ..types.basic_types import BinType, HistStat
 
 
-def hist(data: np.ndarray, bins: np.ndarray, stat: HistStat) -> np.ndarray | None:
+def hist(data: np.ndarray, bins: np.ndarray, stat: HistStat) -> np.ndarray:
     if stat == "probability":
         data, _ = np.histogram(data, bins)
         return data / data.sum()
@@ -14,6 +14,7 @@ def hist(data: np.ndarray, bins: np.ndarray, stat: HistStat) -> np.ndarray | Non
     elif stat == "density":
         data, _ = np.histogram(data, bins, density=True)
         return data
+    raise ValueError(f"Unknown histogram stat: {stat!r}.")
 
 
 @njit(cache=True)

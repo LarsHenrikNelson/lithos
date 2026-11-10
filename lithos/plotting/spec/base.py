@@ -90,9 +90,9 @@ def _validate_style(style: str, transform: StatTransform, layout: str) -> None:
         if style not in VIOLIN_STYLES:
             raise ValueError(f"KDE style must be one of {VIOLIN_STYLES}, got {style!r}.")
         if style == "overlap":
-            if transform.unique_id is None:
+            if getattr(transform, "unique_id", None) is None:
                 raise ValueError("style='overlap' requires KDE(unique_id=...) so per-subject violins exist to overlay.")
-            if transform.agg_func is not None:
+            if getattr(transform, "agg_func", None) is not None:
                 raise ValueError(
                     "style='overlap' has no effect with agg_func; the subject violins are already aggregated into one."
                 )
@@ -1068,7 +1068,7 @@ class Plot:
             return y, x, DataHolder(data)
         if isinstance(y, str) or isinstance(x, str):
             raise ValueError("y/x column names require data; pass data= or use numpy arrays for y/x.")
-        holder_data = {}
+        holder_data: dict[str | int, list[int | float | str] | np.ndarray] = {}
         y_name = x_name = None
         if isinstance(y, np.ndarray):
             holder_data["y"] = y

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Literal
 
 import numpy as np
@@ -211,7 +212,7 @@ def line(x, slope=1.0, intercept=0.0):
     return slope * x + intercept
 
 
-def fit_polynomial(x, y, fit_x=None, degree=2, ci_func: CIFunc = "ci"):
+def fit_polynomial(x, y, fit_x=None, degree=2, ci_func: CIFunc | None = "ci"):
     """Fit a polynomial of the given degree and evaluate it (with an interval).
 
     Args:
@@ -239,7 +240,7 @@ def fit_polynomial(x, y, fit_x=None, degree=2, ci_func: CIFunc = "ci"):
     return output, fit_y, fit_x, ci
 
 
-def fit_linear_regression(x, y, fit_x=None, ci_func: CIFunc = "ci"):
+def fit_linear_regression(x, y, fit_x=None, ci_func: CIFunc | None = "ci"):
     """Fit a line as a degree-1 polynomial (slope/intercept from the coefficients).
 
     All-identical x collapses to slope 0 / intercept ``mean(y)`` with the
@@ -262,7 +263,7 @@ def fit_linear_regression(x, y, fit_x=None, ci_func: CIFunc = "ci"):
     return fit_polynomial(x=x, y=y, fit_x=fit_x, degree=1, ci_func=ci_func)
 
 
-def fit_sine(x, y, fit_x=None, ci_func: CIFunc = "ci"):
+def fit_sine(x, y, fit_x=None, ci_func: CIFunc | None = "ci"):
     """Fit a sine (amplitude, omega, phase, offset) via scipy curve_fit.
 
     Args:
@@ -295,7 +296,7 @@ def fit_sine(x, y, fit_x=None, ci_func: CIFunc = "ci"):
     return popt, fit_y, fit_x, ci
 
 
-FIT_DICT = {
+FIT_DICT: dict[str, Callable] = {
     "linear": fit_linear_regression,
     "sine": fit_sine,
     "polynomial": fit_polynomial,
@@ -303,7 +304,9 @@ FIT_DICT = {
 
 
 def fit(fit_func: FitFunc, **kwargs):
-    if fit_func in FIT_DICT:
+    if isinstance(fit_func, str):
+        if fit_func not in FIT_DICT:
+            raise ValueError(f"Unknown fit function: {fit_func!r}; expected one of {sorted(FIT_DICT)}.")
         output = FIT_DICT[fit_func](**kwargs)
     else:
         output = fit_func(**kwargs)

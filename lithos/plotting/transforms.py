@@ -629,6 +629,8 @@ class _DensityTransform(Transform):
                 continue
 
             uids = np.unique(np.asarray(data[indexes, self.unique_id]))
+            if unique_groups is None:
+                raise ValueError("unique_groups cannot be None when a unique_id column is given.")
             if self.agg_func is None:
                 # nesting: one geometry dict per (group, subject)
                 for uid in uids:
@@ -1068,7 +1070,7 @@ class Fit(Transform):
 
     name: str = "fit"
     fit_func: FitFunc = "linear"
-    ci_func: CIFunc = "ci"
+    ci_func: CIFunc | None = "ci"
     fit_args: dict = field(default_factory=dict)
     unique_id: str | None = None
     agg_func: Agg | None = None
@@ -1124,6 +1126,8 @@ class Fit(Transform):
                 }
             else:
                 uids = np.unique(data[indexes, self.unique_id])
+                if unique_groups is None:
+                    raise ValueError("unique_groups cannot be None when a unique_id column is given.")
                 if self.agg_func is None:
                     # one fit per subject (nested group keys), per-subject interval
                     for uid in uids:

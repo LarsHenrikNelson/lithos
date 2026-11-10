@@ -27,7 +27,6 @@ from matplotlib.projections.polar import PolarAxes
 from numpy.typing import NDArray
 
 from ..types.basic_types import Direction, SavePath
-from ..types.plot_types import PlotData, PlotTypes
 from ..utils import (
     get_backtransform,
     get_transform,
@@ -71,8 +70,8 @@ class Plotter:
     """Base matplotlib renderer: shared figure, axes and formatting machinery.
 
     Attributes:
-        plot_data (list[PlotTypes]): The plot types driving formatting
-            special cases (legacy plot tuples or spec layer views).
+        plot_data (list): The plot types driving formatting special cases
+            (legacy ``PlotTypes`` records or spec layer views).
         plot_format (dict): Label/axis/grid/figure formatting options.
         plot_dict (dict): The layout context (group order, slot positions,
             ...).
@@ -104,7 +103,7 @@ class Plotter:
 
     def __init__(
         self,
-        plot_data: list[PlotTypes],
+        plot_data: list,
         plot_dict: dict,
         metadata: dict,
         savefig: bool = False,
@@ -117,7 +116,9 @@ class Plotter:
         """Initialize the renderer and create (or receive) the figure and axes.
 
         Args:
-            plot_data (list[PlotTypes]): The plot types driving formatting.
+            plot_data (list): The plot types driving formatting - legacy
+                ``PlotTypes`` records or spec layer views (duck-typed
+                ``plot_type`` holders).
             plot_dict (dict): The layout context.
             metadata (dict): The plot metadata (format, transforms, labels).
             savefig (bool): Save the rendered figure to disk on ``plot()``.
@@ -1229,6 +1230,8 @@ class LinePlotter(Plotter):
             if self.plot_format["figure"]["projection"] == "rectilinear":
                 self.format_rectilinear(sub_ax, xdecimals, ydecimals)
             else:
+                if not isinstance(sub_ax, PolarAxes):
+                    raise ValueError("Polar formatting requires polar axes; check the figure projection.")
                 self.format_polar(sub_ax)
             if "hline" in self.plot_format:
                 self._plot_axlines(self.plot_format["hline"], sub_ax)

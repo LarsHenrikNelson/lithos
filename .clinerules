@@ -6,8 +6,9 @@ Full guidance lives in [AGENTS.md](./AGENTS.md). Read it first. Summary of hard 
 - Tests: `uv run pytest` (one test: `uv run pytest tests/transforms_test.py -k test_name`)
 - Lint: `uv run ruff check .` (auto-fix: `uv run ruff check --fix .`)
 - Format: `uv run ruff format .`
+- Type check: `uv run ty check` (scope: `lithos/` only for now; see `[tool.ty]` in pyproject.toml)
 - Sync env: `uv sync`
-- Both lint and tests must pass before finishing any task.
+- Lint, type check, and tests must all pass before finishing any task.
 
 ## API migration (element/transform API in progress)
 - Read `doc/migration_plan.md` before touching `lithos/plotting/`.

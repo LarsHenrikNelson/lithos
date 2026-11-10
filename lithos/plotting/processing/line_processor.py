@@ -50,8 +50,8 @@ class LineProcessor(BaseProcessor):
         data: DataHolder,
         group: int | str,
         subgroup: int | str,
-        group_order: Grouping,
-        subgroup_order: Subgrouping,
+        group_order: Grouping | np.ndarray,
+        subgroup_order: Subgrouping | np.ndarray,
         facet: bool = False,
         facet_title: bool = False,
         **kwargs,
@@ -739,7 +739,11 @@ class LineProcessor(BaseProcessor):
                     seq = data[indexes, x]
                     if x is None:
                         raise ValueError("x must be passed if you want to aggregate y")
-                    x_temp = [x for x in seq if not (x in seen or seen.add(x))]
+                    x_temp = []
+                    for xi in seq:
+                        if xi not in seen:
+                            seen.add(xi)
+                            x_temp.append(xi)
                     x_output = np.zeros((len(uids), len(x_temp)))
                     y_output = np.zeros((len(uids), len(x_temp)))
                 for uid_index, j in enumerate(uids):

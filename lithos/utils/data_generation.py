@@ -37,13 +37,13 @@ def create_synthetic_data(
     loc: float = 1.2,
     scale: float = 1.0,
 ) -> dict[str | int, list[int | float | str] | np.ndarray]:
-    unique_grouping: list[int | str] = []
+    unique_grouping: list[int | float | str] = []
 
     rng = default_rng(seed)
 
     dist = get_dist(distribution, rng)
 
-    additive = []
+    additive: list[np.ndarray] = []
 
     groups = np.arange(n_groups)
     if n_subgroups != 0:
@@ -58,11 +58,11 @@ def create_synthetic_data(
         else:
             unique_groups.append((i,))
             additive.append(rng.integers(0, 3, size=1))
-    grouping_1 = []
-    x_data = []
-    y_data = []
+    grouping_1: list[int | float | str] = []
+    x_data: list[int | float | str] = []
+    y_data: list[int | float | str] = []
     if n_subgroups != 0:
-        grouping_2 = []
+        grouping_2: list[int | float | str] = []
     for index, i in enumerate(unique_groups):
         if n_unique_ids == 0:
             y_data.extend(dist(loc, scale, n_points) + additive[index])
@@ -80,7 +80,7 @@ def create_synthetic_data(
                 if n_subgroups != 0:
                     grouping_2.extend([i[1]] * n_points)
 
-    output = {"y": y_data, "x": x_data, "grouping_1": grouping_1}
+    output: dict[str | int, list[int | float | str] | np.ndarray] = {"y": y_data, "x": x_data, "grouping_1": grouping_1}
     if n_subgroups != 0:
         output["grouping_2"] = grouping_2
     if n_unique_ids != 0:

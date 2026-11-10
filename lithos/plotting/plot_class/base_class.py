@@ -174,8 +174,8 @@ class BasePlot:
         if isinstance(linewidth, (int, float)):
             linewidth = {"left": linewidth, "bottom": linewidth, "top": 0, "right": 0}
         elif isinstance(linewidth, dict):
-            temp_lw = {"left": 0, "bottom": 0, "top": 0, "right": 0}
-            for key, value in linewidth:
+            temp_lw: dict[str, float] = {"left": 0.0, "bottom": 0.0, "top": 0.0, "right": 0.0}
+            for key, value in linewidth.items():
                 temp_lw[key] = value
             linewidth = temp_lw
 

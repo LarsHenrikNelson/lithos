@@ -391,6 +391,8 @@ def resolve_layer(layer: dict, context: dict) -> dict:
                 resolved["extent"] = context["width"]
                 column = None
             if violin:
+                if value_axis is None:
+                    raise ValueError("KDE layers must carry a value axis to render as violins.")
                 # KDE on a categorical layout renders as a violin: values on
                 # the value axis, the density normalized to the layer width
                 # around the slot (unique_id-nested keys: their column)
