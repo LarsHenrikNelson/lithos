@@ -23,6 +23,13 @@ Example:
 
 ``data`` plus column names, or bare numpy arrays (``plot(y=np.array(...))``),
 enter only through ``.plot()``.
+
+High-level sugar verbs (Phase 2.5, :mod:`lithos.plotting.spec.methods`) wrap
+the common compositions: ``.scatter()`` (legacy scatter/jitter/paired) and
+``.kde()`` (curve or violin) on every layout, plus ``.hist()``/``.ecdf()``/
+``.fit()`` on :class:`LinePlot`. Each verb accepts the transform's statistical
+kwargs, two intent kwargs (``color``/``alpha``), element-role overrides and
+the ``.add()`` layer kwargs — see ``doc/migration_plan.md``.
 """
 
 from .base import Plot

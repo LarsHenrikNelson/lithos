@@ -217,9 +217,11 @@ pipeline and the legacy processor output:
 2. in progress - summary/bar/aggline/summaryu -> `Aggregate` +
    `SummaryLine`/`ErrorBar`/`Bar`/`Fill`; the `SummaryLine` element landed,
    processor parity tests pending.
-3. pending - kde/hist/ecdf/violin/percent -> `KDE`/`Histogram`/`ECDF` +
-   elements (the transforms themselves are landed and tested in
-   `tests/transforms_test.py`; the parity port is pending).
+3. mostly done - kde/hist/violin -> `KDE`/`Histogram` + elements; parity
+   in `tests/processing/density_parity_test.py` (histogram stacking
+   included). Residual: `ecdf` (transform landed and tested in
+   `tests/transforms_test.py`; parity port pending) and `percent` (no
+   pinned decomposition yet - see Open questions).
 4. pending - box -> `Summary` + `Bar`/`Fill`/`Line`/`Marker`/`ErrorBar`
    (no `Whisker` element: whiskers render via `ErrorBar` over the
    `whisker_low`/`whisker_high` geometry `Summary` already computes).
@@ -230,12 +232,83 @@ Parity tests live in `tests/processing/` and compare `Plot.add(...)` processed
 geometry to the legacy `LineProcessor`/`CategoricalProcessor` output for the
 same inputs and defaults.
 
+### Phase 2.5 - Method facades: sugar verbs on the spec classes (current)
+
+High-level verb methods on the spec classes so users write
+`plot.scatter(color="red")`/`plot.kde()` instead of hand-composing `.add()`.
+A verb is a *thin factory*: it builds one transform plus role-default
+elements and calls `.add()` - nothing else. Layers stay the only plot state
+and metadata stays pure layer specs, so verbs inherit the pipeline's
+geometry, parity and metadata replay unchanged (no metadata version bump, no
+renderer change). Implementation: a single `methods.py` mixin on the shared
+`Plot` base for the cross-layout verbs, layout-specific verbs on the layout
+classes. Testing (`tests/spec_methods_test.py`): each verb must produce
+exactly the hand-written `.add(...)` layers (dataclass equality), plus Agg
+render smoke tests; geometry correctness is inherited from the parity suite
+- no duplicate parity.
+
+Verb catalog (legacy methods absorbed in parentheses):
+
+| Verb (layout) | Composition | `.add()` style |
+| --- | --- | --- |
+| `scatter` (both) (`scatter`/`jitter`/`jitteru`/`paired`) - landed | `Identity(unique_id=...)` + `Marker`, plus `Line` connectors via `connect=True` | - |
+| `kde` (both) (`kde`/`violin`) - landed | `KDE(...)` + `Fill` (+ `Line`; the line role is off by default on categorical layouts, where only `Fill` renders the violin body) | violin forms |
+| `hist` (`LinePlot`) (`hist`) - landed | `Histogram(...)` + `Fill` + `Bar`; `step=` adds the `Line` step outline (legacy `hist_type="step"`) | `stack`/`fill` |
+| `ecdf` (`LinePlot`) (`ecdf`) - landed | `ECDF(...)` + `Fill` + `Line` | - |
+| `fit` (`LinePlot`) (`fit`) - landed | `Fit(...)` + `ErrorBand` (off by default when `ci_func=None`) + `Line` | - |
+| `line` (`LinePlot`) (`line`/`aggline`) - with family 2 | `func=None` -> `Identity` + `Line`; else `Aggregate(func, err_func)` + `Line` (+ `ErrorBand`) | - |
+| `summary` (`CategoricalPlot`) (`summary`/`summaryu`) - with family 2 | `Aggregate(...)` + `SummaryLine` (+ `ErrorBar`) | - |
+| `bar` (`CategoricalPlot`) (`bar`) - with family 2 | `Aggregate(func)` + `Fill` + `Bar` | - |
+| `box` (`CategoricalPlot`) (`box`) - with family 4 | `Summary` + `Fill`/`Bar`/`Line`/`Marker`/`ErrorBar` | - |
+| `percent` (`CategoricalPlot`) (`percent`) - parked | unresolved (Open questions) | - |
+
+`hist`/`ecdf` start `LinePlot`-only because the categorical density forms
+are the `percent` port (parked); they move onto the shared base once that
+is pinned.
+
+Argument contract (three tiers, in precedence order):
+
+1. *Element role overrides win completely.* Every verb exposes its default
+   elements as optional role arguments (`marker=`, `line=`, `fill=`,
+   `bar=`, `step=`, `band=`...). A passed instance replaces that role's
+   default outright - intent arguments are not applied to it - and `False`
+   drops the role from the composition. Dropping every role surfaces
+   `.add()`'s no-element error.
+2. *Intent arguments shape only the defaults:* `color=`/`alpha=`. `color`
+   fans out to the role defaults' primary color fields
+   (`linecolor`/`fillcolor`/`markercolor`/box `edgecolor`; never edge
+   fields), `alpha` to their primary alpha fields (`Marker.alpha`,
+   `Fill.fillalpha`, `Line.linealpha`, `Bar.edge_alpha`).
+3. *Statistical and layer kwargs are verbatim:* transform field names
+   (`bw`, `kernel`, `tol`, `kde_length`, `KDEType`, `bins`, `bin_limits`,
+   `stat`, `ecdf_type`, `ecdf_args`, `fit_func`, `ci_func`, `fit_args`,
+   `unique_id`, `agg_func`, `err_func`) and `.add()` names (`position`,
+   `width`, `jitter_type`, `seed`, `style`).
+
+Verb defaults adopt the new-API defaults, deliberately diverging from the
+legacy methods: `KDE bw="ISJ"` (legacy `silverman`), `Histogram
+stat="density"` (legacy `count`), `kde` fills by default (legacy
+`fill_under=False`), `fit agg_func=None` (legacy `mean`/`sem`).
+
+Dropped legacy knobs (owned by the resolver/elements now): `duplicate_offset`,
+`sort`, `agg_width`, per-method `legend=`, `hist_type` outline-vs-fill (role
+elements), `fill_between`/`fill_under` booleans (roles or `False`), the `kde`
+fill mutual-exclusion error, `paired`'s `index`/`order=` (pairing is the
+plot's `x` column, data-driven) and the `ecdf` `ylim` pin (the probability
+axis follows the value column's axis, so `[0, 1]` limits now come from
+`.axis(ylim=/xlim=)`). Legacy styling kwargs do not return - verbs expose
+`color`/`alpha` plus roles only; finer styling is a `.add()` layer.
+
 ### Phase 3 - Collapse
-- Remove legacy methods (or keep as thin aliases if still in use).
-- Merge `LineProcessor`/`CategoricalProcessor` into the shared resolver.
-- Decide `LinePlot`/`CategoricalPlot` fate: either thin facades over
-  `Plot(layout=...)` or removed entirely (open question, revisit after
-  Phase 2).
+- Flip the top-level `lithos.LinePlot`/`lithos.CategoricalPlot` exports
+  from the legacy classes to the spec ones (same names, now carrying the
+  Phase 2.5 verbs) and move the README examples to the sugar API.
+- Remove legacy methods (or keep as thin aliases if still in use); merge
+  `LineProcessor`/`CategoricalProcessor` into the shared resolver once the
+  frozen parity suite has served its purpose.
+- LinePlot/CategoricalPlot fate - resolved with Phase 2.5: the spec classes
+  are the user API (`.add()` + verbs); the legacy `plot_class/` classes
+  and their methods are removed.
 
 ## Open questions (parked until their phase)
 
@@ -244,7 +317,12 @@ same inputs and defaults.
 - `bin_limits="common"`-style cross-group binning inside `Histogram`
   (resolved: `Histogram(bin_limits="common")` computes global edges, shared
   by every group/subject hist).
-- Whether `LinePlot`/`CategoricalPlot` survive as facades (Phase 3).
+- (resolved by Phase 2.5) `LinePlot`/`CategoricalPlot` survive as the spec
+  classes plus sugar verbs; the legacy import names flip at Phase 3.
+- `percent` decomposition: closest is `Histogram` + `style="fill"` at the
+  slot center (`cutoff` -> bins, `axis_type` -> normalization), but
+  `invert`/`include_bins` do not map cleanly - decide at Phase 3 or v2;
+  also gates promoting `hist`/`ecdf` onto the shared base.
 
 ## Layout decorations (`add_axline`, `add_significance`)
 

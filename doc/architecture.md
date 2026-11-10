@@ -44,6 +44,11 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
   specs (asdict transform + element specs + geometry) that the resolver/plotter consume
   and that can be handed to alternative renderers. Metadata stores pure layer specs —
   no geometry — and `load_metadata` recomputes it by replaying `.add()` against the data.
+- `lithos/plotting/spec/methods.py` — the Phase 2.5 sugar verbs (`.scatter()`, `.kde()`
+  on every layout; `.hist()`/`.ecdf()`/`.fit()` on `LinePlot`): thin factories that
+  build a transform plus role-default elements and call `.add()`, so they inherit the
+  pipeline's geometry, parity and metadata replay unchanged (see `doc/migration_plan.md`
+  for the verb catalog and argument contract).
 - `lithos/plotting/spec/significance.py` — the `Significance` bracket spec and its
   plot-time resolver. Brackets are layout decorations (`add_significance()`, like
   `add_axline`), not `.add()` elements: they consume no transform geometry, render once

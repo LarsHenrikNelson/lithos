@@ -1,16 +1,24 @@
 """Continuous-layout spec plot (new API).
 
 ``LinePlot`` renders layers on continuous numeric axes; layout-specific
-settings are *faceting*, kept separate from grouping (``.facet()``).
+settings are *faceting*, kept separate from grouping (``.facet()``). The
+Phase 2.5 sugar verbs for continuous-only statistics live here:
+``hist()``, ``ecdf()`` and ``fit()`` (the shared ``scatter()``/``kde()``
+verbs come mixed in from :mod:`lithos.plotting.spec.methods`).
 """
 
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from typing_extensions import Self
 
+from ...types.basic_types import CIFunc, FitFunc, HistBinLimits, HistStat, JitterType, LayerStyle, NBins
+from ...types.plot_input import Agg, AlphaRange, ColorParameters, Error
 from ...utils import DataHolder
+from ..elements import Bar, ErrorBand, Fill, Line
 from ..plot_utils import _create_groupings, create_dict
+from ..transforms import ECDF, Fit, Histogram
 from .base import Plot
+from .methods import _resolve_role, _with_intent
 
 
 class LinePlot(Plot):
@@ -37,6 +45,263 @@ class LinePlot(Plot):
         self._layout_options["facet"] = facet
         self._layout_options["facet_title"] = facet_title
         return self
+
+    # -- Phase 2.5 sugar verbs (continuous-layout statistics) ------------------
+
+    def hist(
+        self,
+        *,
+        bins: NBins = 50,
+        bin_limits: HistBinLimits = None,
+        stat: HistStat = "density",
+        unique_id: str | None = None,
+        agg_func: Agg | None = None,
+        err_func: Error = None,
+        color: ColorParameters | None = None,
+        alpha: AlphaRange | None = None,
+        fill: Fill | Literal[False] | None = None,
+        bar: Bar | Literal[False] | None = None,
+        step: Line | Literal[False] | None = None,
+        position: str | None = None,
+        width: float = 0.9,
+        jitter_type: JitterType = "fill",
+        seed: int = 42,
+        style: LayerStyle | None = None,
+    ) -> Self:
+        """Add a histogram layer: per-group (stackable) bins over the value axis.
+
+        The default composition draws bar faces (:class:`Fill`) with
+        outlines (:class:`Bar`) - legacy ``hist_type="bar"``; the legacy
+        ``hist_type="step"`` outline is role composition instead:
+        ``hist(fill=False, bar=False, step=Line())``. Stacking comes from
+        ``style``: ``"stack"`` (cumulative) and ``"fill"`` (100% stacked),
+        which require shared bin edges (``bin_limits="common"``) and cannot
+        carry error geometry. With ``unique_id`` every subject gets its own
+        histogram; ``agg_func`` re-aggregates them, ``err_func`` giving
+        per-bin errors. The verb adopts the transform default
+        ``stat="density"`` (legacy: ``"count"``).
+
+        Args:
+            bins (NBins): Number of bins (or explicit bin edges).
+            bin_limits (HistBinLimits): Bin range policy - per-group auto,
+                ``"common"`` global shared edges, or an explicit ``(low, high)``.
+            stat (HistStat): Height statistic (``"density"``, ``"count"``, ...).
+            unique_id (str | None): Subject column; one histogram per subject.
+            agg_func (Agg | None): Re-aggregate the per-subject heights per group.
+            err_func (Error | None): Per-bin error for the aggregated heights.
+            color (ColorParameters | None): Intent color for the role
+                defaults' primary color fields; ``None`` keeps element defaults.
+            alpha (AlphaRange | None): Intent alpha for the role defaults'
+                primary alpha fields.
+            fill (Fill | False | None): Bar-face role - an explicit ``Fill``
+                wins completely, ``False`` drops it, ``None`` builds the default.
+            bar (Bar | False | None): Bar-outline role - an explicit ``Bar``
+                wins completely, ``False`` drops it, ``None`` builds the default.
+            step (Line | False | None): Step outline role - absent by
+                default; passing a ``Line`` draws the legacy
+                ``hist_type="step"`` outline over the bins.
+            position (str | None): Resolver position mode; ``None`` uses the
+                layout default.
+            width (float): Slot footprint fraction (categorical layouts).
+            jitter_type (JitterType): Shape of any random point spread.
+            seed (int): Seed for the reproducible spread.
+            style (LayerStyle | None): Stacking form (``"stack"``/``"fill"``);
+                ``None`` keeps the default geometry.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
+        transform = Histogram(
+            bins=bins,
+            bin_limits=bin_limits,
+            stat=stat,
+            unique_id=unique_id,
+            agg_func=agg_func,
+            err_func=err_func,
+        )
+        fill_element = _resolve_role(fill, lambda: _with_intent(Fill(), color, alpha))
+        bar_element = _resolve_role(bar, lambda: _with_intent(Bar(), color, alpha))
+        step_element = _resolve_role(step, lambda: _with_intent(Line(), color, alpha), default_on=False)
+        elements = [element for element in (fill_element, bar_element, step_element) if element is not None]
+        return self.add(
+            transform,
+            *elements,
+            position=position,
+            width=width,
+            jitter_type=jitter_type,
+            seed=seed,
+            style=style,
+        )
+
+    def ecdf(
+        self,
+        *,
+        ecdf_type: Literal["bootstrap", "spline", "none"] = "none",
+        ecdf_args: dict | None = None,
+        unique_id: str | None = None,
+        agg_func: Agg | None = None,
+        err_func: Error = None,
+        color: ColorParameters | None = None,
+        alpha: AlphaRange | None = None,
+        fill: Fill | Literal[False] | None = None,
+        line: Line | Literal[False] | None = None,
+        position: str | None = None,
+        width: float = 0.9,
+        jitter_type: JitterType = "fill",
+        seed: int = 42,
+        style: LayerStyle | None = None,
+    ) -> Self:
+        """Add an empirical-CDF layer (legacy ``LinePlot.ecdf``).
+
+        Unlike the legacy method the verb does not pin axis limits: the
+        probability axis follows the value column's axis (values rendered on
+        x put the probabilities on y and vice versa), which is only known at
+        ``.plot()`` - pin it explicitly with ``.axis(ylim=(0.0, 1.0))`` or
+        ``.axis(xlim=(0.0, 1.0))``. ``ecdf_type`` selects the variant:
+        ``"none"`` (raw staircase, default), ``"spline"`` or ``"bootstrap"``
+        (extra arguments via ``ecdf_args``); the aggregated two-level branch
+        requires ``ecdf_type="spline"``. With ``unique_id`` every subject
+        gets its own ECDF; ``agg_func`` re-aggregates the per-subject
+        quantile functions on a shared probability grid, ``err_func`` giving
+        per-grid-point errors.
+
+        Args:
+            ecdf_type ("bootstrap" | "spline" | "none"): ECDF variant.
+            ecdf_args (dict | None): Extra arguments for the chosen variant
+                (e.g. ``size`` for ``"spline"``/``"bootstrap"``).
+            unique_id (str | None): Subject column; one ECDF per subject.
+            agg_func (Agg | None): Re-aggregate the per-subject ECDFs
+                across subjects.
+            err_func (Error | None): Per-grid-point error for the
+                aggregated ECDFs.
+            color (ColorParameters | None): Intent color for the role
+                defaults' primary color fields; ``None`` keeps element defaults.
+            alpha (AlphaRange | None): Intent alpha for the role defaults'
+                primary alpha fields.
+            fill (Fill | False | None): Fill-under role - an explicit ``Fill``
+                wins completely, ``False`` draws the bare staircase,
+                ``None`` builds the default.
+            line (Line | False | None): Staircase-outline role - an explicit
+                ``Line`` wins completely, ``False`` drops it, ``None`` builds
+                the default.
+            position (str | None): Resolver position mode; ``None`` uses the
+                layout default.
+            width (float): Slot footprint fraction (categorical layouts).
+            jitter_type (JitterType): Shape of any random point spread.
+            seed (int): Seed for the reproducible spread.
+            style (LayerStyle | None): Reserved - ``ECDF`` has no layer form
+                styles yet (``.add()`` rejects one).
+
+        Returns:
+            Self: The plot, for chaining.
+        """
+        transform = ECDF(
+            ecdf_type=ecdf_type,
+            ecdf_args=ecdf_args if ecdf_args is not None else {},
+            unique_id=unique_id,
+            agg_func=agg_func,
+            err_func=err_func,
+        )
+        fill_element = _resolve_role(fill, lambda: _with_intent(Fill(), color, alpha))
+        line_element = _resolve_role(line, lambda: _with_intent(Line(), color, alpha))
+        elements = [element for element in (fill_element, line_element) if element is not None]
+        return self.add(
+            transform,
+            *elements,
+            position=position,
+            width=width,
+            jitter_type=jitter_type,
+            seed=seed,
+            style=style,
+        )
+
+    def fit(
+        self,
+        *,
+        fit_func: FitFunc = "linear",
+        ci_func: CIFunc | None = "ci",
+        fit_args: dict | None = None,
+        unique_id: str | None = None,
+        agg_func: Agg | None = None,
+        err_func: Error = None,
+        color: ColorParameters | None = None,
+        alpha: AlphaRange | None = None,
+        band: ErrorBand | Literal[False] | None = None,
+        line: Line | Literal[False] | None = None,
+        position: str | None = None,
+        width: float = 0.9,
+        jitter_type: JitterType = "fill",
+        seed: int = 42,
+        style: LayerStyle | None = None,
+    ) -> Self:
+        """Add a curve-fit layer: a fitted line with an interval band (legacy ``LinePlot.fit``).
+
+        ``fit_func`` selects a built-in fit (``"linear"``, ``"polynomial"``
+        with ``fit_args={"degree": ...}``, ``"sine"``) or any callable, and
+        ``ci_func`` the interval around the fit (``"ci"`` confidence /
+        ``"pi"`` prediction / ``"bootstrap_ci"``); ``None`` draws the bare
+        fit and drops the ``band`` role by default (pass ``band=ErrorBand()``
+        to override and let the renderer explain). With ``unique_id`` each
+        subject is fitted separately; ``agg_func`` re-aggregates the
+        per-subject fits on a shared grid, ``err_func`` giving per-grid-point
+        errors. The verb adopts the transform defaults (``agg_func=None``);
+        the legacy method defaulted ``agg_func="mean"``/``err_func="sem"`` -
+        pass them explicitly for that behavior.
+
+        Args:
+            fit_func (FitFunc): Built-in fit name or callable.
+            ci_func (CIFunc | None): Interval type around the fit, or ``None``
+                for the bare fit line.
+            fit_args (dict | None): Extra keyword arguments for the fit
+                function (e.g. ``degree`` for polynomial fits).
+            unique_id (str | None): Subject column; one fit per subject.
+            agg_func (Agg | None): Re-aggregate the per-subject fits across
+                subjects.
+            err_func (Error | None): Per-grid-point error for the aggregated
+                fits.
+            color (ColorParameters | None): Intent color for the role
+                defaults' primary color fields; ``None`` keeps element defaults.
+            alpha (AlphaRange | None): Intent alpha for the role defaults'
+                primary alpha fields.
+            band (ErrorBand | False | None): Interval-band role - an explicit
+                ``ErrorBand`` wins completely, ``False`` drops it, ``None``
+                builds the default (off when ``ci_func is None``).
+            line (Line | False | None): Fit-line role - an explicit ``Line``
+                wins completely, ``False`` drops it, ``None`` builds the
+                default.
+            position (str | None): Resolver position mode; ``None`` uses the
+                layout default.
+            width (float): Slot footprint fraction (categorical layouts).
+            jitter_type (JitterType): Shape of any random point spread.
+            seed (int): Seed for the reproducible spread.
+            style (LayerStyle | None): Reserved - ``Fit`` has no layer form
+                styles yet (``.add()`` rejects one).
+
+        Returns:
+            Self: The plot, for chaining.
+        """
+        transform = Fit(
+            fit_func=fit_func,
+            ci_func=ci_func,
+            fit_args=fit_args if fit_args is not None else {},
+            unique_id=unique_id,
+            agg_func=agg_func,
+            err_func=err_func,
+        )
+        band_element = _resolve_role(
+            band, lambda: _with_intent(ErrorBand(), color, alpha), default_on=ci_func is not None
+        )
+        line_element = _resolve_role(line, lambda: _with_intent(Line(), color, alpha))
+        elements = [element for element in (band_element, line_element) if element is not None]
+        return self.add(
+            transform,
+            *elements,
+            position=position,
+            width=width,
+            jitter_type=jitter_type,
+            seed=seed,
+            style=style,
+        )
 
     def _layout_context(self, data: DataHolder) -> dict:
         """Build the continuous layout context (axes index per group key)."""

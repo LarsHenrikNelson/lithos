@@ -50,6 +50,7 @@ from .metadata import (
     load_spec_metadata,
     save_spec_metadata,
 )
+from .methods import SugarMethods
 from .significance import Significance, resolve_significance
 
 
@@ -103,12 +104,15 @@ def _validate_style(style: str, transform: StatTransform, layout: str) -> None:
         raise ValueError(f"style is not supported for the {name!r} transform.")
 
 
-class Plot:
+class Plot(SugarMethods):
     """Base class for the spec plot API.
 
     Subclasses declare a ``layout`` name, the default per-layer ``position``
     mode, and the allowed ``positions``; they implement ``_layout_context()``
     (the serializable positioning/labeling context handed to the plotter).
+    The high-level verbs (:meth:`scatter`,
+    :meth:`~lithos.plotting.spec.methods.SugarMethods.kde`) come mixed in
+    from :mod:`lithos.plotting.spec.methods`.
     """
 
     layout: ClassVar[str] = "base"
