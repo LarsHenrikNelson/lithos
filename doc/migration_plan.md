@@ -214,9 +214,11 @@ pipeline and the legacy processor output:
 
 1. done - scatter/jitter/paired -> `Identity` + `Marker` (+ `Line`);
    parity in `tests/processing/paired_parity_test.py`.
-2. in progress - summary/bar/aggline/summaryu -> `Aggregate` +
-   `SummaryLine`/`ErrorBar`/`Bar`/`Fill`; the `SummaryLine` element landed,
-   processor parity tests pending.
+2. done - summary/bar/aggline/summaryu (and the legacy `line` aggregate
+   branch) -> `Aggregate` + `SummaryLine`/`ErrorBar`/`Bar`/`Fill`; parity
+   in `tests/processing/aggregate_parity_test.py` (the legacy `summaryu`
+   re-applies `func` at the second level - parity pins `func == agg_func`;
+   the transform honors `agg_func`).
 3. mostly done - kde/hist/violin -> `KDE`/`Histogram` + elements; parity
    in `tests/processing/density_parity_test.py` (histogram stacking
    included). Residual: `ecdf` (transform landed and tested in
@@ -256,9 +258,9 @@ Verb catalog (legacy methods absorbed in parentheses):
 | `hist` (`LinePlot`) (`hist`) - landed | `Histogram(...)` + `Fill` + `Bar`; `step=` adds the `Line` step outline (legacy `hist_type="step"`) | `stack`/`fill` |
 | `ecdf` (`LinePlot`) (`ecdf`) - landed | `ECDF(...)` + `Fill` + `Line` | - |
 | `fit` (`LinePlot`) (`fit`) - landed | `Fit(...)` + `ErrorBand` (off by default when `ci_func=None`) + `Line` | - |
-| `line` (`LinePlot`) (`line`/`aggline`) - with family 2 | `func=None` -> `Identity` + `Line`; else `Aggregate(func, err_func)` + `Line` (+ `ErrorBand`) | - |
-| `summary` (`CategoricalPlot`) (`summary`/`summaryu`) - with family 2 | `Aggregate(...)` + `SummaryLine` (+ `ErrorBar`) | - |
-| `bar` (`CategoricalPlot`) (`bar`) - with family 2 | `Aggregate(func)` + `Fill` + `Bar` | - |
+| `line` (`LinePlot`) (`line`/`aggline`) - landed | `func=None` -> `Identity` + `Line`; else `Aggregate(func, err_func, unique_id, how)` + `Line` (+ `ErrorBand` when `err_func`; `marker` opt-in) | - |
+| `summary` (`CategoricalPlot`) (`summary`/`summaryu`) - landed | `Aggregate(func, err_func, unique_id, agg_func)` + `SummaryLine` (+ `ErrorBar` when `err_func`) | - |
+| `bar` (`CategoricalPlot`) (`bar`) - landed | `Aggregate(func, unique_id, agg_func)` + `Fill` + `Bar` (no errors - a separate `.add` layer) | - |
 | `box` (`CategoricalPlot`) (`box`) - with family 4 | `Summary` + `Fill`/`Bar`/`Line`/`Marker`/`ErrorBar` | - |
 | `percent` (`CategoricalPlot`) (`percent`) - parked | unresolved (Open questions) | - |
 
@@ -272,7 +274,8 @@ Argument contract (three tiers, in precedence order):
    elements as optional role arguments (`marker=`, `line=`, `fill=`,
    `bar=`, `step=`, `band=`...). A passed instance replaces that role's
    default outright - intent arguments are not applied to it - and `False`
-   drops the role from the composition. Dropping every role surfaces
+   drops the role from the composition. `True` opts into the intent-shaped
+   default (for roles that are off by default). Dropping every role surfaces
    `.add()`'s no-element error.
 2. *Intent arguments shape only the defaults:* `color=`/`alpha=`. `color`
    fans out to the role defaults' primary color fields

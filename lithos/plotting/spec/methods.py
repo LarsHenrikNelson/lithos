@@ -16,7 +16,8 @@ Argument contract (three tiers, in precedence order):
    elements as optional role arguments (``marker=``, ``line=``, ``fill=``,
    ``bar=``...). A passed instance replaces that role's default outright -
    intent arguments are not applied to it - and ``False`` drops the role
-   from the composition. Dropping every role surfaces ``.add()``'s
+   from the composition. ``True`` opts into the intent-shaped default (for
+   roles that are off by default). Dropping every role surfaces ``.add()``'s
    no-element error.
 2. *Intent arguments shape only the defaults:* ``color`` fans out to the
    role defaults' primary color fields (``linecolor``/``fillcolor``/
@@ -32,9 +33,8 @@ Argument contract (three tiers, in precedence order):
 Rendering defaults are layout-aware where the resolver is: ``kde`` draws a
 line + fill-under curve on continuous layouts but only the ``Fill`` violin
 body on categorical ones. Verbs land family by family with their Phase 2
-parity ports; ``line``/``summary``/``bar`` (aggregate family), ``box`` and
-the categorical ``hist``/``ecdf`` forms (the ``percent`` analog) are still
-pending.
+parity ports; ``box`` and the categorical ``hist``/``ecdf`` forms (the
+``percent`` analog) are still pending.
 """
 
 from collections.abc import Callable
@@ -90,15 +90,18 @@ def _with_intent(
 
 
 def _resolve_role(
-    role: _ElementT | Literal[False] | None,
+    role: _ElementT | bool | None,
     build: Callable[[], _ElementT],
     default_on: bool = True,
 ) -> _ElementT | None:
-    """Resolve an element role: the explicit instance wins, ``False`` drops, ``None`` builds.
+    """Resolve an element role: the explicit instance wins, ``True``/``False``/``None`` set the default.
 
     Args:
-        role (Element | False | None): An explicit element instance (wins
-            completely), ``False`` (drop the role) or ``None`` (default).
+        role (Element | bool | None): An explicit element instance (wins
+            completely - the ``.add()`` layer receives it as-is), ``True``
+            (accept the built default, shaped by the intent arguments),
+            ``False`` (drop the role) or ``None`` (build the default only
+            when the role is on by default).
         build (Callable[[], Element]): Default-element constructor.
         default_on (bool): Whether a ``None`` role builds the default.
 
@@ -107,6 +110,8 @@ def _resolve_role(
     """
     if role is False:
         return None
+    if role is True:
+        return build()
     if role is not None:
         return role
     return build() if default_on else None
@@ -144,8 +149,8 @@ class SugarMethods:
         connect: bool = False,
         color: ColorParameters | None = None,
         alpha: AlphaRange | None = None,
-        line: Line | Literal[False] | None = None,
-        marker: Marker | Literal[False] | None = None,
+        line: Line | bool | None = None,
+        marker: Marker | bool | None = None,
         position: str | None = None,
         width: float = 0.9,
         jitter_type: JitterType = "fill",
@@ -170,10 +175,10 @@ class SugarMethods:
                 defaults' primary color fields; ``None`` keeps element defaults.
             alpha (AlphaRange | None): Intent alpha for the role defaults'
                 primary alpha fields.
-            line (Line | False | None): Connector role - an explicit ``Line``
+            line (Line | bool | None): Connector role - an explicit ``Line``
                 wins completely, ``False`` drops it even with ``connect=True``,
                 ``None`` builds the default (only when ``connect``).
-            marker (Marker | False | None): Point role - explicit wins,
+            marker (Marker | bool | None): Point role - explicit wins,
                 ``False`` drops it, ``None`` builds the default.
             position (str | None): Resolver position mode; ``None`` uses the
                 layout default.
@@ -213,8 +218,8 @@ class SugarMethods:
         err_func: Error = None,
         color: ColorParameters | None = None,
         alpha: AlphaRange | None = None,
-        fill: Fill | Literal[False] | None = None,
-        line: Line | Literal[False] | None = None,
+        fill: Fill | bool | None = None,
+        line: Line | bool | None = None,
         position: str | None = None,
         width: float = 0.9,
         jitter_type: JitterType = "fill",
@@ -255,10 +260,10 @@ class SugarMethods:
                 defaults' primary color fields; ``None`` keeps element defaults.
             alpha (AlphaRange | None): Intent alpha for the role defaults'
                 primary alpha fields.
-            fill (Fill | False | None): Density-body role - an explicit
+            fill (Fill | bool | None): Density-body role - an explicit
                 ``Fill`` wins completely, ``False`` draws the outline-only
                 curve, ``None`` builds the default.
-            line (Line | False | None): Curve-outline role - off by default on
+            line (Line | bool | None): Curve-outline role - off by default on
                 categorical layouts (violin bodies render through ``Fill``).
             position (str | None): Resolver position mode; ``None`` uses the
                 layout default.

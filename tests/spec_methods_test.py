@@ -15,9 +15,9 @@ matplotlib.use("Agg", force=True)
 
 import pytest
 
-from lithos.plotting.elements import Bar, ErrorBand, Fill, Line, Marker
+from lithos.plotting.elements import Bar, ErrorBand, ErrorBar, Fill, Line, Marker, SummaryLine
 from lithos.plotting.spec import CategoricalPlot, LinePlot
-from lithos.plotting.transforms import ECDF, KDE, Fit, Histogram, Identity
+from lithos.plotting.transforms import ECDF, KDE, Aggregate, Fit, Histogram, Identity
 
 
 class TestScatterVerb:
@@ -90,6 +90,49 @@ class TestKdeVerb:
     def test_style_forwards_the_violin_form(self):
         plot = CategoricalPlot().kde(style="left")
         assert plot.layers == CategoricalPlot().add(KDE(), Fill(), style="left").layers
+
+
+class TestLineVerb:
+    """line == .add(Identity|Aggregate, ErrorBand?, Line, Marker?) with the band tied to func+err_func."""
+
+    def test_default_is_the_raw_series(self):
+        assert LinePlot().line().layers == LinePlot().add(Identity(), Line()).layers
+
+    def test_unique_id_nests_the_raw_series(self):
+        plot = LinePlot().line(unique_id="mouse")
+        assert plot.layers == LinePlot().add(Identity(unique_id="mouse"), Line()).layers
+
+    def test_func_switches_to_the_aggregate(self):
+        plot = LinePlot().line(func="mean")
+        assert plot.layers == LinePlot().add(Aggregate(func="mean"), Line()).layers
+
+    def test_err_func_adds_the_band(self):
+        plot = LinePlot().line(func="mean", err_func="sem", how="matrix", unique_id="mouse")
+        expected = LinePlot().add(
+            Aggregate(func="mean", err_func="sem", how="matrix", unique_id="mouse"), ErrorBand(), Line()
+        )
+        assert plot.layers == expected.layers
+
+    def test_no_band_without_func(self):
+        # Identity produces no error geometry, so err_func alone draws no band
+        plot = LinePlot().line(err_func="sem")
+        assert plot.layers == LinePlot().add(Identity(), Line()).layers
+
+    def test_band_false_drops_the_band(self):
+        plot = LinePlot().line(func="mean", err_func="sem", band=False)
+        assert plot.layers == LinePlot().add(Aggregate(func="mean", err_func="sem"), Line()).layers
+
+    def test_marker_role_is_opt_in(self):
+        plot = LinePlot().line(marker=Marker())
+        assert plot.layers == LinePlot().add(Identity(), Line(), Marker()).layers
+
+    def test_intent_reaches_band_line_and_marker(self):
+        plot = LinePlot().line(func="mean", err_func="sem", color="red", alpha=0.4, marker=True)
+        assert plot.layers[0]["elements"] == [
+            ErrorBand(fillcolor="red", fillalpha=0.4),
+            Line(linecolor="red", linealpha=0.4),
+            Marker(markercolor="red", alpha=0.4),
+        ]
 
 
 class TestHistVerb:
@@ -180,6 +223,61 @@ class TestFitVerb:
         ]
 
 
+class TestSummaryVerb:
+    """summary == .add(Aggregate, SummaryLine, ErrorBar?) with the error role tied to err_func."""
+
+    def test_default_is_the_summary_line(self):
+        assert CategoricalPlot().summary().layers == CategoricalPlot().add(Aggregate(), SummaryLine()).layers
+
+    def test_err_func_adds_the_error_bar(self):
+        plot = CategoricalPlot().summary(err_func="sem")
+        expected = CategoricalPlot().add(Aggregate(err_func="sem"), SummaryLine(), ErrorBar())
+        assert plot.layers == expected.layers
+
+    def test_stats_forward_verbatim(self):
+        plot = CategoricalPlot().summary(unique_id="mouse", func="median", err_func="sem", agg_func="mean")
+        expected = CategoricalPlot().add(
+            Aggregate(unique_id="mouse", func="median", err_func="sem", agg_func="mean"),
+            SummaryLine(),
+            ErrorBar(),
+        )
+        assert plot.layers == expected.layers
+
+    def test_error_false_drops_it_even_with_err_func(self):
+        plot = CategoricalPlot().summary(err_func="sem", error=False)
+        assert plot.layers == CategoricalPlot().add(Aggregate(err_func="sem"), SummaryLine()).layers
+
+    def test_intent_reaches_line_and_error(self):
+        plot = CategoricalPlot().summary(err_func="sem", color="red", alpha=0.5)
+        assert plot.layers[0]["elements"] == [
+            SummaryLine(linecolor="red", linealpha=0.5),
+            ErrorBar(linecolor="red", linealpha=0.5),
+        ]
+
+
+class TestBarVerb:
+    """bar == .add(Aggregate, Fill, Bar) with faces and outlines from the one center."""
+
+    def test_default_is_faces_and_outlines(self):
+        assert CategoricalPlot().bar().layers == CategoricalPlot().add(Aggregate(), Fill(), Bar()).layers
+
+    def test_stats_forward_verbatim(self):
+        plot = CategoricalPlot().bar(func="median", unique_id="mouse", agg_func="mean")
+        expected = CategoricalPlot().add(Aggregate(func="median", unique_id="mouse", agg_func="mean"), Fill(), Bar())
+        assert plot.layers == expected.layers
+
+    def test_dropping_both_roles_surfaces_the_add_error(self):
+        with pytest.raises(ValueError, match="at least one element"):
+            CategoricalPlot().bar(fill=False, bar=False)
+
+    def test_intent_reaches_faces_and_outlines(self):
+        plot = CategoricalPlot().bar(color="blue", alpha=0.7)
+        assert plot.layers[0]["elements"] == [
+            Fill(fillcolor="blue", fillalpha=0.7),
+            Bar(edgecolor="blue", edge_alpha=0.7),
+        ]
+
+
 class TestVerbMetadataReplay:
     """Verbs go through .add(), so their layers serialize and reload identically."""
 
@@ -246,3 +344,37 @@ class TestVerbRenderSmoke:
     def test_fit_renders(self, one_grouping):
         data, _ = one_grouping
         LinePlot().grouping(group="grouping_1").fit().plot(y="y", x="x", data=data)
+
+    def test_line_renders_raw(self, one_grouping):
+        data, _ = one_grouping
+        LinePlot().grouping(group="grouping_1").line().plot(y="y", x="x", data=data)
+
+    def test_line_renders_aggregated(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        (
+            LinePlot()
+            .grouping(group="grouping_1")
+            .line(func="mean", err_func="sem", unique_id="unique_grouping", how="matrix")
+            .plot(y="y", x="x", data=data)
+        )
+
+    def test_summary_renders(self, one_grouping):
+        data, _ = one_grouping
+        CategoricalPlot().grouping(group="grouping_1").summary(err_func="sem").plot(y="y", data=data)
+
+    def test_summary_renders_per_subject(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        (
+            CategoricalPlot()
+            .grouping(group="grouping_1")
+            .summary(unique_id="unique_grouping", err_func="sem")
+            .plot(y="y", data=data)
+        )
+
+    def test_bar_renders(self, one_grouping):
+        data, _ = one_grouping
+        CategoricalPlot().grouping(group="grouping_1").bar().plot(y="y", data=data)
+
+    def test_bar_renders_per_subject(self, one_grouping_with_unique_ids):
+        data, _ = one_grouping_with_unique_ids
+        CategoricalPlot().grouping(group="grouping_1").bar(unique_id="unique_grouping").plot(y="y", data=data)

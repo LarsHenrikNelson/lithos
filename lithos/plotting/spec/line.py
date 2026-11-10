@@ -2,7 +2,7 @@
 
 ``LinePlot`` renders layers on continuous numeric axes; layout-specific
 settings are *faceting*, kept separate from grouping (``.facet()``). The
-Phase 2.5 sugar verbs for continuous-only statistics live here:
+Phase 2.5 sugar verbs for continuous-only statistics live here: ``line()``,
 ``hist()``, ``ecdf()`` and ``fit()`` (the shared ``scatter()``/``kde()``
 verbs come mixed in from :mod:`lithos.plotting.spec.methods`).
 """
@@ -14,9 +14,9 @@ from typing_extensions import Self
 from ...types.basic_types import CIFunc, FitFunc, HistBinLimits, HistStat, JitterType, LayerStyle, NBins
 from ...types.plot_input import Agg, AlphaRange, ColorParameters, Error
 from ...utils import DataHolder
-from ..elements import Bar, ErrorBand, Fill, Line
+from ..elements import Bar, ErrorBand, Fill, Line, Marker
 from ..plot_utils import _create_groupings, create_dict
-from ..transforms import ECDF, Fit, Histogram
+from ..transforms import ECDF, Aggregate, Fit, Histogram, Identity
 from .base import Plot
 from .methods import _resolve_role, _with_intent
 
@@ -59,9 +59,9 @@ class LinePlot(Plot):
         err_func: Error = None,
         color: ColorParameters | None = None,
         alpha: AlphaRange | None = None,
-        fill: Fill | Literal[False] | None = None,
-        bar: Bar | Literal[False] | None = None,
-        step: Line | Literal[False] | None = None,
+        fill: Fill | bool | None = None,
+        bar: Bar | bool | None = None,
+        step: Line | bool | None = None,
         position: str | None = None,
         width: float = 0.9,
         jitter_type: JitterType = "fill",
@@ -93,12 +93,13 @@ class LinePlot(Plot):
                 defaults' primary color fields; ``None`` keeps element defaults.
             alpha (AlphaRange | None): Intent alpha for the role defaults'
                 primary alpha fields.
-            fill (Fill | False | None): Bar-face role - an explicit ``Fill``
+            fill (Fill | bool | None): Bar-face role - an explicit ``Fill``
                 wins completely, ``False`` drops it, ``None`` builds the default.
-            bar (Bar | False | None): Bar-outline role - an explicit ``Bar``
+            bar (Bar | bool | None): Bar-outline role - an explicit ``Bar``
                 wins completely, ``False`` drops it, ``None`` builds the default.
-            step (Line | False | None): Step outline role - absent by
-                default; passing a ``Line`` draws the legacy
+            step (Line | bool | None): Step outline role - off by default;
+                ``True`` accepts the intent-styled default; an explicit
+                ``Line`` wins completely. Either draws the legacy
                 ``hist_type="step"`` outline over the bins.
             position (str | None): Resolver position mode; ``None`` uses the
                 layout default.
@@ -143,8 +144,8 @@ class LinePlot(Plot):
         err_func: Error = None,
         color: ColorParameters | None = None,
         alpha: AlphaRange | None = None,
-        fill: Fill | Literal[False] | None = None,
-        line: Line | Literal[False] | None = None,
+        fill: Fill | bool | None = None,
+        line: Line | bool | None = None,
         position: str | None = None,
         width: float = 0.9,
         jitter_type: JitterType = "fill",
@@ -178,10 +179,10 @@ class LinePlot(Plot):
                 defaults' primary color fields; ``None`` keeps element defaults.
             alpha (AlphaRange | None): Intent alpha for the role defaults'
                 primary alpha fields.
-            fill (Fill | False | None): Fill-under role - an explicit ``Fill``
+            fill (Fill | bool | None): Fill-under role - an explicit ``Fill``
                 wins completely, ``False`` draws the bare staircase,
                 ``None`` builds the default.
-            line (Line | False | None): Staircase-outline role - an explicit
+            line (Line | bool | None): Staircase-outline role - an explicit
                 ``Line`` wins completely, ``False`` drops it, ``None`` builds
                 the default.
             position (str | None): Resolver position mode; ``None`` uses the
@@ -226,8 +227,8 @@ class LinePlot(Plot):
         err_func: Error = None,
         color: ColorParameters | None = None,
         alpha: AlphaRange | None = None,
-        band: ErrorBand | Literal[False] | None = None,
-        line: Line | Literal[False] | None = None,
+        band: ErrorBand | bool | None = None,
+        line: Line | bool | None = None,
         position: str | None = None,
         width: float = 0.9,
         jitter_type: JitterType = "fill",
@@ -263,10 +264,10 @@ class LinePlot(Plot):
                 defaults' primary color fields; ``None`` keeps element defaults.
             alpha (AlphaRange | None): Intent alpha for the role defaults'
                 primary alpha fields.
-            band (ErrorBand | False | None): Interval-band role - an explicit
+            band (ErrorBand | bool | None): Interval-band role - an explicit
                 ``ErrorBand`` wins completely, ``False`` drops it, ``None``
                 builds the default (off when ``ci_func is None``).
-            line (Line | False | None): Fit-line role - an explicit ``Line``
+            line (Line | bool | None): Fit-line role - an explicit ``Line``
                 wins completely, ``False`` drops it, ``None`` builds the
                 default.
             position (str | None): Resolver position mode; ``None`` uses the
@@ -301,6 +302,92 @@ class LinePlot(Plot):
             jitter_type=jitter_type,
             seed=seed,
             style=style,
+        )
+
+    def line(
+        self,
+        *,
+        func: Agg | None = None,
+        err_func: Error | None = None,
+        unique_id: str | None = None,
+        how: Literal["auto", "groupby", "matrix"] = "auto",
+        color: ColorParameters | None = None,
+        alpha: AlphaRange | None = None,
+        line: Line | bool | None = None,
+        marker: Marker | bool | None = None,
+        band: ErrorBand | bool | None = None,
+        position: str | None = None,
+        width: float = 0.9,
+        jitter_type: JitterType = "fill",
+        seed: int = 42,
+    ) -> Self:
+        """Add a line layer: raw series, or an aggregated line (legacy ``line``/``aggline``).
+
+        ``func=None`` (default) draws the raw series through every point -
+        ``Identity(unique_id=...)``: one line per group, or one per subject
+        with ``unique_id``. With ``func`` the verb switches to
+        ``Aggregate``: y is aggregated at each unique value of the plot's
+        ``x`` column (per-x semantics; ``err_func``/``how`` apply only to
+        this branch - ragged data aggregates via ``how="groupby"``, aligned
+        ``unique_id`` data via the fast ``"matrix"`` pivot, and ``"auto"``
+        picks). With both ``func`` and ``err_func`` the interval band
+        defaults on (legacy ``line`` filled between its errors; the legacy
+        ``aggline`` fixed ``fill_between=False`` - pass ``band=False``
+        there). Markers are a role (legacy default ``marker="none"``).
+
+        The legacy ``index=``/``sort=`` arguments are gone: pairing is the
+        plot's ``x`` column (data-driven), and per-x aggregation always
+        evaluates on the sorted grid.
+
+        Args:
+            func (Agg | None): Aggregate y at each x with this function;
+                ``None`` draws the raw series (``Identity``).
+            err_func (Error | None): Per-x error around the aggregated line
+                (aggregated branch only).
+            unique_id (str | None): Subject column; per-subject raw series
+                (``func=None``) or per-x matrix aggregation (``func`` given).
+            how ("auto" | "groupby" | "matrix"): Per-x aggregation strategy
+                (see :class:`~lithos.plotting.transforms.Aggregate`).
+            color (ColorParameters | None): Intent color for the role
+                defaults' primary color fields; ``None`` keeps element defaults.
+            alpha (AlphaRange | None): Intent alpha for the role defaults'
+                primary alpha fields.
+            line (Line | bool | None): Series role - an explicit ``Line``
+                wins completely, ``False`` drops it, ``None`` builds the default.
+            marker (Marker | bool | None): Point role - absent by default;
+                ``True`` accepts the intent-styled default, an explicit
+                ``Marker`` wins completely.
+            band (ErrorBand | bool | None): Interval-band role - an explicit
+                ``ErrorBand`` wins completely, ``False`` drops it, ``None``
+                builds the default (on only when ``func`` and ``err_func``
+                are both given).
+            position (str | None): Resolver position mode; ``None`` uses the
+                layout default.
+            width (float): Slot footprint fraction (categorical layouts).
+            jitter_type (JitterType): Shape of any random point spread.
+            seed (int): Seed for the reproducible spread.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
+        transform = (
+            Identity(unique_id=unique_id)
+            if func is None
+            else Aggregate(func=func, err_func=err_func, unique_id=unique_id, how=how)
+        )
+        band_element = _resolve_role(
+            band, lambda: _with_intent(ErrorBand(), color, alpha), default_on=func is not None and err_func is not None
+        )
+        line_element = _resolve_role(line, lambda: _with_intent(Line(), color, alpha))
+        marker_element = _resolve_role(marker, lambda: _with_intent(Marker(), color, alpha), default_on=False)
+        elements = [element for element in (band_element, line_element, marker_element) if element is not None]
+        return self.add(
+            transform,
+            *elements,
+            position=position,
+            width=width,
+            jitter_type=jitter_type,
+            seed=seed,
         )
 
     def _layout_context(self, data: DataHolder) -> dict:

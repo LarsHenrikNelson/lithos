@@ -13,17 +13,26 @@ by the position resolver.
 Transforms stay layout-agnostic: the same ``Histogram``/``KDE`` geometry is
 interpreted by this layout's resolver/plotter, so density transforms work on
 both ``LinePlot`` and ``CategoricalPlot``.
+
+The Phase 2.5 sugar verbs for categorical aggregates live here: ``summary()``
+(the GraphPad summary line) and ``bar()``; points (``scatter()``) and
+densities (``kde()`` = violins) come mixed in from
+:mod:`lithos.plotting.spec.methods`.
 """
 
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import numpy as np
 from typing_extensions import Self
 
-from ...types.basic_types import CategoricalLabels
+from ...types.basic_types import CategoricalLabels, JitterType
+from ...types.plot_input import Agg, AlphaRange, ColorParameters, Error
 from ...utils import DataHolder
+from ..elements import Bar, ErrorBar, Fill, SummaryLine
 from ..plot_utils import _create_groupings
+from ..transforms import Aggregate
 from .base import Plot
+from .methods import _resolve_role, _with_intent
 
 CLUSTER_WIDTH = 1.0
 """Width (axis units) a group cluster occupies: subgroup slots split it evenly."""
@@ -98,6 +107,149 @@ class CategoricalPlot(Plot):
         """
         self._layout_options["labels"] = labels
         return self
+
+    # -- Phase 2.5 sugar verbs (categorical aggregates) -----------------------
+
+    def summary(
+        self,
+        *,
+        unique_id: str | None = None,
+        func: Agg = "mean",
+        err_func: Error | None = None,
+        agg_func: Agg | None = None,
+        color: ColorParameters | None = None,
+        alpha: AlphaRange | None = None,
+        line: SummaryLine | bool | None = None,
+        error: ErrorBar | bool | None = None,
+        position: str | None = None,
+        width: float = 0.9,
+        jitter_type: JitterType = "fill",
+        seed: int = 42,
+    ) -> Self:
+        """Add a GraphPad-style summary layer: a short line per group (legacy ``summary``/``summaryu``).
+
+        Every group draws a :class:`~lithos.plotting.elements.SummaryLine`
+        across its slot (the layer ``width`` spans it); with ``err_func`` an
+        :class:`~lithos.plotting.elements.ErrorBar` joins from the same
+        geometry. With ``unique_id`` each subject claims its own even column
+        (legacy ``summaryu``); ``agg_func`` re-aggregates the per-subject
+        centers back into one line per group - the transform applies
+        ``agg_func`` at the second level, where the legacy ``summaryu``
+        re-applied ``func`` (they agree when ``func == agg_func``).
+
+        Deliberate divergences from the legacy methods: the verb keeps the
+        element defaults (``glasbey_category10`` lines - legacy ``summary``
+        was black) and draws no error without ``err_func`` (legacy defaulted
+        ``err_func="sem"``).
+
+        Args:
+            unique_id (str | None): Subject column; one summary line per
+                subject, one even column each.
+            func (Agg): Center aggregate applied within each group (or each
+                subject first, when ``unique_id`` is given).
+            err_func (Error | None): Error around the center from the same
+                values; adds the ``ErrorBar`` role.
+            agg_func (Agg | None): Second-level aggregation across the
+                per-subject centers (requires ``unique_id``).
+            color (ColorParameters | None): Intent color for the role
+                defaults' primary color fields; ``None`` keeps element defaults.
+            alpha (AlphaRange | None): Intent alpha for the role defaults'
+                primary alpha fields.
+            line (SummaryLine | bool | None): Center-line role - an explicit
+                ``SummaryLine`` wins completely, ``False`` drops it,
+                ``None`` builds the default.
+            error (ErrorBar | bool | None): Error role - an explicit
+                ``ErrorBar`` wins completely, ``False`` drops it, ``None``
+                builds the default (on only when ``err_func`` is given).
+            position (str | None): Resolver position mode; ``None`` uses the
+                layout default.
+            width (float): The line's footprint as a fraction of its slot.
+            jitter_type (JitterType): Shape of any random point spread.
+            seed (int): Seed for the reproducible spread.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
+        transform = Aggregate(func=func, err_func=err_func, agg_func=agg_func, unique_id=unique_id)
+        line_element = _resolve_role(line, lambda: _with_intent(SummaryLine(), color, alpha))
+        error_element = _resolve_role(
+            error, lambda: _with_intent(ErrorBar(), color, alpha), default_on=err_func is not None
+        )
+        elements = [element for element in (line_element, error_element) if element is not None]
+        return self.add(
+            transform,
+            *elements,
+            position=position,
+            width=width,
+            jitter_type=jitter_type,
+            seed=seed,
+        )
+
+    def bar(
+        self,
+        *,
+        func: Agg = "mean",
+        unique_id: str | None = None,
+        agg_func: Agg | None = None,
+        color: ColorParameters | None = None,
+        alpha: AlphaRange | None = None,
+        fill: Fill | bool | None = None,
+        bar: Bar | bool | None = None,
+        position: str | None = None,
+        width: float = 0.9,
+        jitter_type: JitterType = "fill",
+        seed: int = 42,
+    ) -> Self:
+        """Add a bar layer: one rectangle per group from the group center (legacy ``bar``).
+
+        Faces render through :class:`~lithos.plotting.elements.Fill` and
+        outlines through :class:`~lithos.plotting.elements.Bar`, both from
+        the single ``Aggregate`` center. With ``unique_id`` each subject
+        claims its own even column (one thinner bar per subject);
+        ``agg_func`` re-aggregates the per-subject ``func`` centers back
+        into one bar per group. Bars start at the axis origin; the layer
+        ``width`` is the slot footprint fraction (legacy ``barwidth``).
+
+        The verb omits ``err_func`` on purpose (the legacy ``bar`` had no
+        errors): errors over bars are a separate ``.add(Aggregate(err_func=...),
+        ErrorBar())`` layer.
+
+        Args:
+            func (Agg): Height aggregate applied within each group (or each
+                subject first, when ``unique_id`` is given).
+            unique_id (str | None): Subject column; one bar per subject.
+            agg_func (Agg | None): Second-level aggregation across the
+                per-subject heights (requires ``unique_id``).
+            color (ColorParameters | None): Intent color for the role
+                defaults' primary color fields (faces and outlines; never
+                edges); ``None`` keeps element defaults.
+            alpha (AlphaRange | None): Intent alpha for the role defaults'
+                primary alpha fields.
+            fill (Fill | bool | None): Bar-face role - an explicit ``Fill``
+                wins completely, ``False`` drops it, ``None`` builds the default.
+            bar (Bar | bool | None): Bar-outline role - an explicit ``Bar``
+                wins completely, ``False`` drops it, ``None`` builds the default.
+            position (str | None): Resolver position mode; ``None`` uses the
+                layout default.
+            width (float): The bar's footprint as a fraction of its slot.
+            jitter_type (JitterType): Shape of any random point spread.
+            seed (int): Seed for the reproducible spread.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
+        transform = Aggregate(func=func, agg_func=agg_func, unique_id=unique_id)
+        fill_element = _resolve_role(fill, lambda: _with_intent(Fill(), color, alpha))
+        bar_element = _resolve_role(bar, lambda: _with_intent(Bar(), color, alpha))
+        elements = [element for element in (fill_element, bar_element) if element is not None]
+        return self.add(
+            transform,
+            *elements,
+            position=position,
+            width=width,
+            jitter_type=jitter_type,
+            seed=seed,
+        )
 
     def _layout_context(self, data: DataHolder) -> dict:
         """Build the categorical layout context (slot positions, ticks, label style)."""
