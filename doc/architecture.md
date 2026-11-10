@@ -46,7 +46,7 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
   no geometry — and `load_metadata` recomputes it by replaying `.add()` against the data.
 - `lithos/plotting/spec/methods.py` — the Phase 2.5 sugar verbs (`.scatter()`, `.kde()`
   on every layout; `.line()`/`.hist()`/`.ecdf()`/`.fit()` on `LinePlot`; `.summary()`/
-  `.bar()` on `CategoricalPlot`): thin factories that build a transform plus role-default
+  `.bar()`/`.box()` on `CategoricalPlot`): thin factories that build a transform plus role-default
   elements and call `.add()`, so they inherit the pipeline's geometry, parity and metadata
   replay unchanged (see `doc/migration_plan.md` for the verb catalog and argument contract).
 - `lithos/plotting/spec/significance.py` — the `Significance` bracket spec and its

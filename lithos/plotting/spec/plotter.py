@@ -7,9 +7,10 @@ rendering: each layer's resolved geometry is drawn once per element spec.
 
 Supported element/geometry combinations for this slice: point/curve geometry
 (``Marker``, ``Line``, ``ErrorBar``, ``ErrorBand``, density ``Fill``),
-histogram bars (``Bar``, ``Fill``), group-centered bars (``Bar``, ``Fill``)
-and ``Annotation``. Combinations needed by the ``Summary`` transform
-(box/whisker) arrive with their Phase 2 port. Significance brackets are not
+histogram bars (``Bar``, ``Fill``), group-centered bars (``Bar``, ``Fill``),
+box bodies and whiskers over ``Summary`` geometry (``Fill`` face, ``Bar``
+outline, ``Line`` median, ``Marker`` mean point, ``ErrorBar`` whiskers) and
+``Annotation``. Significance brackets are not
 elements: the specs added with ``add_significance()`` render once per bracket
 after the layers, still inside ``_plot()`` so the axis limits are formatted
 afterwards and expand to include them.
@@ -32,6 +33,7 @@ violins (``style="left"/"right"/"alternate"``) draw between the resolved
 
 import numpy as np
 from matplotlib._enums import CapStyle
+from matplotlib.patches import Polygon
 
 from ...types.basic_types import SavePath
 from ..matplotlib_plotter import CategoricalPlotter, LinePlotter, Plotter
@@ -224,11 +226,16 @@ class SpecPlotter(Plotter):
 
     # -- element renderers ---------------------------------------------------
     def _render_marker(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Draw markers at the geometry's (x, y) points."""
-        x, y = self._curve_values(geometry)
-        if geometry.get("value_axis") == "y":
-            # vertical density curve: values on the y axis, density on x
-            x, y = y, x
+        """Draw markers at the geometry's (x, y) points, or the group mean over box geometry."""
+        if "q1" in geometry:
+            # box geometry: the marker sits at the group mean (legacy showmeans)
+            x = np.atleast_1d(np.asarray(geometry["position"], dtype=float))
+            y = np.atleast_1d(np.asarray(geometry["mean"], dtype=float))
+        else:
+            x, y = self._curve_values(geometry)
+            if geometry.get("value_axis") == "y":
+                # vertical density curve: values on the y axis, density on x
+                x, y = y, x
         markercolor = self._color_dict(spec["markercolor"])
         edgecolor = self._color_dict(spec["edgecolor"])
         markersize = spec["markersize"]
@@ -245,7 +252,11 @@ class SpecPlotter(Plotter):
         )
 
     def _render_line(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Draw a line through the geometry's (x, y) points, or a step outline over histogram bins."""
+        """Draw a line through the geometry's (x, y) points, or box/step forms."""
+        if "q1" in geometry:
+            # box geometry: the median line across the box span
+            self._render_box_median(ax, spec, gkey, geometry, zorder)
+            return
         if "edges" in geometry:
             self._render_step(ax, spec, gkey, geometry, zorder)
             return
@@ -289,7 +300,11 @@ class SpecPlotter(Plotter):
         )
 
     def _render_errorbar(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Draw capped error bars (error_low/error_high) around the center values."""
+        """Draw capped error bars around the center values - or box whiskers over Summary geometry."""
+        if "q1" in geometry:
+            # box geometry: the whiskers from whisker_low to whisker_high
+            self._render_box_whiskers(ax, spec, gkey, geometry, zorder)
+            return
         if geometry.get("error_low") is None or geometry.get("error_high") is None:
             raise NotImplementedError("ErrorBar requires error geometry; give the transform an err_func.")
         x, center = self._curve_values(geometry)
@@ -310,12 +325,7 @@ class SpecPlotter(Plotter):
             capsize=spec["capsize"],
             zorder=zorder,
         )
-        for cap in container[1]:
-            cap.set_solid_capstyle(spec["capstyle"])
-            cap.set_markeredgewidth(spec["linewidth"])
-            cap._marker._capstyle = CapStyle(spec["capstyle"])
-        for bar in container[2]:
-            bar.set_capstyle(spec["capstyle"])
+        self._style_caps(container, spec)
 
     def _render_errorband(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
         """Draw the shaded band between error_low/error_high around the center values."""
@@ -372,6 +382,12 @@ class SpecPlotter(Plotter):
             capsize=0,
             zorder=zorder,
         )
+        self._style_caps(container, spec)
+
+    # -- box geometry ---------------------------------------------------------
+
+    def _style_caps(self, container, spec: dict) -> None:
+        """Apply the ErrorBar cap style to an ``errorbar`` container."""
         for cap in container[1]:
             cap.set_solid_capstyle(spec["capstyle"])
             cap.set_markeredgewidth(spec["linewidth"])
@@ -379,8 +395,119 @@ class SpecPlotter(Plotter):
         for bar in container[2]:
             bar.set_capstyle(spec["capstyle"])
 
+    def _box_span(self, geometry: dict) -> tuple[float, float]:
+        """(slot position, half-span) of a box body from the resolved geometry."""
+        span = geometry.get("span")
+        if span is None:
+            raise NotImplementedError("Box geometry requires a categorical layout (the resolver supplies the span).")
+        return float(geometry["position"]), float(span) / 2.0
+
+    def _box_vertices(self, geometry: dict) -> np.ndarray:
+        """Polygon vertices of a box body (q1..q3), notched with matplotlib's geometry.
+
+        Notched boxes pinch to a waist at +/- 25% of the box width around
+        the median (matplotlib's ``shownotches`` polygon); plain boxes are
+        the plain rectangle.
+        """
+        pos, half = self._box_span(geometry)
+        q1 = float(geometry["q1"])
+        q3 = float(geometry["q3"])
+        if geometry.get("notch_low") is None:
+            x = [pos - half, pos + half, pos + half, pos - half]
+            y = [q1, q1, q3, q3]
+        else:
+            waist = half / 2.0
+            notch_low = float(geometry["notch_low"])
+            notch_high = float(geometry["notch_high"])
+            median = float(geometry["median"])
+            x = [
+                pos - half,
+                pos + half,
+                pos + half,
+                pos + waist,
+                pos + half,
+                pos + half,
+                pos - half,
+                pos - half,
+                pos - waist,
+                pos - half,
+                pos - half,
+            ]
+            y = [q1, q1, notch_low, median, notch_high, q3, q3, notch_high, median, notch_low, q1]
+        return np.column_stack([x, y])
+
+    def _render_box_face(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw the box face - the ``Fill`` role of a box layer (q1..q3 rectangle)."""
+        patch = Polygon(
+            self._box_vertices(geometry),
+            closed=True,
+            facecolor=self._group_color(self._color_dict(spec["fillcolor"]), gkey, spec["fillalpha"]),
+            edgecolor=self._process_color(spec["edgecolor"], spec["edgealpha"]),
+            linewidth=0 if spec["edgecolor"] == "none" else 1,
+            hatch=spec["hatch"],
+            zorder=zorder,
+        )
+        ax.add_patch(patch)
+
+    def _render_box_outline(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw the box outline - the ``Bar`` role of a box layer (q1..q3 rectangle)."""
+        patch = Polygon(
+            self._box_vertices(geometry),
+            closed=True,
+            facecolor="none",
+            edgecolor=self._group_color(self._color_dict(spec["edgecolor"]), gkey, spec["edge_alpha"]),
+            linewidth=spec["linewidth"],
+            zorder=zorder,
+        )
+        ax.add_patch(patch)
+
+    def _render_box_median(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw the box median line across the span - the ``Line`` role of a box layer."""
+        pos, half = self._box_span(geometry)
+        if geometry.get("notch_low") is not None:
+            # notched boxes draw the median only across the notch waist
+            half = half / 2.0
+        median = float(geometry["median"])
+        linecolor = self._color_dict(spec["linecolor"])
+        ax.plot(
+            [pos - half, pos + half],
+            [median, median],
+            linestyle=spec["linestyle"],
+            linewidth=spec["linewidth"],
+            color=self._group_color(linecolor, gkey, spec["linealpha"]),
+            zorder=zorder,
+        )
+
+    def _render_box_whiskers(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
+        """Draw the box whiskers - the ``ErrorBar`` role of a box layer.
+
+        A capped line from ``whisker_low`` to ``whisker_high`` at the slot;
+        ``whisker="none"`` turns the whiskers off (nothing draws).
+        """
+        low, high = geometry.get("whisker_low"), geometry.get("whisker_high")
+        if low is None or high is None:
+            return
+        pos, _ = self._box_span(geometry)
+        center = float(geometry["center"])
+        linecolor = self._color_dict(spec["linecolor"])
+        container = ax.errorbar(
+            [pos],
+            [center],
+            yerr=np.vstack([[center - float(low)], [float(high) - center]]),
+            fmt="none",
+            color=self._group_color(linecolor, gkey, spec["linealpha"]),
+            linewidth=spec["linewidth"],
+            capsize=spec["capsize"],
+            zorder=zorder,
+        )
+        self._style_caps(container, spec)
+
     def _render_bar(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Draw bar outlines from histogram edges or group-centered geometry."""
+        """Draw bar outlines from histogram edges, group-centered geometry, or a box body."""
+        if "q1" in geometry:
+            # box geometry: the box outline (q1..q3 rectangle)
+            self._render_box_outline(ax, spec, gkey, geometry, zorder)
+            return
         if "edges" in geometry:
             # histogram rectangles from bin edges
             x, height, width = geometry["centers"], geometry["height"], geometry["binwidth"]
@@ -418,7 +545,11 @@ class SpecPlotter(Plotter):
         )
 
     def _render_fill(self, ax, spec: dict, gkey: tuple, geometry: dict, zorder: float):
-        """Draw a filled region: histogram bars, a violin body, a density fill-under curve or a bar face."""
+        """Draw a filled region: a box body, histogram bars, a violin body, a curve or a bar face."""
+        if "q1" in geometry:
+            # box geometry: the box face (q1..q3 rectangle)
+            self._render_box_face(ax, spec, gkey, geometry, zorder)
+            return
         fillcolor = self._color_dict(spec["fillcolor"])
         facecolor = self._group_color(fillcolor, gkey, spec["fillalpha"])
         edgecolor = self._process_color(spec["edgecolor"], spec["edgealpha"])

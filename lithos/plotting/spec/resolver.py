@@ -341,16 +341,21 @@ def resolve_layer(layer: dict, context: dict) -> dict:
         resolver-supplied missing-axis coordinates. Density layers
         (``KDE``/``Histogram``) additionally carry ``value_axis``; a
         categorical ``KDE`` layer is resolved to violin geometry (values on
-        the value axis, ``spread`` around the slot). Layer styles add form
-        fields: one-sided violins carry ``spread_low``/``spread_high``,
-        stacked histograms carry ``bottom`` (``"fill"`` also normalizes
-        ``height``).
+        the value axis, ``spread`` around the slot) and a categorical
+        ``Summary`` (box) layer carries ``span`` (the box body width: the
+        layer ``width`` x the key's extent) plus ``value_axis``. Layer
+        styles add form fields: one-sided violins carry
+        ``spread_low``/``spread_high``, stacked histograms carry ``bottom``
+        (``"fill"`` also normalizes ``height``).
     """
     geometry = {}
     categorical = context["layout"] == "categorical"
     unique_id = _layer_unique_id(layer)
     value_axis = _layer_value_axis(layer)
     violin = categorical and _layer_transform_name(layer) == "kde"
+    summary = categorical and _layer_transform_name(layer) == "summary"
+    if summary and layer.get("y") is None:
+        raise NotImplementedError("Summary (box) layers need the y value column; horizontal boxes are pending.")
     style = layer.get("style")
     # even columns apply only to keys nested beyond the grouping levels
     # (per-subject geometry); aggregated group-level keys resolve like flat keys
@@ -390,6 +395,11 @@ def resolve_layer(layer: dict, context: dict) -> dict:
             else:
                 resolved["extent"] = context["width"]
                 column = None
+            if summary:
+                # box layers carry the body span (layer width x extent) and a
+                # value axis like density layers: the values sit on y
+                resolved["span"] = layer.get("width", 0.9) * resolved["extent"]
+                resolved["value_axis"] = "y"
             if violin:
                 if value_axis is None:
                     raise ValueError("KDE layers must carry a value axis to render as violins.")

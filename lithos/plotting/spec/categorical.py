@@ -15,8 +15,8 @@ interpreted by this layout's resolver/plotter, so density transforms work on
 both ``LinePlot`` and ``CategoricalPlot``.
 
 The Phase 2.5 sugar verbs for categorical aggregates live here: ``summary()``
-(the GraphPad summary line) and ``bar()``; points (``scatter()``) and
-densities (``kde()`` = violins) come mixed in from
+(the GraphPad summary line), ``bar()`` and ``box()``; points (``scatter()``)
+and densities (``kde()`` = violins) come mixed in from
 :mod:`lithos.plotting.spec.methods`.
 """
 
@@ -28,9 +28,9 @@ from typing_extensions import Self
 from ...types.basic_types import CategoricalLabels, JitterType
 from ...types.plot_input import Agg, AlphaRange, ColorParameters, Error
 from ...utils import DataHolder
-from ..elements import Bar, ErrorBar, Fill, SummaryLine
+from ..elements import Bar, ErrorBar, Fill, Line, Marker, SummaryLine
 from ..plot_utils import _create_groupings
-from ..transforms import Aggregate
+from ..transforms import Aggregate, Summary
 from .base import Plot
 from .methods import _resolve_role, _with_intent
 
@@ -242,6 +242,98 @@ class CategoricalPlot(Plot):
         fill_element = _resolve_role(fill, lambda: _with_intent(Fill(), color, alpha))
         bar_element = _resolve_role(bar, lambda: _with_intent(Bar(), color, alpha))
         elements = [element for element in (fill_element, bar_element) if element is not None]
+        return self.add(
+            transform,
+            *elements,
+            position=position,
+            width=width,
+            jitter_type=jitter_type,
+            seed=seed,
+        )
+
+    def box(
+        self,
+        *,
+        whisker: Literal["quantiles", "minmax", "none"] = "quantiles",
+        whisker_quantiles: tuple[float, float] = (5, 95),
+        notch: bool = False,
+        color: ColorParameters | None = None,
+        alpha: AlphaRange | None = None,
+        fill: Fill | bool | None = None,
+        bar: Bar | bool | None = None,
+        line: Line | bool | None = None,
+        error: ErrorBar | bool | None = None,
+        marker: Marker | bool | None = None,
+        position: str | None = None,
+        width: float = 0.9,
+        jitter_type: JitterType = "fill",
+        seed: int = 42,
+    ) -> Self:
+        """Add a box-plot layer (legacy ``CategoricalPlot.box``): one box per group.
+
+        The roles draw from one ``Summary`` geometry: whiskers
+        (:class:`~lithos.plotting.elements.ErrorBar`) from
+        ``whisker_low``/``whisker_high``, the body face (:class:`Fill`) and
+        outline (:class:`Bar`) for q1..q3 - both notched when ``notch`` is
+        set (matplotlib's notch polygon, McGill 1.58 notch bounds), the
+        median line (:class:`Line`) across the span, and the group mean
+        (:class:`Marker`, opt-in - legacy ``showmeans``). The layer
+        ``width`` is the box footprint fraction (legacy ``width``).
+
+        Deliberate divergences from the legacy method: whiskers are
+        quantiles (5/95 by default) or min/max rather than matplotlib's
+        1.5*IQR extents, and fliers do not exist in box geometry - draw the
+        raw points with a separate ``.scatter()`` layer. Legacy
+        ``show_ci``/``showmeans``/``fliers`` become ``notch``/``marker``
+        role / a separate layer.
+
+        Args:
+            whisker ("quantiles" | "minmax" | "none"): What the whisker
+                extents represent; ``"none"`` turns the whisker role off.
+            whisker_quantiles (tuple[float, float]): (low, high) percentiles
+                used by ``whisker="quantiles"``.
+            notch (bool): Draw the notch bounds around the median (legacy
+                ``show_ci``); the face, outline and median line adopt the
+                notched form.
+            color (ColorParameters | None): Intent color for the role
+                defaults' primary color fields; ``None`` keeps element defaults.
+            alpha (AlphaRange | None): Intent alpha for the role defaults'
+                primary alpha fields.
+            fill (Fill | bool | None): Box-face role - an explicit ``Fill``
+                wins completely, ``False`` drops it, ``None`` builds the default.
+            bar (Bar | bool | None): Box-outline role - an explicit ``Bar``
+                wins completely, ``False`` drops it, ``None`` builds the default.
+            line (Line | bool | None): Median-line role - an explicit
+                ``Line`` wins completely, ``False`` drops it, ``None`` builds
+                the default.
+            error (ErrorBar | bool | None): Whisker role - an explicit
+                ``ErrorBar`` wins completely, ``False`` drops it, ``None``
+                builds the default (off when ``whisker="none"``).
+            marker (Marker | bool | None): Mean-point role - absent by
+                default; ``True`` accepts the intent-styled default, an
+                explicit ``Marker`` wins completely.
+            position (str | None): Resolver position mode; ``None`` uses the
+                layout default.
+            width (float): The box footprint as a fraction of its slot.
+            jitter_type (JitterType): Shape of any random point spread.
+            seed (int): Seed for the reproducible spread.
+
+        Returns:
+            Self: The plot, for chaining.
+        """
+        transform = Summary(whisker=whisker, whisker_quantiles=whisker_quantiles, notch=notch)
+        error_element = _resolve_role(
+            error, lambda: _with_intent(ErrorBar(), color, alpha), default_on=whisker != "none"
+        )
+        fill_element = _resolve_role(fill, lambda: _with_intent(Fill(), color, alpha))
+        bar_element = _resolve_role(bar, lambda: _with_intent(Bar(), color, alpha))
+        line_element = _resolve_role(line, lambda: _with_intent(Line(), color, alpha))
+        marker_element = _resolve_role(marker, lambda: _with_intent(Marker(), color, alpha), default_on=False)
+        elements = [
+            element
+            for element in (error_element, fill_element, bar_element, line_element, marker_element)
+            if element is not None
+        ]
         return self.add(
             transform,
             *elements,

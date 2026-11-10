@@ -224,9 +224,18 @@ pipeline and the legacy processor output:
    included). Residual: `ecdf` (transform landed and tested in
    `tests/transforms_test.py`; parity port pending) and `percent` (no
    pinned decomposition yet - see Open questions).
-4. pending - box -> `Summary` + `Bar`/`Fill`/`Line`/`Marker`/`ErrorBar`
-   (no `Whisker` element: whiskers render via `ErrorBar` over the
-   `whisker_low`/`whisker_high` geometry `Summary` already computes).
+4. done - box -> `Summary` + `ErrorBar` (whiskers) + `Fill` (face) + `Bar`
+   (outline) + `Line` (median) + `Marker` (mean, opt-in). Parity in
+   `tests/processing/box_parity_test.py` against matplotlib's
+   ``boxplot_stats`` - the legacy `_box` passes raw values straight to
+   matplotlib, which computes the drawn statistics there. Deliberate
+   divergences: whiskers are quantiles (default 5/95) or min/max, not
+   matplotlib's 1.5*IQR extents; fliers have no box geometry (raw points
+   are a separate `Identity` layer); notch bounds use the McGill 1.58
+   constant (matplotlib: 1.57); horizontal boxes are pending. The resolver
+   supplies the layer-width-based box ``span``; the notch polygon mirrors
+   matplotlib's ``shownotches`` geometry (waist at +/- 25% of the box
+   width).
 5. done - fit -> `Fit` + `Line` + `ErrorBand`; parity in
    `tests/processing/fit_parity_test.py`.
 
@@ -261,7 +270,7 @@ Verb catalog (legacy methods absorbed in parentheses):
 | `line` (`LinePlot`) (`line`/`aggline`) - landed | `func=None` -> `Identity` + `Line`; else `Aggregate(func, err_func, unique_id, how)` + `Line` (+ `ErrorBand` when `err_func`; `marker` opt-in) | - |
 | `summary` (`CategoricalPlot`) (`summary`/`summaryu`) - landed | `Aggregate(func, err_func, unique_id, agg_func)` + `SummaryLine` (+ `ErrorBar` when `err_func`) | - |
 | `bar` (`CategoricalPlot`) (`bar`) - landed | `Aggregate(func, unique_id, agg_func)` + `Fill` + `Bar` (no errors - a separate `.add` layer) | - |
-| `box` (`CategoricalPlot`) (`box`) - with family 4 | `Summary` + `Fill`/`Bar`/`Line`/`Marker`/`ErrorBar` | - |
+| `box` (`CategoricalPlot`) (`box`) - landed | `Summary(whisker, whisker_quantiles, notch)` + `ErrorBar` (whiskers, off when `whisker="none"`) + `Fill` (face) + `Bar` (outline) + `Line` (median) + `Marker` (mean, opt-in) | - |
 | `percent` (`CategoricalPlot`) (`percent`) - parked | unresolved (Open questions) | - |
 
 `hist`/`ecdf` start `LinePlot`-only because the categorical density forms
@@ -297,9 +306,11 @@ Dropped legacy knobs (owned by the resolver/elements now): `duplicate_offset`,
 `sort`, `agg_width`, per-method `legend=`, `hist_type` outline-vs-fill (role
 elements), `fill_between`/`fill_under` booleans (roles or `False`), the `kde`
 fill mutual-exclusion error, `paired`'s `index`/`order=` (pairing is the
-plot's `x` column, data-driven) and the `ecdf` `ylim` pin (the probability
+plot's `x` column, data-driven), the `ecdf` `ylim` pin (the probability
 axis follows the value column's axis, so `[0, 1]` limits now come from
-`.axis(ylim=/xlim=)`). Legacy styling kwargs do not return - verbs expose
+`.axis(ylim=/xlim=)`) and `box`'s `fliers`/`showmeans`/`show_ci` (raw points
+are an `Identity` layer; the mean marker and notch are roles/`notch=`).
+Legacy styling kwargs do not return - verbs expose
 `color`/`alpha` plus roles only; finer styling is a `.add()` layer.
 
 ### Phase 3 - Collapse

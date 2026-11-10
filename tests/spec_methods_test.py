@@ -14,10 +14,11 @@ import matplotlib
 matplotlib.use("Agg", force=True)
 
 import pytest
+from matplotlib.patches import Polygon
 
 from lithos.plotting.elements import Bar, ErrorBand, ErrorBar, Fill, Line, Marker, SummaryLine
 from lithos.plotting.spec import CategoricalPlot, LinePlot
-from lithos.plotting.transforms import ECDF, KDE, Aggregate, Fit, Histogram, Identity
+from lithos.plotting.transforms import ECDF, KDE, Aggregate, Fit, Histogram, Identity, Summary
 
 
 class TestScatterVerb:
@@ -278,6 +279,38 @@ class TestBarVerb:
         ]
 
 
+class TestBoxVerb:
+    """box == .add(Summary, ErrorBar?, Fill, Bar, Line, Marker?) - the whisker role tracks whisker."""
+
+    def test_default_composition(self):
+        expected = CategoricalPlot().add(Summary(), ErrorBar(), Fill(), Bar(), Line())
+        assert CategoricalPlot().box().layers == expected.layers
+
+    def test_whisker_none_drops_the_whisker_role(self):
+        plot = CategoricalPlot().box(whisker="none")
+        expected = CategoricalPlot().add(Summary(whisker="none"), Fill(), Bar(), Line())
+        assert plot.layers == expected.layers
+
+    def test_stats_forward_verbatim(self):
+        plot = CategoricalPlot().box(whisker="minmax", whisker_quantiles=(10, 90), notch=True)
+        transform = Summary(whisker="minmax", whisker_quantiles=(10, 90), notch=True)
+        assert plot.layers == CategoricalPlot().add(transform, ErrorBar(), Fill(), Bar(), Line()).layers
+
+    def test_marker_role_opts_into_the_mean_point(self):
+        plot = CategoricalPlot().box(marker=True)
+        expected = CategoricalPlot().add(Summary(), ErrorBar(), Fill(), Bar(), Line(), Marker())
+        assert plot.layers == expected.layers
+
+    def test_intent_reaches_every_role(self):
+        plot = CategoricalPlot().box(color="teal", alpha=0.4)
+        assert plot.layers[0]["elements"] == [
+            ErrorBar(linecolor="teal", linealpha=0.4),
+            Fill(fillcolor="teal", fillalpha=0.4),
+            Bar(edgecolor="teal", edge_alpha=0.4),
+            Line(linecolor="teal", linealpha=0.4),
+        ]
+
+
 class TestVerbMetadataReplay:
     """Verbs go through .add(), so their layers serialize and reload identically."""
 
@@ -378,3 +411,15 @@ class TestVerbRenderSmoke:
     def test_bar_renders_per_subject(self, one_grouping_with_unique_ids):
         data, _ = one_grouping_with_unique_ids
         CategoricalPlot().grouping(group="grouping_1").bar(unique_id="unique_grouping").plot(y="y", data=data)
+
+    def test_box_renders(self, one_grouping):
+        data, _ = one_grouping
+        CategoricalPlot().grouping(group="grouping_1").box().plot(y="y", data=data)
+
+    def test_box_renders_notched_with_mean_marker(self, one_grouping):
+        data, _ = one_grouping
+        plot = CategoricalPlot().grouping(group="grouping_1").box(notch=True, marker=True, whisker="minmax")
+        plot.plot(y="y", data=data)
+        # every group draws a face and an outline polygon (3 groups)
+        boxes = [p for p in plot.plotter.axes[0].patches if isinstance(p, Polygon)]
+        assert len(boxes) == 6

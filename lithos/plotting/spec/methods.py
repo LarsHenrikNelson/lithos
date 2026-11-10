@@ -33,8 +33,8 @@ Argument contract (three tiers, in precedence order):
 Rendering defaults are layout-aware where the resolver is: ``kde`` draws a
 line + fill-under curve on continuous layouts but only the ``Fill`` violin
 body on categorical ones. Verbs land family by family with their Phase 2
-parity ports; ``box`` and the categorical ``hist``/``ecdf`` forms (the
-``percent`` analog) are still pending.
+parity ports; the categorical ``hist``/``ecdf`` forms (the ``percent``
+analog) are still pending.
 """
 
 from collections.abc import Callable
