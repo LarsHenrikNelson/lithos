@@ -8,6 +8,8 @@ object used is a spec ``LinePlot()`` as a convenient source of the default
 (plain-data) format dicts.
 """
 
+import re
+
 import matplotlib
 
 matplotlib.use("Agg", force=True)
@@ -324,6 +326,47 @@ class TestCategoricalFormatting:
         assert list(ax.get_yticks()) == [0.0, 1.0]
         assert [label.get_text() for label in ax.get_yticklabels()] == ["g1", "g2"]
 
+    def test_horizontal_value_axis_uses_xdecimals(self):
+        fig, ax = plt.subplots()
+        ax.scatter([0.2, 0.8], [0.25, 0.75])
+        plot_format = default_format()
+        plot_format["axis"]["xdecimals"] = 1
+        plot_format["axis"]["ydecimals"] = 3
+        formatter = CategoricalFormatter(
+            fig, [ax], plot_format, make_labels(x="value"), default_transforms(), categorical_context()
+        )
+        formatter.format(plot_types=[])
+        text_labels = [label.get_text() for label in ax.get_xticklabels() if label.get_text()]
+        assert text_labels
+        # horizontal layouts put the values on x, so the value ticks must
+        # render with xdecimals (1), not the categorical ydecimals (3)
+        assert all(re.fullmatch(r"-?\d+\.\d", label) for label in text_labels)
+
+    def test_horizontal_truncation_bounds_left_spine(self):
+        # truncation creates the discontinuous axis: the spine carrying the
+        # categorical slots stops short of the axis intersection
+        fig, ax = plt.subplots()
+        plot_format = default_format()
+        plot_format["axis_format"]["truncate_yaxis"] = True
+        formatter = CategoricalFormatter(
+            fig, [ax], plot_format, make_labels(x="value"), default_transforms(), categorical_context()
+        )
+        formatter.set_categorical_axis(ax, axis="y")
+        assert ax.spines["left"].get_bounds() == (0.0, 1.0)
+        assert ax.spines["bottom"].get_bounds() is None
+
+    def test_vertical_truncation_bounds_bottom_spine(self):
+        # the vertical counterpart truncates the bottom spine, not the left
+        fig, ax = plt.subplots()
+        plot_format = default_format()
+        plot_format["axis_format"]["truncate_xaxis"] = True
+        formatter = CategoricalFormatter(
+            fig, [ax], plot_format, make_labels(), default_transforms(), categorical_context()
+        )
+        formatter.set_categorical_axis(ax)
+        assert ax.spines["bottom"].get_bounds() == (0.0, 1.0)
+        assert ax.spines["left"].get_bounds() is None
+
 
 class TestLegends:
     def test_legend_patches_from_color_dict(self):
@@ -331,9 +374,7 @@ class TestLegends:
         formatter = FigureFormatter(
             fig, [ax], default_format(), make_labels(), default_transforms(), categorical_context()
         )
-        patches = formatter.legend_patches(
-            color_dict={"g1": "red", "g2": "blue"}, alpha=0.5, group=["g1", "g2"], subgroup=None
-        )
+        patches = formatter.legend_patches(color_dict={"g1": "red", "g2": "blue"}, alpha=0.5)
         assert [patch.get_label() for patch in patches] == ["g1", "g2"]
 
     def test_format_turns_context_into_a_legend(self):

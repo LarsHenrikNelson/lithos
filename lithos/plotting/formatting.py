@@ -33,10 +33,10 @@ from ..utils import get_backtransform, get_transform
 
 def radian_ticks(ticks: list | np.ndarray, rotate=False):
     pi_symbol = "\u03c0"
-    mm = [int(180 * i / np.pi) for i in ticks]
+    mm = [int(round(180 * i / np.pi)) for i in ticks]
     if rotate:
         mm = [deg if deg <= 180 else deg - 360 for deg in mm]
-    jj = [Fraction(deg / 180) if deg != 0 else 0 for deg in mm]
+    jj = [Fraction(deg, 180) if deg != 0 else 0 for deg in mm]
     output = []
     for t in jj:
         sign = "-" if t < 0 else ""
@@ -86,13 +86,6 @@ def get_ticks(
         steps[0],
     )
     return lim, axis_lim, ticks
-
-
-def _decimals(data):
-    temp = np.abs(data)
-    temp = temp[temp > 0.0]
-    decimals = np.abs(int(np.max(np.round(np.log10(temp))))) + 2
-    return decimals
 
 
 class FigureFormatter:
@@ -417,19 +410,9 @@ class FigureFormatter:
             **kwargs,
         )
 
-    def legend_patches(self, color_dict, alpha, group, subgroup):
+    def legend_patches(self, color_dict, alpha):
         """Legend patches (one per group) from a per-group color dict."""
         legend_patches = []
-        # for j in group:
-        #     if j in color_dict:
-        #         legend_patches.append(
-        #             mpatches.Patch(color=to_rgba(color_dict[j], alpha=alpha), label=j)
-        #         )
-        # for j in subgroup:
-        #     if j in color_dict:
-        #         legend_patches.append(
-        #             mpatches.Patch(color=to_rgba(color_dict[j], alpha=alpha), label=j)
-        #         )
         for key, value in color_dict.items():
             legend_patches.append(mpatches.Patch(color=to_rgba(value, alpha=alpha), label=key))
         return legend_patches
@@ -445,8 +428,6 @@ class FigureFormatter:
         handles = self.legend_patches(
             color_dict=self.plot_dict["legend_dict"][0],
             alpha=self.plot_dict["legend_dict"][1],
-            group=self.plot_dict["group_order"],
-            subgroup=self.plot_dict["subgroup_order"],
         )
         ax.plot()
         ax.axis("off")
@@ -649,7 +630,7 @@ class CategoricalFormatter(FigureFormatter):
         else:
             self.set_axis(
                 ax,
-                self.plot_format["axis"]["ydecimals"],
+                self.plot_format["axis"]["xdecimals"],
                 axis="x",
                 style=self.plot_format["axis_format"]["style"],
             )
@@ -689,8 +670,6 @@ class CategoricalFormatter(FigureFormatter):
             handles = self.legend_patches(
                 color_dict=self.plot_dict["legend_dict"][0],
                 alpha=self.plot_dict["legend_dict"][1],
-                group=self.plot_dict["group_order"],
-                subgroup=self.plot_dict["subgroup_order"],
             )
             ax.legend(
                 handles=handles,
@@ -775,7 +754,7 @@ class CategoricalFormatter(FigureFormatter):
             )
             if self.plot_format["axis_format"]["truncate_yaxis"]:
                 ticks = self.plot_dict["ticks"]
-                ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
+                ax.spines["left"].set_bounds(ticks[0], ticks[-1])
             if bottom_labels is not None:
                 sec = ax.secondary_yaxis(location="left")
                 sec.set_yticks(

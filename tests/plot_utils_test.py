@@ -78,6 +78,27 @@ pi_symbol = "\u03c0"
                 f"-{pi_symbol}/4",
             ],
         ),
+        # non-dyadic angles (30/60/120/150 degrees) need exact rational
+        # arithmetic: neither int() truncation of the float degrees nor
+        # Fraction(float) produce readable labels.
+        (
+            [0, 30, 60, 90, 120, 150, 180],
+            False,
+            [
+                "0",
+                f"{pi_symbol}/6",
+                f"{pi_symbol}/3",
+                f"{pi_symbol}/2",
+                f"2{pi_symbol}/3",
+                f"5{pi_symbol}/6",
+                f"{pi_symbol}",
+            ],
+        ),
+        (
+            [0, 30, 60, 300, 330],
+            True,
+            ["0", f"{pi_symbol}/6", f"{pi_symbol}/3", f"-{pi_symbol}/3", f"-{pi_symbol}/6"],
+        ),
     ],
 )
 def test_radian_ticks(values, rotate, correct_values):
