@@ -19,14 +19,19 @@ Processing              lithos.plotting.processing
                              |
 Rendering               lithos.plotting.matplotlib_plotter
                         Plotter -> LinePlotter (rectilinear + polar)
-                                -> CategoricalPlotter (categorical axes, formatting)
+                                -> CategoricalPlotter (categorical axes)
+                             |
+Formatting              lithos.plotting.formatting
+                        FigureFormatter -> ContinuousFormatter (rectilinear + polar)
+                                          -> CategoricalFormatter (categorical ticks)
                              |
 Stats                   lithos.stats (pure functions: kde, ecdf, histogram, curve_fit,
                         circular stats) — no plotting imports allowed here
 ```
 
 Dependency direction is strictly downward: plot classes -> processors -> stats/transforms.
-`lithos/stats` must stay free of `lithos.plotting` imports. Do not introduce cycles.
+`lithos/stats` must stay free of `lithos.plotting` imports; the formatting
+module must not import renderer or plot-class code. Do not introduce cycles.
 
 ## New element/transform API (Phase 2, in progress)
 
@@ -56,6 +61,32 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
   data (auto-y + stacking), and serialize into metadata with no geometry like layers.
 - All are exported from `lithos/__init__.py` (see the migration plan for remaining phases).
 
+## Formatting/rendering split (Phase 2.6, in progress)
+
+Plot formatting (axes, ticks, grids, labels, legends) is generic matplotlib
+machinery and gets its own component, separate from lithos-specific rendering
+(decision pinned in [migration_plan.md](./migration_plan.md)):
+
+- `lithos/plotting/formatting.py` - `FigureFormatter` (base) with
+  `ContinuousFormatter` (rectilinear + polar) and `CategoricalFormatter`
+  (slot ticks, two-tier group/subgroup labels). The formatter holds the
+  figure, the axes and *references* to the format/label/transform dicts
+  plus the layout context, and styles grids, minor ticks, tick
+  decimals/back-transforms/tick window, spines, axis/title labels,
+  reference lines (`hline`/`vline`), legend patches and polar radian
+  ticks. It consumes only `(fig, axes)` plus dicts - no plot data - so the
+  same machinery can style any matplotlib figure; a public entry point is
+  deliberately deferred.
+- `lithos/plotting/matplotlib_plotter.py` - keeps figure lifecycle
+  (`create_figure`, `plot()`, `savefig`) and all rendering (legacy plot
+  methods plus the spec element dispatch). `format_plot()` picks the
+  layout's formatter via a `formatter_cls` ClassVar and delegates;
+  `plot_legend()` delegates too.
+- The spec plotters are unchanged: they inherit the delegating
+  `format_plot()` from their legacy plotter bases, and `_LayerView` still
+  feeds plot-type names to `format(plot_types=...)` (the kde/hist
+  default-limits special case).
+
 ## Data flow (legacy)
 
 1. `DataHolder` (or dict/DataFrame/2D array) is passed to a plot class.
@@ -65,12 +96,16 @@ Dependency direction is strictly downward: plot classes -> processors -> stats/t
    `lithos.stats`, attach metadata, and resolve positions
    (passthrough/dodge/jitter/stack for categorical layouts).
 4. Plotters consume processed geometry dicts and render with matplotlib; axis/legend/tick
-   formatting (`format_plot`, `set_axis`, `plot_legend`) is centralized in `Plotter`.
+   formatting (`format_plot`, `set_axis`, `plot_legend`) is delegated to the
+   formatting layer, `lithos.plotting.formatting` (`FigureFormatter` subclasses
+   consume the format dict and a layout context but never plot data; the
+   plotter passes plot-type names into `format(plot_types=...)`).
 
 ## Tests
 
 `tests/` mirrors the package: `dataholder/`, `processing/` (line + categorical processor
-parity), plus top-level files for transforms, elements, metadata, plot utils and colors.
+parity), plus top-level files for transforms, elements, metadata, plot utils,
+formatting and colors.
 All stats functions are exercised indirectly through transform geometry contracts.
 Run with `uv run pytest` (see root `AGENTS.md` for the full command table).
 

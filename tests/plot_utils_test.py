@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
 
+from lithos.plotting.formatting import radian_ticks
 from lithos.plotting.plot_utils import (
     _create_groupings,
     _process_positions,
     create_dict,
-    radian_ticks,
 )
 from lithos.utils import DataHolder
 

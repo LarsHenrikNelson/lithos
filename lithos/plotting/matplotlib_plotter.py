@@ -1,22 +1,22 @@
 """Matplotlib renderers for the legacy plot methods and the spec plot API.
 
-``Plotter`` holds the shared figure/axes/formatting machinery; ``LinePlotter``
-and ``CategoricalPlotter`` add the continuous and categorical layouts. The
-spec plotters (:mod:`lithos.plotting.spec.plotter`) reuse these classes for
-figure creation and axis/label formatting while replacing the plot-method
-dispatch with element rendering.
+``Plotter`` holds the shared figure/axes machinery and the legacy plot-method
+dispatch; ``LinePlotter`` and ``CategoricalPlotter`` add the continuous and
+categorical layouts. The spec plotters (:mod:`lithos.plotting.spec.plotter`)
+reuse these classes for figure creation while replacing the plot-method
+dispatch with element rendering. All axes/tick/label/legend formatting lives
+in :mod:`lithos.plotting.formatting`: each plotter delegates ``format_plot()``
+(and ``plot_legend()``) to its layout's ``FigureFormatter``.
 
-Only the ``Plotter`` classes call matplotlib directly; the plot classes
-configure artists through them.
+Only the ``Plotter`` classes and the formatters call matplotlib directly; the
+plot classes configure artists through them.
 """
 
-import io
 from dataclasses import asdict
 from pathlib import Path
 from typing import ClassVar, Literal
 
 import matplotlib as mpl
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib._enums import CapStyle
@@ -24,14 +24,9 @@ from matplotlib.axes import Axes
 from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
 from matplotlib.projections.polar import PolarAxes
-from numpy.typing import NDArray
 
 from ..types.basic_types import Direction, SavePath
-from ..utils import (
-    get_backtransform,
-    get_transform,
-)
-from .plot_utils import _decimals, get_ticks, radian_ticks
+from .formatting import CategoricalFormatter, ContinuousFormatter, FigureFormatter
 
 MARKERS = [
     "o",
@@ -67,7 +62,7 @@ HATCHES = [
 
 
 class Plotter:
-    """Base matplotlib renderer: shared figure, axes and formatting machinery.
+    """Base matplotlib renderer: shared figure, axes and render machinery.
 
     Attributes:
         plot_data (list): The plot types driving formatting special cases
@@ -82,6 +77,8 @@ class Plotter:
         axes (list[Axes]): The rendered axes (one per facet/group).
         filetypes (ClassVar[set[str]]): File formats accepted by
             :meth:`savefig`.
+        formatter_cls (ClassVar): The ``FigureFormatter`` subclass that
+            formats this layout; :meth:`format_plot` delegates to it.
     """
 
     filetypes: ClassVar[set[str]] = {
@@ -100,6 +97,7 @@ class Plotter:
         "tiff",
         "webp",
     }
+    formatter_cls: ClassVar[type[FigureFormatter]] = FigureFormatter
 
     def __init__(
         self,
@@ -161,11 +159,6 @@ class Plotter:
         """Create and return the figure and axes list (subclass hook)."""
         raise NotImplementedError("Implement create_figure. Must return Figure and list[Axes].")
 
-    def _ticklabel_size(self, axis: Literal["x", "y"]) -> float:
-        """Tick label size for one axis, falling back to the legacy shared ``ticklabel_size``."""
-        labels = self.plot_format["labels"]
-        return labels.get(f"{axis}ticklabel_size", labels.get("ticklabel_size", 12))
-
     def _process_color(self, color, alpha):
         """Convert a color (or list of colors) to RGBA with the given alpha."""
         if color is None:
@@ -174,283 +167,6 @@ class Plotter:
             return [to_rgba(c, alpha=alpha) if color != "none" else "none" for c in color]
         else:
             return to_rgba(color, alpha=alpha) if color != "none" else "none"
-
-    def _set_grid(self, sub_ax):
-        """Apply the major/minor grid settings to one axes."""
-        if self.plot_format["grid"]["ygrid"] > 0:
-            sub_ax.yaxis.grid(
-                linewidth=self.plot_format["grid"]["ygrid"],
-                linestyle=self.plot_format["grid"]["linestyle"],
-                zorder=1,
-            )
-        if self.plot_format["grid"]["xgrid"] > 0:
-            sub_ax.xaxis.grid(
-                linewidth=self.plot_format["grid"]["xgrid"],
-                linestyle=self.plot_format["grid"]["linestyle"],
-                zorder=1,
-            )
-        if self.plot_format["grid"]["yminor_grid"] > 0:
-            sub_ax.grid(
-                visible=True,
-                which="minor",
-                axis="y",
-                linewidth=self.plot_format["grid"]["yminor_grid"],
-                linestyle=self.plot_format["grid"]["minor_linestyle"],
-                zorder=1,
-            )
-            sub_ax.minorticks_on()
-        if self.plot_format["grid"]["xminor_grid"] > 0:
-            sub_ax.grid(
-                visible=True,
-                which="minor",
-                axis="x",
-                linewidth=self.plot_format["grid"]["xminor_grid"],
-                linestyle=self.plot_format["grid"]["minor_linestyle"],
-                zorder=1,
-            )
-            sub_ax.minorticks_on()
-        sub_ax.tick_params(axis="both", which="minor", bottom=False, left=False, zorder=1)
-
-    def _plot_axlines(self, line_dict, ax):
-        """Draw the hline/vline reference lines on one axes."""
-        for ll in line_dict["lines"]:
-            if line_dict["linetype"] == "vline":
-                ax.axvline(
-                    ll,
-                    linestyle=line_dict["linestyle"],
-                    color=line_dict["linecolor"],
-                    alpha=line_dict["linealpha"],
-                    linewidth=line_dict["linewidth"],
-                    zorder=line_dict["zorder"],
-                )
-            else:
-                ax.axhline(
-                    ll,
-                    linestyle=line_dict["linestyle"],
-                    color=line_dict["linecolor"],
-                    alpha=line_dict["linealpha"],
-                    linewidth=line_dict["linewidth"],
-                    zorder=line_dict["zorder"],
-                )
-
-    def _set_lims(
-        self,
-        ax: Axes | PolarAxes,
-        lim: tuple[float | int, float | int],
-        ticks,
-        axis: Literal["x", "y"] = "x",
-    ):
-        """Set one axis' limits, spine truncation and scale."""
-        if axis == "y":
-            if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
-                ax.set_ylim(bottom=lim[0], top=lim[1])
-                if self.plot_format["axis_format"]["truncate_yaxis"]:
-                    start = self.plot_format["axis_format"]["ysteps"][1]
-                    end = self.plot_format["axis_format"]["ysteps"][2] - 1
-                    ax.spines["left"].set_bounds(ticks[start], ticks[end])
-                elif self.plot_format["axis"]["yaxis_lim"] is not None:
-                    ax.spines["left"].set_bounds(ticks[0], ticks[-1])
-            else:
-                ax.set_yscale(self.plot_format["axis"]["yscale"])
-                ax.set_ylim(bottom=lim[0], top=lim[1])
-        else:
-            if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
-                ax.set_xlim(left=lim[0], right=lim[1])
-                if self.plot_format["axis_format"]["truncate_xaxis"]:
-                    start = self.plot_format["axis_format"]["xsteps"][1]
-                    end = self.plot_format["axis_format"]["xsteps"][2] - 1
-                    ax.spines["bottom"].set_bounds(ticks[start], ticks[end])
-                elif self.plot_format["axis"]["xaxis_lim"] is not None:
-                    ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
-            else:
-                ax.set_xscale(self.plot_format["axis"]["xscale"])
-                ax.set_xlim(left=lim[0], right=lim[1])
-
-    def _format_ticklabels(
-        self,
-        ax: Axes | PolarAxes,
-        ticks,
-        decimals: int,
-        axis: Literal["y", "x"] = "x",
-        style: Literal["lithos", "default"] = "lithos",
-    ):
-        """Format tick positions and labels for one axis (decimals, back-transform, tick window)."""
-        if axis == "y":
-            if self.plot_format["axis"]["yscale"] not in ["log", "symlog"]:
-                if self.plot_transforms.get("back_transform_yticks"):
-                    tick_labels = get_backtransform(self.plot_transforms["ytransform"])(ticks)
-                else:
-                    tick_labels = ticks
-                if decimals is not None:
-                    if decimals == -1:
-                        tick_labels = tick_labels.astype(int)
-                    else:
-                        # This does not work with scientific format
-                        tick_labels = np.round(tick_labels, decimals=decimals)
-                        dformat = self.plot_format["axis"]["yformat"]
-                        tick_labels = [f"{value:.{decimals}{dformat}}" for value in tick_labels]
-                if style == "lithos":
-                    label_start = self.plot_format["axis_format"]["ysteps"][1]
-                    label_end = self.plot_format["axis_format"]["ysteps"][2]
-                else:
-                    label_start = 0
-                    label_end = len(ticks)
-                ax.set_yticks(
-                    ticks[label_start:label_end],
-                    labels=tick_labels[label_start:label_end],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self._ticklabel_size("y"),
-                    rotation=self.plot_format["labels"]["ytick_rotation"],
-                )
-            else:
-                ax.set_yscale(self.plot_format["axis"]["yscale"])
-                ax.set_yticks(
-                    ticks,
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self._ticklabel_size("y"),
-                    rotation=self.plot_format["labels"]["ytick_rotation"],
-                )
-        else:
-            if self.plot_format["axis"]["xscale"] not in ["log", "symlog"]:
-                if self.plot_transforms.get("back_transform_xticks"):
-                    tick_labels = get_backtransform(self.plot_transforms["xtransform"])(ticks)
-                else:
-                    tick_labels = ticks
-                if decimals is not None:
-                    if decimals == -1:
-                        tick_labels = tick_labels.astype(int)
-                    else:
-                        # This does not work with scientific format
-                        tick_labels = np.round(tick_labels, decimals=decimals)
-                        dformat = self.plot_format["axis"]["xformat"]
-                        tick_labels = [f"{value:.{decimals}{dformat}}" for value in tick_labels]
-                if style == "lithos":
-                    label_start = self.plot_format["axis_format"]["xsteps"][1]
-                    label_end = self.plot_format["axis_format"]["xsteps"][2]
-                else:
-                    label_start = 0
-                    label_end = len(ticks)
-                ax.set_xticks(
-                    ticks[label_start:label_end],
-                    labels=tick_labels[label_start:label_end],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self._ticklabel_size("x"),
-                    rotation=self.plot_format["labels"]["xtick_rotation"],
-                )
-            else:
-                ax.set_xscale(self.plot_format["axis"]["xscale"])
-                ax.set_xticks(
-                    ticks,
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self._ticklabel_size("x"),
-                    rotation=self.plot_format["labels"]["xtick_rotation"],
-                )
-
-    def set_axis(
-        self,
-        ax: Axes | PolarAxes,
-        decimals: int,
-        axis: Literal["x", "y"] = "x",
-        style: Literal["default", "lithos"] = "lithos",
-    ):
-        """Set ticks, limits and minor ticks for one axis (lithos or default style)."""
-        if axis == "y":
-            ticks = ax.get_yticks()
-            if style == "lithos":
-                lim, _, ticks = get_ticks(
-                    lim=self.plot_format["axis"]["ylim"],
-                    axis_lim=self.plot_format["axis"]["yaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["ysteps"],
-                )
-            transform = self.plot_transforms["ytransform"]
-            minorticks = self.plot_format["axis_format"]["yminorticks"]
-        else:
-            ticks = ax.get_xticks()
-            if style == "lithos":
-                lim, _, ticks = get_ticks(
-                    lim=self.plot_format["axis"]["xlim"],
-                    axis_lim=self.plot_format["axis"]["xaxis_lim"],
-                    ticks=ticks,
-                    steps=self.plot_format["axis_format"]["xsteps"],
-                )
-            transform = self.plot_transforms["xtransform"]
-            minorticks = self.plot_format["axis_format"]["xminorticks"]
-        if style == "lithos":
-            self._set_lims(ax=ax, lim=lim, ticks=ticks, axis=axis)
-        self._format_ticklabels(ax=ax, ticks=ticks, decimals=decimals, axis=axis, style=style)
-        if minorticks != 0:
-            self._set_minorticks(
-                ax,
-                ticks,
-                minorticks,
-                transform,
-                axis=axis,
-            )
-
-    def _set_minorticks(
-        self,
-        ax,
-        ticks: np.ndarray,
-        nticks: int,
-        transform: str,
-        axis: Literal["y", "x"],
-    ):
-        """Set evenly spaced minor ticks between the major ticks."""
-        ticks = get_backtransform(transform)(ticks)
-        mticks = np.zeros((len(ticks) - 1) * nticks)
-        for index in range(ticks.size - 1):
-            vals = np.linspace(ticks[index], ticks[index + 1], num=nticks + 2, endpoint=True)
-            start = index * nticks
-            end = index * nticks + nticks
-            mticks[start:end] = vals[1:-1]
-        if self.plot_format["axis_format"][f"truncate_{axis}axis"]:
-            start = self.plot_format["axis_format"][f"{axis}steps"][1] * nticks
-            end = self.plot_format["axis_format"][f"{axis}steps"][2] * nticks
-        else:
-            start = 0
-            end = len(mticks)
-        if axis == "y":
-            ax.set_yticks(
-                get_transform(transform)(mticks[start:end]),
-                minor=True,
-            )
-            kwargs = {"left": True}
-        else:
-            ax.set_xticks(
-                get_transform(transform)(mticks[start:end]),
-                minor=True,
-            )
-            kwargs = {"bottom": True}
-        ax.tick_params(
-            axis=axis,
-            which="minor",
-            width=self.plot_format["axis_format"]["minor_tickwidth"],
-            length=self.plot_format["axis_format"]["minor_ticklength"],
-            labelfontfamily=self.plot_format["labels"]["font"],
-            **kwargs,
-        )
-
-    def _make_legend_patches(self, color_dict, alpha, group, subgroup):
-        """Legend patches (one per group) from a per-group color dict."""
-        legend_patches = []
-        # for j in group:
-        #     if j in color_dict:
-        #         legend_patches.append(
-        #             mpatches.Patch(color=to_rgba(color_dict[j], alpha=alpha), label=j)
-        #         )
-        # for j in subgroup:
-        #     if j in color_dict:
-        #         legend_patches.append(
-        #             mpatches.Patch(color=to_rgba(color_dict[j], alpha=alpha), label=j)
-        #         )
-        for key, value in color_dict.items():
-            legend_patches.append(mpatches.Patch(color=to_rgba(value, alpha=alpha), label=key))
-        return legend_patches
 
     def get_plot_func(self, plot_type):
         """Map a plot type name to its legacy plot method."""
@@ -473,9 +189,25 @@ class Plotter:
         else:
             raise ValueError(f"Unsupported plot function: {plot_type}")
 
+    def _make_formatter(self) -> FigureFormatter:
+        """Build the layout's formatter over this plotter's state."""
+        return self.formatter_cls(
+            fig=self.fig,
+            axes=self.axes,
+            plot_format=self.plot_format,
+            plot_labels=self.plot_labels,
+            plot_transforms=self.plot_transforms,
+            plot_dict=self.plot_dict,
+        )
+
     def format_plot(self):
-        """Format the axes (subclass hook)."""
-        raise NotImplementedError("format_plot() not implemented")
+        """Format the axes through the layout's :class:`FigureFormatter`.
+
+        The metadata dicts are passed by reference (write-through mutations
+        such as the kde/hist default limits land on the plot class), and the
+        plotted plot-type names drive layout-specific defaults.
+        """
+        self._make_formatter().format(plot_types=[p.plot_type for p in self.plot_data])
 
     def _marker_line(
         self,
@@ -994,18 +726,7 @@ class Plotter:
         Returns:
             tuple[Figure, Axes]: A figure holding only the legend patches.
         """
-        fig, ax = plt.subplots()
-
-        handles = self._make_legend_patches(
-            color_dict=self.plot_dict["legend_dict"][0],
-            alpha=self.plot_dict["legend_dict"][1],
-            group=self.plot_dict["group_order"],
-            subgroup=self.plot_dict["subgroup_order"],
-        )
-        ax.plot()
-        ax.axis("off")
-        ax.legend(handles=handles, frameon=False)
-        return fig, ax
+        return self._make_formatter().plot_legend()
 
     def _plot(self):
         """Dispatch every legacy plot type to its plot method."""
@@ -1078,6 +799,8 @@ class Plotter:
 class LinePlotter(Plotter):
     """Continuous-layout renderer: one axes (or one per group when faceting)."""
 
+    formatter_cls: ClassVar[type[FigureFormatter]] = ContinuousFormatter
+
     def create_figure(self) -> tuple[Figure, list[Axes]]:
         """Create the figure/axes; faceted plots get one axes per group."""
         if self.plot_format["figure"]["nrows"] is None and self.plot_format["figure"]["ncols"] is None:
@@ -1122,166 +845,11 @@ class LinePlotter(Plotter):
             ax = [ax]
         return fig, ax
 
-    def format_rectilinear(self, ax: Axes | PolarAxes, xdecimals: int, ydecimals: int):
-        """Format a rectilinear axes: spines, ticks/limits, margins, labels."""
-        ax.autoscale()
-        for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
-            if lw == 0:
-                ax.spines[spine].set_visible(False)
-            else:
-                ax.spines[spine].set_linewidth(lw)
-
-        self.set_axis(
-            ax=ax,
-            decimals=xdecimals,
-            axis="x",
-            style=self.plot_format["axis_format"]["style"],
-        )
-        self.set_axis(
-            ax,
-            decimals=ydecimals,
-            axis="y",
-            style=self.plot_format["axis_format"]["style"],
-        )
-
-        ax.margins(self.plot_format["figure"]["margins"])
-        ax.set_xlabel(
-            self.plot_labels["xlabel"],
-            fontsize=self.plot_format["labels"]["labelsize"],
-            fontweight=self.plot_format["labels"]["label_fontweight"],
-            fontfamily=self.plot_format["labels"]["font"],
-            rotation=self.plot_format["labels"]["xlabel_rotation"],
-        )
-
-    def format_polar(self, ax: PolarAxes):
-        """Format a polar axes (radian tick labels, spine, r-max)."""
-        if self.plot_format["axis"]["xunits"] == "radian" or self.plot_format["axis"]["xunits"] == "wradian":
-            xticks = ax.get_xticks()
-            labels = (
-                radian_ticks(xticks, rotate=False)
-                if self.plot_format["axis"]["xunits"] == "radian"
-                else radian_ticks(xticks, rotate=True)
-            )
-            ax.set_xticks(
-                xticks,
-                labels,
-                fontfamily=self.plot_format["labels"]["font"],
-                fontweight=self.plot_format["labels"]["tick_fontweight"],
-                fontsize=self._ticklabel_size("x"),
-                rotation=self.plot_format["labels"]["xtick_rotation"],
-            )
-        ax.spines["polar"].set_visible(False)
-        ax.set_xlabel(
-            self.plot_labels["xlabel"],
-            fontsize=self.plot_format["labels"]["labelsize"],
-            fontweight=self.plot_format["labels"]["label_fontweight"],
-            fontfamily=self.plot_format["labels"]["font"],
-            rotation=self.plot_format["labels"]["xlabel_rotation"],
-        )
-        ax.set_rmax(ax.dataLim.ymax)
-        ticks = ax.get_yticks()
-        decimals = self.plot_format["axis"]["ydecimals"]
-        if self.plot_format["axis_format"]["style"] == "lithos":
-            _, _, ticks = get_ticks(
-                lim=self.plot_format["axis"]["ylim"],
-                axis_lim=self.plot_format["axis"]["yaxis_lim"],
-                ticks=ticks,
-                steps=self.plot_format["axis_format"]["xsteps"],
-            )
-        if decimals is not None:
-            if decimals == -1:
-                tick_labels = ticks.astype(int)
-            else:
-                # This does not work with scientific format
-                tick_labels = np.round(ticks, decimals=decimals)
-                dformat = self.plot_format["axis"]["yformat"]
-                tick_labels = [f"{value:.{decimals}{dformat}}" for value in tick_labels]
-        else:
-            tick_labels = ticks
-        ax.set_yticks(
-            ticks,
-            tick_labels,
-            fontfamily=self.plot_format["labels"]["font"],
-            fontweight=self.plot_format["labels"]["tick_fontweight"],
-            fontsize=self._ticklabel_size("y"),
-            rotation=self.plot_format["labels"]["ytick_rotation"],
-        )
-        # self.set_axis(
-        #     ax,
-        #     decimals=self.plot_format["axis"]["ydecimals"],
-        #     axis="y",
-        #     style=self.plot_format["axis_format"]["style"],
-        # )
-
-    def format_plot(self):
-        """Format every axes (grids, ticks, spines, labels, reference lines)."""
-        for p in self.plot_data:
-            if p.plot_type == "kde" or p.plot_type == "hist":
-                if self.plot_labels["x"] is not None:
-                    if self.plot_format["axis"]["ylim"] is None:
-                        self.plot_format["axis"]["ylim"] = [0, None]
-                else:
-                    if self.plot_format["axis"]["xlim"] is None:
-                        self.plot_format["axis"]["xlim"] = [0, None]
-        ydecimals = self.plot_format["axis"]["ydecimals"]
-        xdecimals = self.plot_format["axis"]["xdecimals"]
-        for index, sub_ax in enumerate(self.axes[: len(self.plot_dict["group_order"])]):
-            self._set_grid(sub_ax)
-            if self.plot_format["figure"]["projection"] == "rectilinear":
-                self.format_rectilinear(sub_ax, xdecimals, ydecimals)
-            else:
-                if not isinstance(sub_ax, PolarAxes):
-                    raise ValueError("Polar formatting requires polar axes; check the figure projection.")
-                self.format_polar(sub_ax)
-            if "hline" in self.plot_format:
-                self._plot_axlines(self.plot_format["hline"], sub_ax)
-
-            if "vline" in self.plot_format:
-                self._plot_axlines(self.plot_format["vline"], sub_ax)
-
-            for tick_axis in ("x", "y"):
-                sub_ax.tick_params(
-                    axis=tick_axis,
-                    which="major",
-                    labelsize=self._ticklabel_size(tick_axis),
-                    width=self.plot_format["axis_format"]["tickwidth"],
-                    length=self.plot_format["axis_format"]["ticklength"],
-                    labelfontfamily=self.plot_format["labels"]["font"],
-                )
-
-            sub_ax.set_ylabel(
-                self.plot_labels["ylabel"],
-                fontsize=self.plot_format["labels"]["labelsize"],
-                fontfamily=self.plot_format["labels"]["font"],
-                fontweight=self.plot_format["labels"]["label_fontweight"],
-                rotation=self.plot_format["labels"]["ylabel_rotation"],
-            )
-            if self.plot_dict["facet_title"]:
-                sub_ax.set_title(
-                    self.plot_dict["group_order"][index],
-                    fontsize=self.plot_format["labels"]["labelsize"],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["title_fontweight"],
-                )
-            else:
-                sub_ax.set_title(
-                    self.plot_labels["title"],
-                    fontsize=self.plot_format["labels"]["labelsize"],
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["title_fontweight"],
-                )
-
-        if self.plot_labels["figure_title"] != "":
-            if self.fig is None:
-                raise ValueError("self.fig must not be None.")
-            self.fig.suptitle(
-                self.plot_labels["figure_title"],
-                fontsize=self.plot_format["labels"]["titlesize"],
-            )
-
 
 class CategoricalPlotter(Plotter):
     """Categorical-layout renderer: one axes with slot positions and tick labels."""
+
+    formatter_cls: ClassVar[type[FigureFormatter]] = CategoricalFormatter
 
     def create_figure(self) -> tuple[Figure, list[Axes]]:
         """Create a single-axes figure."""
@@ -1291,175 +859,6 @@ class CategoricalPlotter(Plotter):
             layout="constrained",
         )
         return fig, [ax]
-
-    def set_categorical_axis(self, ax, axis="x"):
-        """Set the categorical axis: two-tier group/subgroup ticks and labels.
-
-        Args:
-            ax: The axes to format.
-            axis ("x" | "y"): Which axis is categorical.
-
-        Raises:
-            ValueError: If the label style is unknown.
-        """
-        bottom_labels = None
-        bottom_ticks = None
-        if self.plot_dict["labels"] == "style1":
-            top_labels = self.plot_dict["group_order"]
-            top_ticks = self.plot_dict["ticks"]
-        elif self.plot_dict["labels"] == "style2":
-            top_labels = self.plot_dict["subgroup_order"]
-            top_ticks = self.plot_dict["subticks"]
-            n_repeats = len(top_ticks) // len(top_labels)
-            top_labels = np.tile(top_labels, n_repeats)
-        elif self.plot_dict["labels"] == "style3":
-            top_labels = self.plot_dict["subgroup_order"]
-            bottom_labels = self.plot_dict["group_order"]
-            if axis == "x":
-                bottom_labels = [f"\n{i}" for i in bottom_labels]
-            else:
-                bottom_labels = [f"{i}" for i in bottom_labels]
-            top_ticks = self.plot_dict["subticks"]
-            bottom_ticks = self.plot_dict["ticks"]
-            n_repeats = len(top_ticks) // len(top_labels)
-            top_labels = np.tile(top_labels, n_repeats)
-        else:
-            raise ValueError("Labels must style1, style2, style3.")
-        span = max(top_ticks) - min(top_ticks) + self.plot_dict["group_spacing"] / 2
-        margin = self.plot_format["figure"]["margins"] * span
-        if axis == "x":
-            ax.set_xticks(
-                ticks=top_ticks,
-                labels=top_labels,
-                rotation=self.plot_format["labels"]["xtick_rotation"],
-                fontfamily=self.plot_format["labels"]["font"],
-                fontweight=self.plot_format["labels"]["tick_fontweight"],
-                fontsize=self._ticklabel_size("x"),
-            )
-            ax.set_xlim(
-                min(top_ticks) - self.plot_dict["group_spacing"] / 2 - margin,
-                max(top_ticks) + self.plot_dict["group_spacing"] / 2 + margin,
-            )
-            if self.plot_format["axis_format"]["truncate_xaxis"]:
-                ticks = self.plot_dict["ticks"]
-                ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
-            if bottom_labels is not None:
-                sec = ax.secondary_xaxis(location=0)
-                sec.set_xticks(
-                    bottom_ticks,
-                    labels=bottom_labels,
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self._ticklabel_size("x"),
-                )
-                sec.tick_params(axis="x", bottom=False)
-        else:
-            ax.set_yticks(
-                ticks=top_ticks,
-                labels=top_labels,
-                rotation=self.plot_format["labels"]["xtick_rotation"],
-                fontfamily=self.plot_format["labels"]["font"],
-                fontweight=self.plot_format["labels"]["tick_fontweight"],
-                fontsize=self._ticklabel_size("y"),
-            )
-            ax.set_ylim(
-                min(top_ticks) - self.plot_dict["group_spacing"] / 2 - margin,
-                max(top_ticks) + self.plot_dict["group_spacing"] / 2 + margin,
-            )
-            if self.plot_format["axis_format"]["truncate_yaxis"]:
-                ticks = self.plot_dict["ticks"]
-                ax.spines["bottom"].set_bounds(ticks[0], ticks[-1])
-            if bottom_labels is not None:
-                sec = ax.secondary_yaxis(location="left")
-                sec.set_yticks(
-                    bottom_ticks,
-                    labels=bottom_labels,
-                    fontfamily=self.plot_format["labels"]["font"],
-                    fontweight=self.plot_format["labels"]["tick_fontweight"],
-                    fontsize=self._ticklabel_size("y"),
-                )
-                sec.tick_params(axis="y", left=False)
-
-    def format_plot(self):
-        """Format the categorical axes (spines, grid, ticks, labels, title)."""
-        ax = self.axes[0]
-
-        direction = "vertical" if self.plot_labels["x"] is None else "horizontal"
-
-        for spine, lw in self.plot_format["axis_format"]["linewidth"].items():
-            if lw == 0:
-                ax.spines[spine].set_visible(False)
-            else:
-                ax.spines[spine].set_linewidth(lw)
-        self._set_grid(ax)
-
-        if direction == "vertical":
-            self.set_axis(
-                ax,
-                self.plot_format["axis"]["ydecimals"],
-                axis="y",
-                style=self.plot_format["axis_format"]["style"],
-            )
-            self.set_categorical_axis(ax)
-            ax.set_ylabel(
-                self.plot_labels["ylabel"],
-                fontsize=self.plot_format["labels"]["labelsize"],
-                fontfamily=self.plot_format["labels"]["font"],
-                fontweight=self.plot_format["labels"]["label_fontweight"],
-                rotation=self.plot_format["labels"]["ylabel_rotation"],
-            )
-        else:
-            self.set_axis(
-                ax,
-                self.plot_format["axis"]["ydecimals"],
-                axis="x",
-                style=self.plot_format["axis_format"]["style"],
-            )
-            self.set_categorical_axis(ax, axis="y")
-            ax.set_xlabel(
-                self.plot_labels["ylabel"],
-                fontsize=self.plot_format["labels"]["labelsize"],
-                fontfamily=self.plot_format["labels"]["font"],
-                fontweight=self.plot_format["labels"]["label_fontweight"],
-                rotation=self.plot_format["labels"]["xlabel_rotation"],
-            )
-
-        if "hline" in self.plot_format:
-            self._plot_axlines(self.plot_format["hline"], ax)
-
-        if "vline" in self.plot_format:
-            self._plot_axlines(self.plot_format["vline"], ax)
-
-        ax.set_title(
-            self.plot_labels["title"],
-            fontsize=self.plot_format["labels"]["titlesize"],
-            fontfamily=self.plot_format["labels"]["font"],
-            fontweight=self.plot_format["labels"]["title_fontweight"],
-        )
-        for tick_axis in ("x", "y"):
-            ax.tick_params(
-                axis=tick_axis,
-                which="major",
-                labelsize=self._ticklabel_size(tick_axis),
-                width=self.plot_format["axis_format"]["tickwidth"],
-                length=self.plot_format["axis_format"]["ticklength"],
-                labelfontfamily=self.plot_format["labels"]["font"],
-            )
-        ax.margins(x=self.plot_format["figure"]["margins"])
-
-        if "legend_dict" in self.plot_dict:
-            handles = self._make_legend_patches(
-                color_dict=self.plot_dict["legend_dict"][0],
-                alpha=self.plot_dict["legend_dict"][1],
-                group=self.plot_dict["group_order"],
-                subgroup=self.plot_dict["subgroup_order"],
-            )
-            ax.legend(
-                handles=handles,
-                bbox_to_anchor=self.plot_dict["legend_anchor"],
-                loc=self.plot_dict["legend_loc"],
-                frameon=False,
-            )
 
 
 # def _plot_network(

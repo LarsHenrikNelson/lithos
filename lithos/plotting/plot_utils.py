@@ -1,4 +1,3 @@
-from fractions import Fraction
 from typing import Any
 
 import colorcet as cc
@@ -161,29 +160,6 @@ def _process_colors(
         ValueError("Unknown color processing issue")
 
 
-def radian_ticks(ticks: list | np.ndarray, rotate=False):
-    pi_symbol = "\u03c0"
-    mm = [int(180 * i / np.pi) for i in ticks]
-    if rotate:
-        mm = [deg if deg <= 180 else deg - 360 for deg in mm]
-    jj = [Fraction(deg / 180) if deg != 0 else 0 for deg in mm]
-    output = []
-    for t in jj:
-        sign = "-" if t < 0 else ""
-        t = abs(t)
-        if t.numerator == 0 or t == 0:
-            output.append("0")
-        elif t.numerator == 1 and t.denominator == 1:
-            output.append(f"{sign}{pi_symbol}")
-        elif abs(t.denominator) == 1:
-            output.append(f"{t.numerator}{pi_symbol}")
-        elif abs(t.numerator) == 1:
-            output.append(f"{sign}{pi_symbol}/{t.denominator}")
-        else:
-            output.append(f"{sign}{t.numerator}{pi_symbol}/{t.denominator}")
-    return output
-
-
 def process_duplicates(values, output=None):
     vals, counts = np.unique(
         values,
@@ -246,40 +222,6 @@ def _invert(array, invert):
         return array
 
 
-def get_ticks(
-    lim,
-    axis_lim,
-    ticks,
-    steps,
-):
-    if lim[0] is None:
-        bottom = ticks[0]
-    else:
-        bottom = lim[0]
-    if lim[1] is None:
-        top = ticks[-1]
-    else:
-        top = lim[1]
-    lim = (bottom, top)
-    if axis_lim is None:
-        axis_lim = (bottom, top)
-    if axis_lim[0] is None:
-        axis_bottom = lim[0]
-    else:
-        axis_bottom = axis_lim[0]
-    if axis_lim[1] is None:
-        axis_top = lim[1]
-    else:
-        axis_top = axis_lim[1]
-    axis_lim = (axis_bottom, axis_top)
-    ticks = np.linspace(
-        axis_lim[0],
-        axis_lim[1],
-        steps[0],
-    )
-    return lim, axis_lim, ticks
-
-
 def _bin_data(data, bins, axis_type, invert, cutoff):
     if cutoff is not None:
         temp = np.sort(data)
@@ -300,13 +242,6 @@ def _bin_data(data, bins, axis_type, invert, cutoff):
     bottom = np.cumsum(bottom)
     top = binned_data
     return top, bottom
-
-
-def _decimals(data):
-    temp = np.abs(data)
-    temp = temp[temp > 0.0]
-    decimals = np.abs(int(np.max(np.round(np.log10(temp))))) + 2
-    return decimals
 
 
 def _process_groups(df, group, subgroup, group_order, subgroup_order):

@@ -1,9 +1,11 @@
 """Spec plotters: render resolved layers through the legacy matplotlib machinery.
 
 The spec plotters reuse the legacy ``LinePlotter``/``CategoricalPlotter``
-figure creation and axis/label formatting (that is where the categorical
-tick/label system lives), but replace the plot-method dispatch with element
-rendering: each layer's resolved geometry is drawn once per element spec.
+figure creation and - through the ``format_plot()`` delegation inherited from
+them - the :mod:`lithos.plotting.formatting` formatters (the categorical
+tick/label system lives there), but replace the plot-method dispatch with
+element rendering: each layer's resolved geometry is drawn once per element
+spec.
 
 Supported element/geometry combinations for this slice: point/curve geometry
 (``Marker``, ``Line``, ``ErrorBar``, ``ErrorBand``, density ``Fill``),
@@ -42,11 +44,11 @@ from .resolver import locate_key
 
 
 class _LayerView:
-    """Minimal ``plot_data`` wrapper so legacy ``format_plot()`` can read plot types."""
+    """Minimal ``plot_data`` wrapper so ``format_plot()`` can collect plot-type names."""
 
     def __init__(self, layer: dict):
         name = layer["transform"]["name"]
-        # legacy format_plot() special-cases "hist"; the transform is "histogram"
+        # the continuous formatter special-cases "hist"; the transform is "histogram"
         self.plot_type = "hist" if name == "histogram" else name
 
 

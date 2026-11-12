@@ -36,6 +36,9 @@ Spec: backend-agnostic element dicts (serializable, JSON-ready)
         |
         v
 Plotters (matplotlib now; JS/other later)
+  matplotlib backend = rendering (geometry -> artists)
+                   + formatting (axes/tick/label/legend styling;
+                     see the formatting/rendering split decision)
 ```
 
 ### Design decision (agreed): transform owns aggregation AND error
@@ -50,6 +53,69 @@ pure formatting and never compute statistics. Consequence:
 draws the marker, error bar, and error band from the *single* error geometry
 produced by the transform - stacked error elements can never disagree with each
 other.
+
+### Design decision (agreed): plot formatting is a separate component from rendering
+
+Plot formatting (spines, ticks/tick labels, minor ticks, grid, limits and
+scale transforms, margins, axis/title labels, reference lines, legend patches,
+polar radian ticks, the categorical two-tier tick system) is *generic
+matplotlib machinery*: every value it needs comes from the serialized format
+dicts (`format`/`labels`/`transforms` metadata) plus a small layout context
+(group order, tick slots, legend colors). It never touches lithos geometry,
+statistics or group keys. Rendering (geometry dicts -> matplotlib artists) is
+the lithos-specific half. Both currently share one class hierarchy -
+`Plotter`/`LinePlotter`/`CategoricalPlotter` - and the spec plotters inherit
+the legacy plotters *only* to reuse formatting and figure creation.
+
+The split moves formatting into `lithos/plotting/formatting.py`, shaped so it
+can later be applied to any matplotlib figure:
+
+```
+FigureFormatter(fig, axes, plot_format, plot_labels, plot_transforms, plot_dict)
+    label_size / set_grid / draw_axlines / set_lims / format_ticklabels /
+    set_axis / set_minorticks / legend_patches / plot_legend
+    format(plot_types=...)                             (layout subclass hook)
+ContinuousFormatter(FigureFormatter)   rectilinear + polar, kde/hist limits
+CategoricalFormatter(FigureFormatter)  slot ticks, two-tier group labels
+```
+
+Contract (the extraction is pure code motion - behavior preserved):
+
+- The formatter holds *references* to the metadata dicts, so write-through
+  mutations (the kde/hist default `ylim`/`xlim`, applied when the user limit
+  is `None`) still land in the plot class's format dict and are captured by
+  metadata save.
+- `format(plot_types=...)` receives plot-type *names* explicitly. Legacy
+  `format_plot()` peeked at `self.plot_data` (the spec side built `_LayerView`
+  solely to satisfy that peek); after the split formatting no longer reads
+  plotter state.
+- Ordering is unchanged: `plot()` -> `_plot()` (artists + decorations) ->
+  `format_plot()` (formatting) -> `savefig()`, so significance brackets draw
+  before the axes autoscale and stay inside the limits.
+- The rcParams side effects (`pdf.fonttype`/`svg.fonttype`) stay with
+  `Plotter.__init__` for now.
+- The tick helpers `get_ticks`/`radian_ticks` (and `_decimals`, currently
+  imported but unused) move from `plot_utils.py` into the formatting module;
+  nothing else uses them.
+
+Plotters *compose* a formatter selected by layout: a `formatter_cls` ClassVar
+plus one `Plotter.format_plot()` that builds the formatter from the plotter's
+own state (`plot_format`, `plot_labels`, `plot_transforms`, `plot_dict`) and
+calls `format(plot_types=[p.plot_type for p in self.plot_data])`.
+`LinePlotter` binds `ContinuousFormatter`, `CategoricalPlotter` binds
+`CategoricalFormatter`; rendering and figure lifecycle (`create_figure`,
+`plot()`, `savefig`) stay in `matplotlib_plotter.py`, and `Plotter.plot_legend()`
+stays as a thin delegate (no callers today, kept for compatibility). While the
+legacy plotters exist neither `SpecPlotter` nor the layout spec plotters need
+any changes - they inherit the delegating `format_plot()` untouched.
+
+Scope of this pass (agreed): **internal module only** - no new public exports
+and no `format_figure(fig, axes, ...)` entry point yet. A public promotion
+needs a defaults story that does not duplicate the format builder methods
+(`labels()`/`axis()`/... - themselves duplicated between legacy `BasePlot` and
+spec `Plot` today); moving those builders is explicitly out of scope here.
+Because the formatter takes plain `(fig, axes)` plus dicts, the promotion is a
+small additive follow-up. Also out of scope: any metadata schema change.
 
 ## Element catalog (pure formatting, dataclasses -> `asdict()`)
 
@@ -313,6 +379,22 @@ are an `Identity` layer; the mean marker and notch are roles/`notch=`).
 Legacy styling kwargs do not return - verbs expose
 `color`/`alpha` plus roles only; finer styling is a `.add()` layer.
 
+### Phase 2.6 - Formatting/rendering split (current; internal, no public API)
+
+Move the axes/tick/label/legend formatting machinery from
+`matplotlib_plotter.py` into `lithos/plotting/formatting.py`
+(`FigureFormatter` -> `ContinuousFormatter`/`CategoricalFormatter`) per the
+design decision above. Plotters keep figure lifecycle (`create_figure`,
+`plot()`, `savefig`) and all rendering; `format_plot()` delegates through the
+layout's `formatter_cls`. Verified by a new `tests/formatting_test.py`
+(direct formatter tests on hand-made Agg axes: grid, spine show/hide, tick
+decimals and the tick window, minor ticks, reference lines, legend patches,
+kde/hist default-limit write-through, categorical label styles, polar radian
+ticks) plus the existing end-to-end suite (`spec_plot_test.py` axis/artist
+assertions). Prerequisite for Phase 3: once the legacy plotters are removed,
+the spec plotters select formatting by composition instead of dual
+inheritance.
+
 ### Phase 3 - Collapse
 - Flip the top-level `lithos.LinePlot`/`lithos.CategoricalPlot` exports
   from the legacy classes to the spec ones (same names, now carrying the
@@ -326,8 +408,9 @@ Legacy styling kwargs do not return - verbs expose
 
 ## Open questions (parked until their phase)
 
-- Facet / polar figure handling stays renderer-side (`create_figure`,
-  `format_polar`) - not part of the spec.
+- Facet / polar figure handling stays renderer-side (`create_figure`) - not
+  part of the spec. Polar tick formatting (`format_polar`) moved to the
+  formatting module with the Phase 2.6 split.
 - `bin_limits="common"`-style cross-group binning inside `Histogram`
   (resolved: `Histogram(bin_limits="common")` computes global edges, shared
   by every group/subject hist).
